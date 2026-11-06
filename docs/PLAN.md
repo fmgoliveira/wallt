@@ -162,7 +162,8 @@ Rule: `core`, `ingest`, `categorize`, `sync` are **pure** (no React, no IO) → 
 | `payee_aliases` | raw pattern → clean payee name |
 | `attachments` | transaction_id, file path, mime |
 | `fx_rates` | date, base, quote, rate (server-only, read-only on client) |
-| Server-only | `users`, `devices`, `refresh_tokens`, `bank_connections`, `bank_accounts`, `sync_log`, `import_profiles`, `ml_models`, `backup_runs`, `job_runs` |
+| `import_profiles` | name, institution?, default_account_id?, fingerprints (json), config (json) — synced (§5.2) |
+| Server-only | `users`, `devices`, `refresh_tokens`, `bank_connections`, `bank_accounts`, `sync_log`, `ml_models`, `backup_runs`, `job_runs` |
 
 Indexes: `transactions(account_id, booking_date)`, `transactions(dedup_hash)`, `transactions(external_id)`, `transactions(needs_review)`, `server_seq` on every synced table.
 

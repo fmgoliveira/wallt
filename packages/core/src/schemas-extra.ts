@@ -122,3 +122,13 @@ export type Rule = z.infer<typeof ruleSchema>;
 export type PayeeAlias = z.infer<typeof payeeAliasSchema>;
 export type Attachment = z.infer<typeof attachmentSchema>;
 export type FxRate = z.infer<typeof fxRateSchema>;
+
+/** Synced (PLAN 5.2). `config` is opaque here; its shape is defined by the import work (#34, #37). */
+export const importProfileSchema = syncedRowSchema.extend({
+  name: z.string().trim().min(1),
+  institution: z.string().nullable(),
+  defaultAccountId: idSchema.nullable(),
+  fingerprints: z.array(z.string().min(1)).min(1),
+  config: z.record(z.string(), z.unknown()),
+});
+export type ImportProfile = z.infer<typeof importProfileSchema>;
