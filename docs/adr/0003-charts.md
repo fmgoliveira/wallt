@@ -1,6 +1,6 @@
 # ADR 0003 — Charts library
 
-- Status: **Proposed — awaiting owner decision**
+- Status: **Accepted** (owner, 2026-11-06). Android check still outstanding; see Decision.
 - Issue: #5 · Plan: §2.1
 
 ## Context
@@ -57,7 +57,7 @@ not a capability gap for the §1.3 chart list.
 revisit B for native-only (Skia on Android, SVG on web is possible behind the same wrappers).
 
 ## Decision
-_Pending owner decision._
+Owner accepted option A: react-native-gifted-charts for v1, behind wrappers in `packages/ui`. Follow-up: verify rendering and performance on Android during P4.4; if poor, revisit Skia for native only via a new ADR.
 
 ## Consequences (if recommendation accepted)
 - P4.4 builds chart wrappers in `packages/ui` on gifted-charts; add `react-native-svg` and `expo-linear-gradient` to `apps/app`.
