@@ -39,7 +39,7 @@ Screenshots (web, phone 390 / tablet 768 / desktop 1280, light + dark): `assets/
 0. **Glass is a web-only effect for now.** `backdrop-filter` (NativeWind `backdrop-blur-*`, applied via the `web:` variant) gives real glass on web.
    On Android the same classes are expected to fall back to translucent fills with a border (no blur; not verified on device). Real blur on Android needs `expo-blur`
    (a native module, still experimental on Android); the background glows are also blurred with a CSS filter on web only (a soft
-   gradient on native). **`expo-blur` was approved by the owner (plan rule: ask before native dependencies); Android behaviour still to be verified in P2.1.
+   gradient on native). `expo-blur` was approved by the owner (plan rule: ask before native dependencies); Android behaviour still to be verified in P2.1.
    Glass looks best in dark mode; in light mode it is subtle by design.
 1. **Moti is not usable as-is on web.** It pulls in `framer-motion` 6.5.1 (old, 2022) and crashed Expo's Node static
    renderer (`Cannot destructure property '__extends' of 'tslib.default'`). I replaced it with Reanimated directly
