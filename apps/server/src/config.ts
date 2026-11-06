@@ -10,6 +10,10 @@ const schema = z.object({
   DATA_DIR: z.string().min(1).default("/data"),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
   APP_URL: z.url().optional(),
+  /** Static Expo web export to serve on the same origin; unset = API only. */
+  WEB_DIR: z.string().min(1).optional(),
+  /** Reverse proxies (IPs/CIDRs) whose X-Real-IP is trusted; default loopback. */
+  TRUSTED_PROXIES: z.string().default("127.0.0.1,::1"),
   TZ: z.string().min(1).optional(),
   /** Optional until a feature needs it (auth secrets, bank secrets, backups). */
   ENCRYPTION_KEY: base64Key.optional(),

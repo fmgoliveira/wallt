@@ -1,6 +1,6 @@
 # ADR 0001 — Stack and pinned versions
 
-- Status: **Proposed — awaiting owner review (all ADRs must be approved before P1 starts)**
+- Status: **Proposed — awaiting owner review (all ADRs must be approved before P1 dev and starts)**
 - Issue: #7 · Plan: §2.1
 - Related: [ADR 0002 — web local DB](0002-web-local-db.md) · [ADR 0003 — charts](0003-charts.md) · [ADR 0004 — styling](0004-styling.md)
   (these live in open PRs #63, #64 and #67 until merged, so the links resolve after those merge).
@@ -60,6 +60,7 @@ Mobile/native packages follow **Expo SDK 58's bundled versions** (not npm latest
 | better-sqlite3 | 13.0.3 | in use (P1.3) | SQLite (WAL); native addon, must build in the Docker image |
 | croner | 11.0.0 | in use (P1.3) | in-process jobs |
 | pino | 10.4.0 | in use (P1.3) | structured logs |
+| esbuild / tsx | 0.28.2 / 4.23.15 | in use (P1.5) | esbuild bundles the server for the image; tsx runs the server dev and start scripts |
 | argon2 | 0.45.2 | planned (P1.4) | password hashing (native addon); owner-review task |
 | age-encryption | 0.3.1 | planned (P1.6) | backup encryption (pure JS); owner-review task |
 

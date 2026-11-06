@@ -37,13 +37,13 @@ A self-hosted personal budget tracker with feature parity with Cashew, plus auto
 | Banks | Portuguese banks + EU neobanks via **PSD2 aggregator (Enable Banking)**; universal **file import** as fallback |
 | Categorization | **Rules + local ML** (runs on your server, no data leaves it); low-confidence → review queue shown on app open |
 | Design | Modern, identical design language on Android and web |
-| Access | Public at **https://wallt.franciscoliveira.com** via Cloudflare Tunnel; own auth with **mandatory 2FA (TOTP)** |
+| Access | Public at **https://wallt.franciscoliveira.com** behind the host nginx (TLS terminated there); own auth with **mandatory 2FA (TOTP)** |
 | Users | Single user in v1; **multi-user possibly later** → `user_id` on every row, every query scoped by it |
 | Attachments | Receipts/files per transaction **in v1, optional** |
 | Bank connections | Initially **ActivoBank** + **Trade Republic**; fully configurable in-app (add/remove any supported bank) |
 
 ### 1.2 Assumptions (confirm or correct — ask if unsure)
-- Deployed on your existing Linux VM behind Cloudflare Tunnel (no open ports on the VM).
+- Deployed on a public Linux server in Docker, behind the nginx already running on the host (no Cloudflare Tunnel; decision changed in #12).
 - Base currency EUR; other currencies supported per account.
 - UI languages: Portuguese + English.
 
@@ -278,7 +278,7 @@ Design:
   - Schedule: daily 03:30 local time + before every migration. Retention: 14 daily, 8 weekly, 12 monthly (GFS), pruning on Drive.
   - `restore` CLI command: download → decrypt → verify integrity (`PRAGMA integrity_check`) → swap DB.
   - CI test: backup → restore → row counts match. Settings screen shows last backup time/status; notify on failure.
-- Exposure: public at `https://wallt.franciscoliveira.com` through Cloudflare Tunnel (no inbound ports). Security relies on app auth: mandatory TOTP 2FA, login rate limiting + lockout, secure tokens, CSP and security headers; Cloudflare WAF rate-limit rule on `/auth/*`. Cloudflare Access is not used on the API because the Android app must reach it directly. **Ask before changing what is exposed.**
+- Exposure: public at `https://wallt.franciscoliveira.com` through the host nginx (TLS + `limit_req` on `/auth/*`); the container is published on 127.0.0.1 only. Security relies on app auth: mandatory TOTP 2FA, login rate limiting + lockout, secure tokens, CSP and security headers sent by the app. The app trusts `X-Real-IP` only from `TRUSTED_PROXIES`. No Cloudflare Access/Tunnel/WAF (owner decision in #12). See `docs/deploy.md`. **Ask before changing what is exposed.**
 
 ---
 
@@ -435,7 +435,7 @@ Each task = one GitHub issue = one PR (unless noted). Acceptance criteria (AC) m
 ## 13. Open questions for the owner (answer before the related phase)
 1. ~~App name~~ → **Wallt** (decided).
 2. ~~Banks~~ → ActivoBank + Trade Republic initially; configurable in-app (decided, #58).
-3. ~~Exposure~~ → public `wallt.franciscoliveira.com` via Cloudflare Tunnel + app auth with 2FA (decided, #55).
+3. ~~Exposure~~ → public `wallt.franciscoliveira.com` behind host nginx + app auth with 2FA (#55; Cloudflare Tunnel dropped by owner in #12).
 4. ~~Second user~~ → possibly later; scope everything by `user_id` (decided, #56).
 5. ~~Attachments~~ → v1, optional (decided, #57).
 

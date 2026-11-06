@@ -29,6 +29,7 @@ describe("loadConfig", () => {
       PORT: 3000,
       DATA_DIR: "/data",
       LOG_LEVEL: "info",
+      TRUSTED_PROXIES: "127.0.0.1,::1",
     });
   });
   it("validates values", () => {
