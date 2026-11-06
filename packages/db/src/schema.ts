@@ -249,3 +249,19 @@ export const fxRates = sqliteTable(
   },
   (t) => [primaryKey({ columns: [t.date, t.base, t.quote] })],
 );
+
+/** Synced (PLAN 5.2): user-editable bank file formats. `config` shape is defined by the import work (#34, #37). */
+export const importProfiles = sqliteTable(
+  "import_profiles",
+  {
+    ...synced(),
+    name: text("name").notNull(),
+    institution: text("institution"),
+    defaultAccountId: text("default_account_id"),
+    /** JSON array of header fingerprints */
+    fingerprints: text("fingerprints").notNull(),
+    /** JSON: decoding, columns, date format, sign rule, cleanup, ... */
+    config: text("config").notNull(),
+  },
+  (t) => [index("import_profiles_server_seq_idx").on(t.serverSeq)],
+);

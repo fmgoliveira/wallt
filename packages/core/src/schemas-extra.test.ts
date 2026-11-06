@@ -5,6 +5,7 @@ import {
   debtSchema,
   fxRateSchema,
   goalSchema,
+  importProfileSchema,
   payeeAliasSchema,
   recurringRuleSchema,
   ruleSchema,
@@ -105,5 +106,20 @@ describe("extra schemas", () => {
     expect(fxRateSchema.safeParse(fx).success).toBe(true);
     expect(fxRateSchema.safeParse({ ...fx, rate: 1.0837 }).success).toBe(false);
     expect(fxRateSchema.safeParse({ ...fx, rate: "-1" }).success).toBe(false);
+  });
+});
+
+describe("import profile", () => {
+  it("requires a fingerprint and accepts opaque config", () => {
+    const p = {
+      ...base,
+      name: "BCP",
+      institution: null,
+      defaultAccountId: null,
+      fingerprints: ["abc"],
+      config: { delimiter: ";" },
+    };
+    expect(importProfileSchema.safeParse(p).success).toBe(true);
+    expect(importProfileSchema.safeParse({ ...p, fingerprints: [] }).success).toBe(false);
   });
 });

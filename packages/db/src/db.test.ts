@@ -40,18 +40,25 @@ const ctx = (userId: string) => ({ userId, newId, now: "2024-01-01T00:00:00.000Z
 const EXPECTED_TABLES = [
   "accounts",
   "attachments",
+  "backup_runs",
   "budgets",
   "categories",
   "debts",
+  "devices",
   "fx_rates",
   "goals",
+  "import_profiles",
+  "job_runs",
+  "ml_models",
   "payee_aliases",
   "recurring_rules",
+  "refresh_tokens",
   "rules",
   "tags",
   "transaction_splits",
   "transaction_tags",
   "transactions",
+  "users",
 ];
 
 describe("migrations", () => {
@@ -138,5 +145,44 @@ describe("seedDefaultCategories", () => {
     expect(await seedDefaultCategories(db, ctx("u2"))).toBe(total);
     const n = (await db.all<{ n: number }>("SELECT COUNT(*) AS n FROM categories"))[0]?.n;
     expect(n).toBe(total * 2);
+  });
+});
+
+describe("server-only tables", () => {
+  const user = (id: string, email: string) =>
+    [
+      "INSERT INTO users (id, email, password_hash, created_at, updated_at) VALUES (?, ?, 'h', 't', 't')",
+      [id, email],
+    ] as const;
+
+  it("enforce unique email and foreign keys, and cascade deletes", async () => {
+    const { db } = open();
+    await migrate(db);
+    await db.run(...user("u1", "a@b.c"));
+    await expect(db.run(...user("u2", "a@b.c"))).rejects.toThrow();
+    await expect(
+      db.run(
+        "INSERT INTO devices (id, user_id, name, platform, created_at) VALUES ('d0', 'nope', 'x', 'web', 't')",
+      ),
+    ).rejects.toThrow();
+    await db.run(
+      "INSERT INTO devices (id, user_id, name, platform, created_at) VALUES ('d1', 'u1', 'x', 'web', 't')",
+    );
+    const token =
+      "INSERT INTO refresh_tokens (id, user_id, device_id, token_hash, family_id, created_at, expires_at) VALUES (?, 'u1', 'd1', ?, 'f', 't', 't')";
+    await db.run(token, ["r1", "hash"]);
+    await expect(db.run(token, ["r2", "hash"])).rejects.toThrow();
+    await db.run("DELETE FROM users WHERE id = 'u1'");
+    expect(await db.all("SELECT id FROM devices")).toEqual([]);
+    expect(await db.all("SELECT id FROM refresh_tokens")).toEqual([]);
+  });
+  it("default recovery codes to an empty JSON array", async () => {
+    const { db } = open();
+    await migrate(db);
+    await db.run(...user("u1", "a@b.c"));
+    const rows = await db.all<{ recovery_codes: string; failed_attempts: number }>(
+      "SELECT recovery_codes, failed_attempts FROM users",
+    );
+    expect(rows[0]).toEqual({ recovery_codes: "[]", failed_attempts: 0 });
   });
 });
