@@ -1,5 +1,5 @@
 {
   "extends": "@wallt/config/tsconfig.base.json",
-  "compilerOptions": { "rootDir": "src", "outDir": "dist" },
+  "compilerOptions": { "noEmit": false, "rootDir": "src", "outDir": "dist", "declaration": false },
   "include": ["src"]
 }

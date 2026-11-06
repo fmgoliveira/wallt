@@ -1,5 +1,5 @@
 {
-  "extends": "@wallt/config/tsconfig.base.json",
-  "compilerOptions": { "rootDir": "src", "outDir": "dist" },
-  "include": ["src"]
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": { "strict": true, "noEmit": true },
+  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"]
 }
