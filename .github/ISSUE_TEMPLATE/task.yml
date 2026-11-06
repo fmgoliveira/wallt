@@ -1,0 +1,24 @@
+name: Task
+description: A unit of work from the plan (one issue = one PR)
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+    validations:
+      required: true
+  - type: textarea
+    id: ac
+    attributes:
+      label: Acceptance criteria
+      value: "- [ ] "
+    validations:
+      required: true
+  - type: input
+    id: plan
+    attributes:
+      label: Plan reference
+      placeholder: "docs/PLAN.md §5.2"
+  - type: markdown
+    attributes:
+      value: "**In case of doubt, ask first** — comment here with the `question` label before writing code."

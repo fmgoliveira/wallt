@@ -1,0 +1,11 @@
+# Architecture Decision Records
+
+One file per decision: `NNNN-short-title.md` with sections **Context**, **Options**, **Decision**, **Consequences**.
+
+Planned in P0:
+- 0001 — Stack & pinned versions
+- 0002 — Local DB on web (expo-sqlite WASM vs remote repository)
+- 0003 — Charts library
+- 0004 — Styling (NativeWind + Reanimated on web/Android)
+
+ADRs are reviewed by the owner before the dependent work starts.

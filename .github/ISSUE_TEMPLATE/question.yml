@@ -1,0 +1,21 @@
+name: Question / decision needed
+description: Ask the owner before proceeding
+labels: [question]
+body:
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: What are you working on and what is unclear?
+    validations:
+      required: true
+  - type: textarea
+    id: options
+    attributes:
+      label: Options & recommendation
+    validations:
+      required: true
+  - type: textarea
+    id: default
+    attributes:
+      label: What I will do if there is no answer
