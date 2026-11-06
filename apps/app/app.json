@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "Wallt",
+    "slug": "wallt",
+    "scheme": "wallt",
+    "version": "0.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "plugins": ["expo-router"],
+    "android": { "package": "app.wallt" },
+    "web": { "bundler": "metro", "output": "static" },
+    "experiments": { "typedRoutes": true }
+  }
+}
