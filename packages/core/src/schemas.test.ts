@@ -43,6 +43,7 @@ const category = {
   color: null,
   archived: false,
   sortOrder: 1,
+  systemKey: null,
 };
 const tx = {
   ...base,

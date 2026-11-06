@@ -52,6 +52,8 @@ export const categorySchema = syncedRowSchema.extend({
   color: colorSchema.nullable(),
   archived: z.boolean(),
   sortOrder: z.int(),
+  /** Stable key of a seeded default category; null for user-created ones. */
+  systemKey: z.string().nullable(),
 });
 
 export const transactionStatusSchema = z.enum(["pending", "booked"]);

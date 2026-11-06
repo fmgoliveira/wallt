@@ -47,7 +47,7 @@ Mobile/native packages follow **Expo SDK 58's bundled versions** (not npm latest
 | expo-blur / expo-linear-gradient | ~58.0.5 / ~58.0.3 | planned (P2.1) | glass and gradients; blur on Android to be verified |
 | react-native-gifted-charts + react-native-svg | 1.4.81 + 15.16.0 | planned (P4.4) | ADR 0003; svg per Expo bundle |
 | expo-sqlite | ~58.0.15 | planned (P2.3, Android only) | local DB; async API only |
-| drizzle-orm / drizzle-kit | 0.45.4 / 0.31.11 | planned (P1.2) | schema + migrations shared by app and server |
+| drizzle-orm / drizzle-kit | 0.45.4 / 0.31.11 | in use (P1.2) | schema + migrations shared by app and server |
 | @tanstack/react-query | 5.106.1 | planned (P2) | server/derived data |
 | zustand | 5.1.0 | planned (P2.1) | UI state, owned colour scheme |
 | react-hook-form + @hookform/resolvers | 7.91.0 + 7.0.3 | planned (P2.6) | forms |
