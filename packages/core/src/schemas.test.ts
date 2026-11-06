@@ -64,6 +64,7 @@ const tx = {
   externalId: null,
   dedupHash: "x",
   importBatchId: null,
+  debtId: null,
   categorization: { method: "none", confidence: 0, needsReview: true },
 };
 
