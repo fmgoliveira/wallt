@@ -7,7 +7,7 @@ export const currencySchema = z.string().regex(/^[A-Z]{3}$/, "ISO 4217 code");
 export const calendarDateSchema = z.string().refine(isValidDate, "YYYY-MM-DD");
 export const timestampSchema = z.iso.datetime();
 export const idSchema = z.uuidv7();
-const colorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/);
+export const colorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/);
 
 /** Columns present on every synced table (PLAN §3.2). */
 export const syncedRowSchema = z.object({
@@ -84,6 +84,7 @@ export const transactionSchema = syncedRowSchema.extend({
   externalId: z.string().nullable(),
   dedupHash: z.string(),
   importBatchId: idSchema.nullable(),
+  debtId: idSchema.nullable(),
   categorization: categorizationSchema,
 });
 
