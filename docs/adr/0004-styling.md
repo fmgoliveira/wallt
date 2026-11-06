@@ -1,6 +1,6 @@
 # ADR 0004 — Styling and animation (NativeWind + Reanimated)
 
-- Status: **Proposed — awaiting owner decision**
+- Status: **Accepted** (owner, 2026-11-06), including `expo-blur`. Android verification still outstanding; see Decision.
 - Issue: #6 · Plan: §2.1, §9
 
 ## Context
@@ -39,7 +39,7 @@ Screenshots (web, phone 390 / tablet 768 / desktop 1280, light + dark): `assets/
 0. **Glass is a web-only effect for now.** `backdrop-filter` (NativeWind `backdrop-blur-*`, applied via the `web:` variant) gives real glass on web.
    On Android the same classes are expected to fall back to translucent fills with a border (no blur; not verified on device). Real blur on Android needs `expo-blur`
    (a native module, still experimental on Android); the background glows are also blurred with a CSS filter on web only (a soft
-   gradient on native). **Adding `expo-blur` is a decision for the owner** (plan rule: ask before native dependencies).
+   gradient on native). **`expo-blur` was approved by the owner (plan rule: ask before native dependencies); Android behaviour still to be verified in P2.1.
    Glass looks best in dark mode; in light mode it is subtle by design.
 1. **Moti is not usable as-is on web.** It pulls in `framer-motion` 6.5.1 (old, 2022) and crashed Expo's Node static
    renderer (`Cannot destructure property '__extends' of 'tslib.default'`). I replaced it with Reanimated directly
@@ -69,11 +69,11 @@ Screenshots (web, phone 390 / tablet 768 / desktop 1280, light + dark): `assets/
 fall back to option C behind the same `packages/ui` components.
 
 ## Decision
-_Pending owner decision._
+Owner accepted option A (NativeWind v4 + Reanimated, Moti dropped) and approved adding `expo-blur` for glass on Android. P2.1 must verify on Android (emulator or device) that NativeWind, Reanimated and `expo-blur` render and perform acceptably before the component library is built on them; if not, fall back to option C (or translucent fills without blur) behind the same `packages/ui` components and update this ADR.
 
 ## Consequences (if recommendation accepted)
 - P2.1 sets up NativeWind (Babel, Metro, Tailwind preset with design tokens, `darkMode: "class"`, owned scheme store) in `apps/app`/`packages/ui`.
 - Adds `nativewind`, `tailwindcss`, `react-native-css-interop`, `react-native-reanimated`, `react-native-worklets`, `expo-linear-gradient` to `apps/app`.
-- Glass on Android (`expo-blur`) is a separate owner decision; until then native gets translucent fills without blur.
+- `expo-blur` (Expo-bundled native module) is added for Android glass; wrap it in a `GlassSurface` component in `packages/ui` that uses `backdrop-filter` on web and `BlurView` on native, with a translucent-fill fallback.
 - Biome config disables `noUnknownAtRules` for CSS.
 - Plan §2.1's "Moti" is dropped; animations use Reanimated.
