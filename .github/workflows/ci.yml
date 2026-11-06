@@ -54,8 +54,24 @@ jobs:
           context: .
           file: apps/server/Dockerfile
           push: false
+          load: true
+          tags: wallt:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - name: Report image size
+        if: steps.has.outputs.found == 'true'
+        run: |
+          size=$(docker image inspect wallt:ci --format '{{.Size}}')
+          echo "### Image size: $((size / 1024 / 1024)) MiB" >> "$GITHUB_STEP_SUMMARY"
+          echo "wallt:ci = $((size / 1024 / 1024)) MiB"
+      - name: Smoke test (starts with only a /data volume)
+        if: steps.has.outputs.found == 'true'
+        run: |
+          docker run -d --name wallt -p 3000:3000 wallt:ci
+          for i in $(seq 1 30); do curl -fsS localhost:3000/health && break; sleep 1; done
+          curl -fsS localhost:3000/health
+          echo "web: $(curl -fsS -o /dev/null -w '%{http_code}' localhost:3000/)"
+          docker logs wallt
 
   gitleaks:
     name: secret scan
