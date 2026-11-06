@@ -56,10 +56,10 @@ Mobile/native packages follow **Expo SDK 58's bundled versions** (not npm latest
 ## Server (`apps/server`)
 | Dependency | Version | Status | Why / note |
 |---|---|---|---|
-| hono + @hono/node-server | 4.13.16 + 2.1.6 | planned (P1.3) | small API server |
-| better-sqlite3 | 13.0.3 | planned (P1.3) | SQLite (WAL); native addon, must build in the Docker image |
-| croner | 11.0.0 | planned (P1.3) | in-process jobs |
-| pino | 10.4.0 | planned (P1.3) | structured logs |
+| hono + @hono/node-server | 4.13.16 + 2.1.6 | in use (P1.3) | small API server |
+| better-sqlite3 | 13.0.3 | in use (P1.3) | SQLite (WAL); native addon, must build in the Docker image |
+| croner | 11.0.0 | in use (P1.3) | in-process jobs |
+| pino | 10.4.0 | in use (P1.3) | structured logs |
 | argon2 | 0.45.2 | planned (P1.4) | password hashing (native addon); owner-review task |
 | age-encryption | 0.3.1 | planned (P1.6) | backup encryption (pure JS); owner-review task |
 
