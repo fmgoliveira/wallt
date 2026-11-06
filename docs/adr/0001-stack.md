@@ -27,7 +27,7 @@ Mobile/native packages follow **Expo SDK 58's bundled versions** (not npm latest
 | Task runner | Turborepo | 2.11.10 | cached typecheck/test/build |
 | Language | TypeScript | 7.0.2 | strict, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`; verified with Expo's base tsconfig |
 | Lint/format | Biome | 2.6.6 | one fast tool; `noUnknownAtRules` off for Tailwind CSS when added |
-| Unit tests | Vitest | 5.1.0 | runs in every package |
+| Unit tests | Vitest | 5.1.0 | runs in every package; @vitest/coverage-v8 5.1.0 in `packages/core` (100% gate on money.ts) |
 
 ## App (`apps/app`)
 | Dependency | Version | Status | Why / note |
@@ -51,7 +51,7 @@ Mobile/native packages follow **Expo SDK 58's bundled versions** (not npm latest
 | @tanstack/react-query | 5.106.1 | planned (P2) | server/derived data |
 | zustand | 5.1.0 | planned (P2.1) | UI state, owned colour scheme |
 | react-hook-form + @hookform/resolvers | 7.91.0 + 7.0.3 | planned (P2.6) | forms |
-| zod | 4.6.7 | planned (P1.1, `packages/core`) | shared validation |
+| zod | 4.6.7 | in use (P1.1, `packages/core`) | shared validation |
 
 ## Server (`apps/server`)
 | Dependency | Version | Status | Why / note |
