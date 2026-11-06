@@ -1,6 +1,6 @@
 # ADR 0002 — Local DB on web (expo-sqlite WASM vs remote repository)
 
-- Status: **Proposed — awaiting owner approval (required before P2.3)**
+- Status: **Accepted** (owner, 2026-11-06)
 - Issue: #4 · Plan: §2.1, §12
 
 ## Context
@@ -8,7 +8,7 @@ Android keeps a local SQLite copy and syncs. The web app could use the same code
 browser) or a `RemoteRepository` that calls the API directly. Both must sit behind one data-access interface.
 
 ## Spike
-Prototype: `apps/app/app/dev/sqlite-spike.tsx` (throwaway) with `expo-sqlite` 58.0.15 + `drizzle-orm` 0.45.4,
+Prototype (throwaway, since removed from the repo) with `expo-sqlite` 58.0.15 + `drizzle-orm` 0.45.4,
 Metro serving `Cross-Origin-Embedder-Policy: credentialless` + `Cross-Origin-Opener-Policy: same-origin`,
 `.wasm` as an asset. Run in Chromium 152 (Claude desktop browser pane) on Windows, dev server only.
 Table: 5 columns, composite index on (account_id, booking_date), 10,000 rows.
@@ -63,10 +63,9 @@ If you prefer A for parity with Android: the first P2.3 task is to prove Drizzle
 expo-sqlite API, and test Safari/Firefox and multi-tab, before building on it.
 
 ## Decision
-_Pending owner approval._
+Owner accepted the recommendation: async-only repository interface; `RemoteRepository` on web first; local SQLite on web deferred (revisit via a new ADR). The spike code and its dependencies were removed from the repo after the measurements were recorded here.
 
 ## Consequences (if recommendation accepted)
 - P2.3 designs `Repository` as async-only with batch/transaction support; Android implementation uses expo-sqlite + Drizzle.
 - Web gets `RemoteRepository` (requires the API endpoints earlier than the plan's P3); P3 sync client is Android-only at first.
-- The COOP/COEP headers are not needed until option A is adopted; the Metro config change in this PR is spike-only
-  and should be reverted if option B is chosen.
+- The COOP/COEP headers are not needed until option A is adopted; the spike-only Metro config change was reverted.
