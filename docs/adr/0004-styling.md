@@ -9,10 +9,15 @@ One design language on Android and web, with a real desktop layout on web (§9.2
 animation and web hover/focus.
 
 ## Spike (what was and was not measured)
-Prototype (throwaway, removed from the repo afterwards): one screen with nav (bottom tabs → rail → labelled sidebar),
-three stat cards (row on desktop), a staggered spring entrance and an infinite pulse, a dark-mode toggle, and hover/focus
-styles. Stack: `nativewind` 4.2.7 + `tailwindcss` 3.4.19 + `react-native-css-interop` 0.2.7, `react-native-reanimated` 4.7.1 +
-`react-native-worklets` 0.13.0, on Expo SDK 58 / expo-router, Chromium 152 (Claude browser pane, Windows).
+Prototype (throwaway, removed from the repo afterwards), restyled once after owner feedback ("more modern, cleaner, gradients and
+glassmorphism, not overused"): a dashboard screen with a floating glass nav (bottom bar → rail → labelled sidebar), a hero
+net-worth card, two stat cards with progress bars, a transactions list, a dark-mode toggle, and hover/focus styles.
+Design rules used: **glass** (translucent fill + 1 px border + backdrop blur) for nav and cards; **gradient only in three places**
+(hero card, logo mark, soft background glows); flat accent colour everywhere else; tabular figures for amounts.
+**Reanimated** drives: staggered spring entrance, animated progress and sparkline bars, press-scale on buttons, slow drift of the
+background glows, and the sync-dot pulse. Stack: `nativewind` 4.2.7 + `tailwindcss` 3.4.19 + `react-native-css-interop` 0.2.7,
+`react-native-reanimated` 4.7.1 + `react-native-worklets` 0.13.0, `expo-linear-gradient` 58.0.3 (Expo-bundled), on Expo SDK 58 /
+expo-router, Chromium 152 (Claude browser pane, Windows).
 
 **Not verified: Android.** No emulator was available, so Android rendering, animation smoothness and dark mode on device are
 untested. That part of the issue's acceptance criteria remains open.
@@ -21,16 +26,21 @@ untested. That part of the issue's acceptance criteria remains open.
 |---|---|
 | Responsive classes switch at 640 / 1024 px | **Yes, exactly.** 639 px → bottom tabs; 640 → rail (64 px); 1023 → rail; 1024 → sidebar (224 px) and 3-column cards |
 | Dark mode toggle | **Works** (`dark` class on `<html>`; all surfaces and text switch) |
-| Reanimated animation | **Works:** staggered spring entrance and looping pulse; pulse advanced on every sampled frame (34 distinct transforms in 61 frames; pane unfocused, so frame rate is throttled and not a true FPS) |
+| Reanimated animation | **Works:** entrance, progress/bar springs, press-scale, background drift, pulse. Visually smooth; no reliable FPS number because the pane is unfocused (frame rate throttled) |
 | Hover / focus on web | **Works:** `hover:` tint on nav rows, `focus:` tint plus browser focus ring via Tab |
 | Moti | **Failed on web** (see findings) |
 
-Production web export impact: entry bundle +27 KB raw / **+7.5 KB gzip**; generated CSS 9.7 KB (2.4 KB gzip);
-the screen chunk including Reanimated/worklets is 716 KB raw / 141 KB gzip.
+Production web export impact: entry bundle +27 KB raw / **+7.5 KB gzip**; generated CSS 14 KB (3.3 KB gzip);
+the screen chunk including Reanimated/worklets/linear-gradient is 726 KB raw / 144 KB gzip.
 
 Screenshots (web, phone 390 / tablet 768 / desktop 1280, light + dark): `assets/0004/`.
 
 ## Findings and caveats
+0. **Glass is a web-only effect for now.** `backdrop-filter` (NativeWind `backdrop-blur-*`, applied via the `web:` variant) gives real glass on web.
+   On Android the same classes are expected to fall back to translucent fills with a border (no blur; not verified on device). Real blur on Android needs `expo-blur`
+   (a native module, still experimental on Android); the background glows are also blurred with a CSS filter on web only (a soft
+   gradient on native). **Adding `expo-blur` is a decision for the owner** (plan rule: ask before native dependencies).
+   Glass looks best in dark mode; in light mode it is subtle by design.
 1. **Moti is not usable as-is on web.** It pulls in `framer-motion` 6.5.1 (old, 2022) and crashed Expo's Node static
    renderer (`Cannot destructure property '__extends' of 'tslib.default'`). I replaced it with Reanimated directly
    (`entering={FadeInDown…}`, `useSharedValue` / `withRepeat`), which worked. Its types also did not match Reanimated 4 transitions.
@@ -63,6 +73,7 @@ _Pending owner decision._
 
 ## Consequences (if recommendation accepted)
 - P2.1 sets up NativeWind (Babel, Metro, Tailwind preset with design tokens, `darkMode: "class"`, owned scheme store) in `apps/app`/`packages/ui`.
-- Adds `nativewind`, `tailwindcss`, `react-native-css-interop`, `react-native-reanimated`, `react-native-worklets` to `apps/app`.
+- Adds `nativewind`, `tailwindcss`, `react-native-css-interop`, `react-native-reanimated`, `react-native-worklets`, `expo-linear-gradient` to `apps/app`.
+- Glass on Android (`expo-blur`) is a separate owner decision; until then native gets translucent fills without blur.
 - Biome config disables `noUnknownAtRules` for CSS.
 - Plan §2.1's "Moti" is dropped; animations use Reanimated.
