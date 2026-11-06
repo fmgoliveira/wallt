@@ -37,17 +37,20 @@ A self-hosted personal budget tracker with feature parity with Cashew, plus auto
 | Banks | Portuguese banks + EU neobanks via **PSD2 aggregator (Enable Banking)**; universal **file import** as fallback |
 | Categorization | **Rules + local ML** (runs on your server, no data leaves it); low-confidence → review queue shown on app open |
 | Design | Modern, identical design language on Android and web |
+| Access | Public at **https://wallt.franciscoliveira.com** via Cloudflare Tunnel; own auth with **mandatory 2FA (TOTP)** |
+| Users | Single user in v1; **multi-user possibly later** → `user_id` on every row, every query scoped by it |
+| Attachments | Receipts/files per transaction **in v1, optional** |
+| Bank connections | Initially **ActivoBank** + **Trade Republic**; fully configurable in-app (add/remove any supported bank) |
 
 ### 1.2 Assumptions (confirm or correct — ask if unsure)
-- **Single user** (you), multiple devices. Multi-user/household is out of scope for v1, but the schema keeps a `user_id` column so it can be added later.
-- Deployed on your existing Linux VM, reachable via Cloudflare Tunnel (+ Cloudflare Access) or Tailscale. Never exposed raw.
+- Deployed on your existing Linux VM behind Cloudflare Tunnel (no open ports on the VM).
 - Base currency EUR; other currencies supported per account.
 - UI languages: Portuguese + English.
 
 ### 1.3 Feature list (v1)
 **Accounts:** checking, savings, credit card, cash, meal card, investment (balance only), loan. Currency, color, icon, opening balance, archived, include-in-net-worth toggle. Bank-linked or manual.
 
-**Transactions:** expense / income / transfer (between own accounts), amount, date, payee, description, category, tags, notes, split transactions (multiple categories), pending vs booked, attachments (receipt photo), "excluded from reports" flag.
+**Transactions:** expense / income / transfer (between own accounts), amount, date, payee, description, category, tags, notes, split transactions (multiple categories), pending vs booked, optional attachments (receipt photos/PDFs), "excluded from reports" flag.
 
 **Categories:** two levels (category → subcategory), icon, color, type (expense/income), archived; default PT-friendly set seeded on first run.
 
@@ -100,7 +103,7 @@ A self-hosted personal budget tracker with feature parity with Cashew, plus auto
 | State | TanStack Query (server/derived data) + Zustand (UI state) | Simple, well known |
 | Forms/validation | react-hook-form + Zod (schemas in `packages/core`) | Same validation on client and server |
 | Server | Node LTS + Hono, better-sqlite3, Drizzle, croner | Small, fast, single container |
-| Auth | Password (argon2id) + per-device refresh tokens; optional passkey later | Single user, multiple devices |
+| Auth | Password (argon2id) + mandatory TOTP 2FA + recovery codes, per-device refresh tokens; optional passkey later | Public URL, multiple devices |
 | Tests | Vitest (unit), Playwright (web e2e), Maestro (Android e2e, P8) | |
 | Lint/format | Biome | One fast tool |
 | Builds | GitHub Actions; Docker image → GHCR; Android APK via EAS Build (or local Gradle in CI) | |
@@ -248,6 +251,8 @@ Never overwrite a category the user set manually.
 
 GoCardless Bank Account Data stopped accepting new accounts in July 2025, so the primary provider is **Enable Banking**, which offers a free self-registered application mode used by other self-hosted finance apps. **P7 starts with a spike to verify current terms, coverage of your specific banks, and limits — report back and ask before building.**
 
+Initial connections: **ActivoBank** and **Trade Republic**. The list is not hard-coded: Settings → Connections lets the user add, re-authorize or remove any bank the provider supports, at any time; banks without PSD2 coverage fall back to file import (§5.2).
+
 Design:
 - Provider adapter interface `BankProvider { listInstitutions, startAuth, completeAuth, listAccounts, getBalances, getTransactions }` so another provider (Salt Edge, Tink, Yapily…) can be added later.
 - Auth: the app signs a JWT (RS256) with your application's private key; the key lives in the server's `/data/secrets` (mounted, never in git), encrypted at rest with a key from env.
@@ -272,7 +277,7 @@ Design:
   - Schedule: daily 03:30 local time + before every migration. Retention: 14 daily, 8 weekly, 12 monthly (GFS), pruning on Drive.
   - `restore` CLI command: download → decrypt → verify integrity (`PRAGMA integrity_check`) → swap DB.
   - CI test: backup → restore → row counts match. Settings screen shows last backup time/status; notify on failure.
-- Exposure: Cloudflare Tunnel + Cloudflare Access (or Tailscale). The bank callback route must be reachable by the browser doing the bank auth only. **Ask before exposing anything publicly.**
+- Exposure: public at `https://wallt.franciscoliveira.com` through Cloudflare Tunnel (no inbound ports). Security relies on app auth: mandatory TOTP 2FA, login rate limiting + lockout, secure tokens, CSP and security headers; Cloudflare WAF rate-limit rule on `/auth/*`. Cloudflare Access is not used on the API because the Android app must reach it directly. **Ask before changing what is exposed.**
 
 ---
 
@@ -323,7 +328,7 @@ Each task = one GitHub issue = one PR (unless noted). Acceptance criteria (AC) m
 1. `packages/core`: money utils (parse/format/add/convert), dates, Zod schemas. AC: 100% unit coverage of money utils.
 2. `packages/db`: Drizzle schema for all tables (§3) + migrations; seed default categories.
 3. Server skeleton: Hono, config, logging, `/health`, migrations on boot.
-4. Auth: setup-first-user flow, login, device registration, access/refresh tokens, logout device.
+4. Auth: setup-first-user flow, login, mandatory TOTP 2FA + recovery codes, device registration, access/refresh tokens, logout device.
 5. Dockerfile (multi-stage, non-root) + compose; serves web build on same origin.
 6. Backups to Google Drive (encrypted, GFS retention) + restore CLI + CI restore test.
 
@@ -334,6 +339,7 @@ Each task = one GitHub issue = one PR (unless noted). Acceptance criteria (AC) m
 4. Accounts CRUD + derived balances.
 5. Categories CRUD (2 levels, icons, colors, reorder).
 6. Transactions CRUD: add/edit/delete, transfers, splits, tags, notes; fast add (≤3 taps on Android).
+6b. Attachments (optional per transaction): camera/file picker, thumbnails, stored in `/data/attachments`, synced as files, included in backups.
 7. Transactions list (Android) + virtualized table (web) with search/filters/bulk edit.
 8. Dashboard v1.
 9. Lock screen (biometric/PIN, Android), privacy mode.
@@ -427,10 +433,10 @@ Each task = one GitHub issue = one PR (unless noted). Acceptance criteria (AC) m
 
 ## 13. Open questions for the owner (answer before the related phase)
 1. ~~App name~~ → **Wallt** (decided).
-2. Exactly which banks and cards (so the P7 spike checks PSD2 coverage for each)? (before P7) — file formats are set up in-app (§5.2), so no exports are needed upfront.
-3. Exposure method: Cloudflare Tunnel + Access or Tailscale? (before P1.5)
-4. Any need for a second user (partner/household) later? Affects how seriously to treat `user_id` now. (before P1.2)
-5. Do you want receipts/attachments in v1 or `later`? (before P2.6)
+2. ~~Banks~~ → ActivoBank + Trade Republic initially; configurable in-app (decided, #58).
+3. ~~Exposure~~ → public `wallt.franciscoliveira.com` via Cloudflare Tunnel + app auth with 2FA (decided, #55).
+4. ~~Second user~~ → possibly later; scope everything by `user_id` (decided, #56).
+5. ~~Attachments~~ → v1, optional (decided, #57).
 
 ---
 
