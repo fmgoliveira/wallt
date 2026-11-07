@@ -7,8 +7,21 @@
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "plugins": ["expo-router"],
-    "android": { "package": "app.wallt" },
-    "web": { "bundler": "metro", "output": "static" },
-    "experiments": { "typedRoutes": true }
+    "android": {
+      "package": "app.wallt",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#2b2780"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/favicon.png"
+    },
+    "experiments": {
+      "typedRoutes": true
+    },
+    "icon": "./assets/icon.png"
   }
 }

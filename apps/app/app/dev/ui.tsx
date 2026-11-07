@@ -9,7 +9,6 @@ import {
   HeroCard,
   Input,
   ListItem,
-  LogoMark,
   type SchemePreference,
   Select,
   Sheet,
@@ -23,7 +22,7 @@ import {
 } from "@wallt/ui";
 import { Redirect } from "expo-router";
 import { type ReactNode, useState } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { Image, Pressable, ScrollView, View } from "react-native";
 
 interface DemoRow {
   id: string;
@@ -101,7 +100,11 @@ export default function UiGallery() {
     >
       <View className="gap-2">
         <View className="flex-row items-center gap-3">
-          <LogoMark />
+          <Image
+            source={require("../../assets/icon.png")}
+            style={{ width: 44, height: 44, borderRadius: 13 }}
+            accessibilityLabel="Wallt"
+          />
           <Text variant="display">UI gallery</Text>
         </View>
         <Text tone="muted">
