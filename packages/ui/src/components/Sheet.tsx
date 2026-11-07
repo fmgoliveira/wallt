@@ -68,7 +68,7 @@ export function Sheet({ visible, onClose, title, children }: SheetProps) {
           aria-modal
           aria-label={title}
           className={cn(
-            "max-h-[85%] border border-border bg-elevated/90 shadow-e3 web:backdrop-blur-2xl",
+            "max-h-[85%] shadow-e3 bg-white/75 dark:bg-slate-900/70 border border-white/70 dark:border-white/10 web:backdrop-blur-3xl web:backdrop-saturate-150",
             desktop ? "w-full max-w-[480px] rounded-lg" : "w-full rounded-t-lg",
           )}
         >

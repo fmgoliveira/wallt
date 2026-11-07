@@ -67,3 +67,13 @@ export function Text({
     />
   );
 }
+
+/**
+ * Shared "glass" recipe: a white-tinted translucent fill, a bright hairline edge, an inner top highlight and
+ * (web) a heavy saturating backdrop blur. Needs the themed `<Backdrop>` glows behind it to read as glass.
+ */
+export const glass =
+  "border border-white/70 bg-white/55 dark:border-white/10 dark:bg-white/[0.06] " +
+  "web:backdrop-blur-2xl web:backdrop-saturate-150 " +
+  "web:shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_8px_32px_rgba(15,23,42,0.10)] " +
+  "dark:web:shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_8px_32px_rgba(0,0,0,0.35)]";
