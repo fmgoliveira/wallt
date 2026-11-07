@@ -64,7 +64,7 @@ function ToastView({ item }: { item: ToastItem }) {
       exiting={FadeOut.duration(motion.duration.fast).reduceMotion(ReduceMotion.System)}
       role={item.tone === "error" ? "alert" : "status"}
       accessibilityLiveRegion={item.tone === "error" ? "assertive" : "polite"}
-      className="w-full max-w-[420px] flex-row overflow-hidden rounded-md border border-border bg-elevated/90 shadow-e3 web:backdrop-blur-xl"
+      className="w-full max-w-[420px] flex-row overflow-hidden rounded-md border border-white/70 bg-white/75 shadow-e3 dark:border-white/10 dark:bg-slate-900/70 web:backdrop-blur-2xl"
     >
       <View className={cn("w-1", toneBar[item.tone])} />
       <Pressable

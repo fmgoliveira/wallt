@@ -10,7 +10,8 @@ export type ButtonSize = "md" | "lg";
 
 const container: Record<ButtonVariant, string> = {
   primary: "bg-accent web:hover:opacity-90",
-  secondary: "bg-surface border border-border web:hover:bg-elevated",
+  secondary:
+    "border border-white/70 bg-white/55 dark:border-white/15 dark:bg-white/[0.07] web:backdrop-blur-xl web:hover:bg-white/80 dark:web:hover:bg-white/15",
   ghost: "bg-transparent web:hover:bg-border/40",
   danger: "bg-negative web:hover:opacity-90",
 };

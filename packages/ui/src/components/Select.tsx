@@ -47,8 +47,8 @@ export function Select<T extends string>({
         accessibilityState={{ expanded: open }}
         onPress={() => setOpen(true)}
         className={cn(
-          "min-h-touch flex-row items-center justify-between rounded-md border bg-surface/70 px-3 web:cursor-pointer web:hover:bg-elevated",
-          error ? "border-negative" : "border-border",
+          "min-h-touch flex-row items-center justify-between rounded-md border bg-white/50 dark:bg-white/[0.05] web:backdrop-blur-xl px-3 web:cursor-pointer web:hover:bg-white/70 dark:web:hover:bg-white/10",
+          error ? "border-negative" : "border-white/70 dark:border-white/15",
         )}
       >
         <Text tone={selected ? "default" : "muted"}>{selected?.label ?? placeholder}</Text>

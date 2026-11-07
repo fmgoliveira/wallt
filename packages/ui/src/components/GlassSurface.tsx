@@ -2,7 +2,7 @@ import { BlurView } from "expo-blur";
 import type { ReactNode } from "react";
 import { Platform, StyleSheet, View } from "react-native";
 import { useTheme } from "../theme/ThemeProvider";
-import { cn } from "./primitives";
+import { cn, glass } from "./primitives";
 
 export interface GlassSurfaceProps {
   className?: string | undefined;
@@ -17,10 +17,10 @@ export interface GlassSurfaceProps {
  */
 export function GlassSurface({ className, intensity = 40, children }: GlassSurfaceProps) {
   const { scheme } = useTheme();
-  const base = cn("overflow-hidden rounded-lg border border-border bg-surface/70", className);
+  const base = cn("overflow-hidden rounded-lg", glass, className);
 
   if (Platform.OS === "web") {
-    return <View className={cn(base, "web:backdrop-blur-xl")}>{children}</View>;
+    return <View className={base}>{children}</View>;
   }
   return (
     <View className={base}>

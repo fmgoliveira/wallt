@@ -37,8 +37,12 @@ export function Input({ label, helper, error, className, onFocus, onBlur, ...res
           onBlur?.(e);
         }}
         className={cn(
-          "min-h-touch rounded-md border bg-surface/70 px-3 font-sans text-body text-text web:outline-none",
-          error ? "border-negative" : focused ? "border-accent" : "border-border",
+          "min-h-touch rounded-md border bg-white/50 dark:bg-white/[0.05] web:backdrop-blur-xl px-3 font-sans text-body text-text web:outline-none",
+          error
+            ? "border-negative"
+            : focused
+              ? "border-accent"
+              : "border-white/70 dark:border-white/15",
           focused && "web:ring-2 web:ring-accent/30",
         )}
         {...rest}
