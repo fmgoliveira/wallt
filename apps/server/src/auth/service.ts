@@ -208,12 +208,58 @@ export function createAuthService({
     return true;
   }
 
-  /** Checks a TOTP code against `secret`; rejects a step that was already used. */
-  function checkTotp(userId: string, secret: string, code: string): boolean {
+  /** Checks a TOTP code against `secret`; rejects a step that was already used (per `key`). */
+  function checkTotp(key: string, secret: string, code: string): boolean {
     const step = verifyTotp(secret, code, now());
-    if (step === null || step <= (lastTotpStep.get(userId) ?? -1)) return false;
-    lastTotpStep.set(userId, step);
+    if (step === null || step <= (lastTotpStep.get(key) ?? -1)) return false;
+    lastTotpStep.set(key, step);
     return true;
+  }
+
+  function newRecoveryCodes(): { plain: string[]; stored: string } {
+    const plain = Array.from({ length: RECOVERY_CODE_COUNT }, () => {
+      const c = base32Encode(crypto.getRandomValues(new Uint8Array(7))).slice(0, 10);
+      return `${c.slice(0, 5)}-${c.slice(5)}`;
+    });
+    const stored: RecoveryCode[] = plain.map((c) => ({
+      hash: sha256Hex(normalizeRecovery(c)),
+      usedAt: null,
+    }));
+    return { plain, stored: JSON.stringify(stored) };
+  }
+
+  /** Revokes devices (and their refresh tokens), optionally keeping one. Returns the count. */
+  function revokeDevices(userId: string, exceptDeviceId?: string): number {
+    const keep = exceptDeviceId ?? "";
+    const t = iso(now());
+    return db.transaction(() => {
+      const r = db
+        .prepare(
+          "UPDATE devices SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL AND id != ?",
+        )
+        .run(t, userId, keep);
+      db.prepare(
+        "UPDATE refresh_tokens SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL AND device_id != ?",
+      ).run(t, userId, keep);
+      return r.changes;
+    })();
+  }
+
+  /** Sensitive-action re-authentication: current password AND a fresh TOTP code, every time. */
+  async function reauth(userId: string, password: string, code: string): Promise<UserRow> {
+    const user = userById(userId);
+    if (!user?.totp_secret_enc || !user.totp_enabled_at) throw new AuthError(401, "invalid_token");
+    assertNotLocked(user);
+    if (!(await verifyPassword(password, user.password_hash))) {
+      registerFailure(user.id);
+      throw new AuthError(401, "invalid_credentials");
+    }
+    if (!checkTotp(user.id, decrypt(keys.encKey, user.totp_secret_enc), code)) {
+      registerFailure(user.id);
+      throw new AuthError(401, "invalid_code");
+    }
+    clearFailures(user.id);
+    return user;
   }
 
   return {
@@ -293,24 +339,17 @@ export function createAuthService({
     }): Session & { recoveryCodes: string[] } {
       const claims = verifyToken(keys.jwtKey, input.enrolToken, "enrol", now());
       const user = claims ? userById(claims.sub) : undefined;
-      if (!user?.totp_secret_enc) throw new AuthError(401, "invalid_token");
+      if (!user?.totp_secret_enc || claims?.sec) throw new AuthError(401, "invalid_token");
       if (user.totp_enabled_at) throw new AuthError(409, "already_enrolled");
       assertNotLocked(user);
       if (!checkTotp(user.id, decrypt(keys.encKey, user.totp_secret_enc), input.code)) {
         registerFailure(user.id);
         throw new AuthError(401, "invalid_code");
       }
-      const plain = Array.from({ length: RECOVERY_CODE_COUNT }, () => {
-        const c = base32Encode(crypto.getRandomValues(new Uint8Array(7))).slice(0, 10);
-        return `${c.slice(0, 5)}-${c.slice(5)}`;
-      });
-      const stored: RecoveryCode[] = plain.map((c) => ({
-        hash: sha256Hex(normalizeRecovery(c)),
-        usedAt: null,
-      }));
+      const { plain, stored } = newRecoveryCodes();
       db.prepare(
         "UPDATE users SET totp_enabled_at = ?, recovery_codes = ?, updated_at = ? WHERE id = ?",
-      ).run(iso(now()), JSON.stringify(stored), iso(now()), user.id);
+      ).run(iso(now()), stored, iso(now()), user.id);
       clearFailures(user.id);
       log.info({ userId: user.id }, "2FA enrolled");
       return { ...issueSession(user.id, input.device), recoveryCodes: plain };
@@ -381,11 +420,109 @@ export function createAuthService({
             "UPDATE devices SET revoked_at = ? WHERE id = ? AND user_id = ? AND revoked_at IS NULL",
           )
           .run(iso(now()), deviceId, userId);
+        if (r.changes === 0) return false;
         db.prepare(
-          "UPDATE refresh_tokens SET revoked_at = ? WHERE device_id = ? AND revoked_at IS NULL",
-        ).run(iso(now()), deviceId);
-        return r.changes > 0;
+          "UPDATE refresh_tokens SET revoked_at = ? WHERE device_id = ? AND user_id = ? AND revoked_at IS NULL",
+        ).run(iso(now()), deviceId, userId);
+        return true;
       })();
+    },
+
+    /** The user's active (non-revoked) devices, newest first. */
+    listDevices(userId: string, currentDeviceId: string) {
+      const rows = db
+        .prepare(
+          "SELECT id, name, platform, created_at, last_seen_at FROM devices WHERE user_id = ? AND revoked_at IS NULL ORDER BY created_at DESC, id DESC",
+        )
+        .all(userId) as {
+        id: string;
+        name: string;
+        platform: string;
+        created_at: string;
+        last_seen_at: string | null;
+      }[];
+      return rows.map((d) => ({
+        id: d.id,
+        name: d.name,
+        platform: d.platform,
+        createdAt: d.created_at,
+        lastSeenAt: d.last_seen_at,
+        current: d.id === currentDeviceId,
+      }));
+    },
+
+    /** Replaces the recovery codes (old ones stop working). Needs password + current TOTP. */
+    async regenerateRecoveryCodes(
+      userId: string,
+      password: string,
+      code: string,
+    ): Promise<{ recoveryCodes: string[] }> {
+      await reauth(userId, password, code);
+      const { plain, stored } = newRecoveryCodes();
+      db.prepare("UPDATE users SET recovery_codes = ?, updated_at = ? WHERE id = ?").run(
+        stored,
+        iso(now()),
+        userId,
+      );
+      log.info({ userId }, "recovery codes regenerated");
+      return { recoveryCodes: plain };
+    },
+
+    /**
+     * Starts a 2FA reset (new authenticator). Needs password + current TOTP. The new secret lives only
+     * (encrypted) inside the signed token, so abandoning the reset leaves the current 2FA untouched.
+     */
+    async resetTwoFactor(
+      userId: string,
+      deviceId: string,
+      password: string,
+      code: string,
+    ): Promise<Omit<Enrolment, "status"> & { status: "reset_pending" }> {
+      const user = await reauth(userId, password, code);
+      const secret = generateSecret();
+      return {
+        status: "reset_pending",
+        enrolToken: signToken(
+          keys.jwtKey,
+          { sub: user.id, scp: "enrol", did: deviceId, sec: encrypt(keys.encKey, secret) },
+          ENROL_TTL_S,
+          now(),
+        ),
+        otpauthUri: otpauthUri(issuer, user.email, secret),
+        secret,
+      };
+    },
+
+    /**
+     * Completes a 2FA reset with a code from the NEW authenticator: swaps the secret, issues new recovery
+     * codes and signs out every other device (the calling device stays signed in).
+     */
+    confirmTwoFactorReset(
+      userId: string,
+      deviceId: string,
+      input: { enrolToken: string; code: string },
+    ): { recoveryCodes: string[]; revokedDevices: number } {
+      const claims = verifyToken(keys.jwtKey, input.enrolToken, "enrol", now());
+      if (!claims?.sec || claims.sub !== userId || claims.did !== deviceId) {
+        throw new AuthError(401, "invalid_token");
+      }
+      const user = userById(userId);
+      if (!user?.totp_enabled_at) throw new AuthError(401, "invalid_token");
+      assertNotLocked(user);
+      if (!checkTotp(`${userId}:new`, decrypt(keys.encKey, claims.sec), input.code)) {
+        registerFailure(userId);
+        throw new AuthError(401, "invalid_code");
+      }
+      const { plain, stored } = newRecoveryCodes();
+      db.prepare(
+        "UPDATE users SET totp_secret_enc = ?, recovery_codes = ?, updated_at = ? WHERE id = ?",
+      ).run(claims.sec, stored, iso(now()), userId);
+      // The new secret now owns the replay record: the code just used must not work again at login.
+      lastTotpStep.set(userId, lastTotpStep.get(`${userId}:new`) ?? -1);
+      const revokedDevices = revokeDevices(userId, deviceId);
+      clearFailures(userId);
+      log.info({ userId, revokedDevices }, "2FA reset; other devices signed out");
+      return { recoveryCodes: plain, revokedDevices };
     },
 
     /** Validates a Bearer access token and that its device was not revoked. */

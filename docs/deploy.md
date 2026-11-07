@@ -51,6 +51,17 @@ then remove `SETUP_TOKEN` from `.env` and `docker compose up -d`.
 Login is two steps (`/auth/login` then `/auth/login/verify`); 2FA cannot be skipped. After 5 wrong passwords or codes
 the account locks for 15 minutes, and each client IP is limited to 10 attempts per 15 minutes (nginx adds its own limit).
 
+### Devices and sensitive actions
+
+With a valid access token: `GET /auth/devices` lists signed-in devices, `DELETE /auth/devices/:id` signs one out
+(its access and refresh tokens stop working), `POST /auth/logout` signs out the current device.
+These re-ask **password + a fresh TOTP code** in the request body (`{"password","code"}`):
+
+- `POST /auth/recovery-codes/regenerate`: new set of 10 codes; the old ones stop working.
+- `POST /auth/2fa/reset` then `POST /auth/2fa/reset/confirm` (`enrolToken` + a code from the NEW authenticator):
+  swaps the authenticator, issues new recovery codes and signs out every other device. Until confirmed, the
+  current authenticator keeps working. There is deliberately no way to turn 2FA off.
+
 ## 2. nginx
 
 The app trusts `X-Real-IP` **only if the TCP peer is in `TRUSTED_PROXIES`**; any other peer's header is ignored.
