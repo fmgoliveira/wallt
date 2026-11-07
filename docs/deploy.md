@@ -62,18 +62,46 @@ These re-ask **password + a fresh TOTP code** in the request body (`{"password",
   swaps the authenticator, issues new recovery codes and signs out every other device. Until confirmed, the
   current authenticator keeps working. There is deliberately no way to turn 2FA off.
 
+### Backups to Google Drive
+
+Every day at 03:30 (server `TZ`) the server writes a consistent snapshot of the database plus attachments, packs it as
+`tar.gz`, **encrypts it with `age`** and uploads it to a "Wallt backups" folder in your Google Drive. A snapshot is also
+kept in `/data/backups` and uploaded after boot whenever a migration is about to run. Retention: the newest backup of
+each of the last 14 days, 8 weeks and 12 months (pre-migration ones for 30 days); a failed run never deletes anything.
+
+One-time setup:
+
+1. **age key pair** (on your own machine): `age-keygen -o wallt-backup-key.txt`. Put the public key (`age1...`) in
+   `BACKUP_AGE_RECIPIENT`. Keep `wallt-backup-key.txt` (the private key) in your password manager and an offline copy:
+   **it never goes on the server, and without it a backup cannot be read.**
+2. **Google Cloud**: create a project, enable the Google Drive API, configure the OAuth consent screen and **publish it
+   ("In production")**; for the `drive.file` scope no Google verification is required, but in "Testing" mode refresh
+   tokens expire after 7 days. Create an OAuth client of type **"TVs and Limited Input"** and put its id/secret in
+   `GDRIVE_CLIENT_ID` / `GDRIVE_CLIENT_SECRET`.
+3. `docker compose up -d`, then link the account (prints a URL and a code; approve in any browser):
+
+   ```bash
+   docker compose exec wallt node drive-auth.mjs
+   ```
+
+   The refresh token is stored AES-256-GCM encrypted in `/data/secrets/gdrive.enc` (key derived from `ENCRYPTION_KEY`).
+   The app only sees files it created (`drive.file`).
+
+Backups stay **disabled** (with a warning in the log) until `BACKUP_AGE_RECIPIENT` and both Google values are set.
+Status for the Settings screen: `GET /backups` (recent runs, `lastSuccessAt`, `lastFailure`); `POST /backups/run`
+starts one now. Failures are also logged and appear in `job_runs`. If Google revokes access the error says
+"run drive-auth again".
+
 ### Restoring a backup
 
-Backups are `tar.gz` archives (database snapshot, attachments, manifest) encrypted with `age` for the public key in
-`BACKUP_AGE_RECIPIENT`. The matching private key (`AGE-SECRET-KEY-1...`) must **never** live on the server: keep it in
-your password manager and an offline copy. Generate a pair with `age-keygen` (or any age tool).
-
-To restore, stop the server, put the encrypted file and your identity file somewhere the container can read, and run:
+The matching private key (`AGE-SECRET-KEY-1...`) is needed to restore. Stop the server, then either point the command at
+a downloaded file or let it fetch from Drive (`--drive latest` or a file id), and give it your identity file:
 
 ```bash
 docker compose stop wallt
 docker compose run --rm -v "$PWD/restore:/restore:ro" wallt \
-  node restore.mjs --file /restore/wallt-backup-<timestamp>-<trigger>.tar.gz.age --identity /restore/identity.txt --yes
+  node restore.mjs --drive latest --identity /restore/wallt-backup-key.txt --yes
+#   or, from a file you downloaded:  --file /restore/wallt-backup-<timestamp>-<trigger>.tar.gz.age
 docker compose up -d
 ```
 

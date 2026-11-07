@@ -4,6 +4,7 @@ import { join } from "node:path";
 import pino from "pino";
 import { afterEach, vi } from "vitest";
 import { createApp } from "../app";
+import type { BackupService } from "../backup/service";
 import { openDatabase, runMigrations } from "../database";
 import { deriveKeys } from "./crypto";
 import { createAuthService } from "./service";
@@ -28,7 +29,13 @@ afterEach(() => {
   for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true });
 });
 
-export async function harness(opts: { setupToken?: string | undefined } = { setupToken: SETUP }) {
+export async function harness(
+  opts: {
+    setupToken?: string | undefined;
+    /** Builds the backup service for /backups (receives the harness db and data dir). */
+    backup?: (db: ReturnType<typeof openDatabase>, dir: string) => BackupService | null;
+  } = { setupToken: SETUP },
+) {
   const dir = mkdtempSync(join(tmpdir(), "wallt-auth-"));
   dirs.push(dir);
   const db = openDatabase(dir);
@@ -40,10 +47,17 @@ export async function harness(opts: { setupToken?: string | undefined } = { setu
     db,
     log,
     keys: deriveKeys(KEY),
-    setupToken: opts.setupToken,
+    // Setup is enabled by default; pass `setupToken: undefined` explicitly to disable it.
+    setupToken: "setupToken" in opts ? opts.setupToken : SETUP,
     now,
   });
-  const app = createApp({ db, log, auth, clock: now });
+  const app = createApp({
+    db,
+    log,
+    auth,
+    clock: now,
+    ...(opts.backup ? { backup: opts.backup(db, dir) } : {}),
+  });
   let n = 0;
   // Every call comes from a fresh "client IP" (via a trusted proxy) unless a test pins one.
   const call = async (

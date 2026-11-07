@@ -58,7 +58,13 @@ function appliedTags(db: Db): Set<string> {
  * Applies pending migrations. If the DB already has data (earlier migrations applied), a local
  * `VACUUM INTO` snapshot is written to `<dataDir>/backups` first. Returns applied tags.
  */
-export async function runMigrations(db: Db, dataDir: string, log: Logger): Promise<string[]> {
+export async function runMigrations(
+  db: Db,
+  dataDir: string,
+  log: Logger,
+  /** Called with the snapshot path when one was written (so it can also be backed up off-site). */
+  onSnapshot?: (file: string) => void,
+): Promise<string[]> {
   const done = appliedTags(db);
   const pending = migrations.filter((m) => !done.has(m.tag));
   if (pending.length === 0) return [];
@@ -68,6 +74,7 @@ export async function runMigrations(db: Db, dataDir: string, log: Logger): Promi
     const file = join(dir, `pre-migration-${new Date().toISOString().replace(/[:.]/g, "-")}.db`);
     db.prepare("VACUUM INTO ?").run(file);
     log.info({ file, pending: pending.map((m) => m.tag) }, "pre-migration snapshot written");
+    onSnapshot?.(file);
   }
   const applied = await migrate(toExecutor(db));
   log.info({ applied }, "migrations applied");
