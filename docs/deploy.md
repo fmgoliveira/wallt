@@ -62,6 +62,25 @@ These re-ask **password + a fresh TOTP code** in the request body (`{"password",
   swaps the authenticator, issues new recovery codes and signs out every other device. Until confirmed, the
   current authenticator keeps working. There is deliberately no way to turn 2FA off.
 
+### Restoring a backup
+
+Backups are `tar.gz` archives (database snapshot, attachments, manifest) encrypted with `age` for the public key in
+`BACKUP_AGE_RECIPIENT`. The matching private key (`AGE-SECRET-KEY-1...`) must **never** live on the server: keep it in
+your password manager and an offline copy. Generate a pair with `age-keygen` (or any age tool).
+
+To restore, stop the server, put the encrypted file and your identity file somewhere the container can read, and run:
+
+```bash
+docker compose stop wallt
+docker compose run --rm -v "$PWD/restore:/restore:ro" wallt \
+  node restore.mjs --file /restore/wallt-backup-<timestamp>-<trigger>.tar.gz.age --identity /restore/identity.txt --yes
+docker compose up -d
+```
+
+The command decrypts, then verifies the archive (schema version, `PRAGMA integrity_check`, per-table row counts)
+**before** touching anything; the current database and attachments are moved to `/data/pre-restore-<timestamp>/`,
+never deleted. A backup from a newer server version is refused. Pending migrations run on the next boot.
+
 ## 2. nginx
 
 The app trusts `X-Real-IP` **only if the TCP peer is in `TRUSTED_PROXIES`**; any other peer's header is ignored.
