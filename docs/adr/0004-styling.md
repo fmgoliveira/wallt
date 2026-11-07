@@ -77,3 +77,9 @@ Owner accepted option A (NativeWind v4 + Reanimated, Moti dropped) and approved 
 - `expo-blur` (Expo-bundled native module) is added for Android glass; wrap it in a `GlassSurface` component in `packages/ui` that uses `backdrop-filter` on web and `BlurView` on native, with a translucent-fill fallback.
 - Biome config disables `noUnknownAtRules` for CSS.
 - Plan §2.1's "Moti" is dropped; animations use Reanimated.
+
+## P2.1 follow-up (2026-11-07)
+Implemented in `packages/ui` + `apps/app` (#14). Verified on **web** (phone 390 / desktop 1280, light + dark): NativeWind v4, Reanimated,
+glass (`backdrop-filter`), gradients (hero card, logo mark, background glows only). **Android is still unverified** (no emulator/device in
+the dev environment); `expo-blur` `BlurView` is used on native with a translucent fill, so the fallback is a plain translucent card.
+To be checked before P2.2 builds on it; if NativeWind misbehaves on device, fall back as decided above.

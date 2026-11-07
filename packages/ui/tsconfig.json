@@ -1,4 +1,10 @@
 {
   "extends": "@wallt/config/tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM"],
+    "jsx": "react-jsx",
+    "jsxImportSource": "nativewind",
+    "exactOptionalPropertyTypes": false
+  },
   "include": ["src"]
 }
