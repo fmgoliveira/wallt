@@ -9,11 +9,19 @@ export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 export type ButtonSize = "md" | "lg";
 
 const container: Record<ButtonVariant, string> = {
-  primary: "bg-accent web:hover:opacity-90",
+  primary: "bg-accent",
   secondary:
-    "border border-white/70 bg-white/55 dark:border-white/15 dark:bg-white/[0.07] web:backdrop-blur-xl web:hover:bg-white/80 dark:web:hover:bg-white/15",
-  ghost: "bg-transparent web:hover:bg-border/40",
-  danger: "bg-negative web:hover:opacity-90",
+    "border border-white/70 bg-white/55 dark:border-white/15 dark:bg-white/[0.07] web:backdrop-blur-xl",
+  ghost: "bg-transparent",
+  danger: "bg-negative",
+};
+
+// Hover feedback only applies to enabled buttons.
+const hover: Record<ButtonVariant, string> = {
+  primary: "web:hover:opacity-90",
+  secondary: "web:hover:bg-white/80 dark:web:hover:bg-white/15",
+  ghost: "web:hover:bg-border/40",
+  danger: "web:hover:opacity-90",
 };
 
 const labelTone: Record<ButtonVariant, TextTone> = {
@@ -66,10 +74,10 @@ export function Button({
           onPressOut?.(e);
         }}
         className={cn(
-          "min-h-touch flex-row items-center justify-center gap-2 rounded-md px-4 web:cursor-pointer web:focus-visible:outline-2 web:focus-visible:outline-accent",
+          "min-h-touch flex-row items-center justify-center gap-2 rounded-md px-4 web:focus-visible:outline-2 web:focus-visible:outline-accent",
           size === "lg" && "min-h-[52px] px-6",
           container[variant],
-          inactive && "opacity-50 web:cursor-not-allowed",
+          inactive ? "opacity-50 web:cursor-not-allowed" : cn("web:cursor-pointer", hover[variant]),
         )}
         {...rest}
       >
