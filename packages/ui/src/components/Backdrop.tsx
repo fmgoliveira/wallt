@@ -16,7 +16,7 @@ export function Backdrop() {
   const a = accentPalette[accent][dark ? "dark" : "light"];
   const b = mixHex(a, dark ? "#22d3ee" : "#f472b6", 0.55);
   const c = mixHex(a, dark ? "#a855f7" : "#38bdf8", 0.5);
-  const alpha = dark ? "8c" : "66";
+  const alpha = dark ? "66" : "4d";
 
   return (
     <View
