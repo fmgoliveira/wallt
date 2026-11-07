@@ -1,9 +1,11 @@
-// Bundles the server into one ESM file. Only the native addon stays external (installed in the image).
+// Bundles the server and the restore CLI into ESM files. Only the native addon stays external
+// (installed in the image).
 import { build } from "esbuild";
 
 await build({
-  entryPoints: ["src/main.ts"],
-  outfile: "dist/main.mjs",
+  entryPoints: { main: "src/main.ts", restore: "src/restore-cli.ts" },
+  outdir: "dist",
+  outExtension: { ".js": ".mjs" },
   bundle: true,
   platform: "node",
   format: "esm",
