@@ -13,6 +13,7 @@ minimumReleaseAgeExclude:
   - '@biomejs/cli-linux-x64@2.6.6'
   - '@biomejs/cli-win32-arm64@2.6.6'
   - '@biomejs/cli-win32-x64@2.6.6'
+  - zustand@5.1.0
 allowBuilds:
   esbuild: false
   better-sqlite3: true
