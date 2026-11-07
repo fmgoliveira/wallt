@@ -24,23 +24,25 @@ afterEach(() => {
 });
 
 describe("loadConfig", () => {
+  const key = Buffer.alloc(32, 1).toString("base64");
   it("applies defaults and treats empty strings as unset", () => {
-    expect(loadConfig({ APP_URL: "" })).toEqual({
+    expect(loadConfig({ APP_URL: "", SETUP_TOKEN: "", ENCRYPTION_KEY: key })).toEqual({
       PORT: 3000,
       DATA_DIR: "/data",
       LOG_LEVEL: "info",
       TRUSTED_PROXIES: "127.0.0.1,::1",
+      ENCRYPTION_KEY: key,
     });
   });
-  it("validates values", () => {
-    const key = Buffer.alloc(32, 1).toString("base64");
-    expect(loadConfig({ PORT: "8080", APP_URL: "https://x.test", ENCRYPTION_KEY: key }).PORT).toBe(
-      8080,
-    );
-    expect(() => loadConfig({ PORT: "0" })).toThrow(/PORT/);
-    expect(() => loadConfig({ APP_URL: "nope" })).toThrow(/APP_URL/);
+  it("requires ENCRYPTION_KEY and validates values", () => {
+    expect(() => loadConfig({})).toThrow(/ENCRYPTION_KEY/);
     expect(() => loadConfig({ ENCRYPTION_KEY: "short" })).toThrow(/ENCRYPTION_KEY/);
-    expect(() => loadConfig({ LOG_LEVEL: "loud" })).toThrow(/LOG_LEVEL/);
+    const base = { ENCRYPTION_KEY: key };
+    expect(loadConfig({ ...base, PORT: "8080", APP_URL: "https://x.test" }).PORT).toBe(8080);
+    expect(() => loadConfig({ ...base, PORT: "0" })).toThrow(/PORT/);
+    expect(() => loadConfig({ ...base, APP_URL: "nope" })).toThrow(/APP_URL/);
+    expect(() => loadConfig({ ...base, LOG_LEVEL: "loud" })).toThrow(/LOG_LEVEL/);
+    expect(() => loadConfig({ ...base, SETUP_TOKEN: "too-short" })).toThrow(/SETUP_TOKEN/);
   });
 });
 

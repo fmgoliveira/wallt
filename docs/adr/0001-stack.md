@@ -61,7 +61,7 @@ Mobile/native packages follow **Expo SDK 58's bundled versions** (not npm latest
 | croner | 11.0.0 | in use (P1.3) | in-process jobs |
 | pino | 10.4.0 | in use (P1.3) | structured logs |
 | esbuild / tsx | 0.28.2 / 4.23.15 | in use (P1.5) | esbuild bundles the server for the image; tsx runs the server dev and start scripts |
-| argon2 | 0.45.2 | planned (P1.4) | password hashing (native addon); owner-review task |
+| ~~argon2~~ → `node:crypto` argon2id | built into Node 26 | in use (P1.4) | no extra native addon; params stored in the hash (64 MiB, 3 passes) |
 | age-encryption | 0.3.1 | planned (P1.6) | backup encryption (pure JS); owner-review task |
 
 ## Testing

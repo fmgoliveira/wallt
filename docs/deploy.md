@@ -11,7 +11,7 @@ Internet ──443──▶ host nginx ──▶ 127.0.0.1:3000 ──▶ wallt 
 ## 1. Run the container
 
 ```bash
-cp .env.example .env        # then edit: at least APP_URL and, once auth/backups land, ENCRYPTION_KEY
+cp .env.example .env        # then edit: ENCRYPTION_KEY (required), SETUP_TOKEN (first start), APP_URL
 docker compose up -d --build
 curl -fsS http://127.0.0.1:3000/health
 ```
@@ -30,8 +30,26 @@ curl -fsS http://127.0.0.1:3000/health
 | `TZ` | `Europe/Lisbon` | job schedules |
 | `LOG_LEVEL` | `info` | pino JSON logs (`docker compose logs -f`) |
 | `APP_URL` | `https://wallt.franciscoliveira.com` | public URL |
-| `ENCRYPTION_KEY` | empty | base64, >= 32 bytes (`openssl rand -base64 32`); required by later features |
+| `ENCRYPTION_KEY` | **required** | base64, >= 32 bytes (`openssl rand -base64 32`). Encrypts TOTP secrets and derives the token-signing key. Keep a separate offline copy: without it nobody can log in |
+| `SETUP_TOKEN` | empty | >= 16 chars. Needed once to create the first account (see "First account"); remove afterwards |
 | `TRUSTED_PROXIES` | `127.0.0.1,::1,172.16.0.0/12` | IPs/CIDRs whose `X-Real-IP` is trusted (see below) |
+
+### First account
+
+The server is public, so account creation is guarded. With `SETUP_TOKEN` set, call (once, ideally from the app's setup screen):
+
+```bash
+curl -sS https://wallt.franciscoliveira.com/auth/setup -H 'content-type: application/json' \
+  -d '{"setupToken":"<SETUP_TOKEN>","email":"you@example.com","password":"<12+ chars>"}'
+```
+
+The response holds an `otpauthUri` / `secret` for your authenticator app; confirm with `POST /auth/2fa/confirm`
+(`enrolToken`, the 6-digit code, `deviceName`, `platform`). That activates 2FA, returns **10 single-use recovery
+codes (shown once, store them offline)** and logs the device in. Setup is closed for good once a user exists;
+then remove `SETUP_TOKEN` from `.env` and `docker compose up -d`.
+
+Login is two steps (`/auth/login` then `/auth/login/verify`); 2FA cannot be skipped. After 5 wrong passwords or codes
+the account locks for 15 minutes, and each client IP is limited to 10 attempts per 15 minutes (nginx adds its own limit).
 
 ## 2. nginx
 

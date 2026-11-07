@@ -67,7 +67,7 @@ jobs:
       - name: Smoke test (starts with only a /data volume)
         if: steps.has.outputs.found == 'true'
         run: |
-          docker run -d --name wallt -p 3000:3000 wallt:ci
+          docker run -d --name wallt -p 3000:3000 -e ENCRYPTION_KEY="$(openssl rand -base64 32)" wallt:ci
           for i in $(seq 1 30); do curl -fsS localhost:3000/health && break; sleep 1; done
           curl -fsS localhost:3000/health
           echo "web: $(curl -fsS -o /dev/null -w '%{http_code}' localhost:3000/)"
