@@ -16,7 +16,9 @@ services:
       TZ: ${TZ:-Europe/Lisbon}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       APP_URL: ${APP_URL:-https://wallt.franciscoliveira.com}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?set ENCRYPTION_KEY in .env (openssl rand -base64 32)}
+      # One-time guard for creating the first user; remove it after setup.
+      SETUP_TOKEN: ${SETUP_TOKEN:-}
       # Peers whose X-Real-IP is trusted: host nginx reaches the container from the bridge gateway.
       TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.1,::1,172.16.0.0/12}
     read_only: true

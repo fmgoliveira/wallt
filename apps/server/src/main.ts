@@ -1,5 +1,7 @@
 import { serve } from "@hono/node-server";
 import { createApp } from "./app";
+import { deriveKeys } from "./auth/crypto";
+import { createAuthService } from "./auth/service";
 import { loadConfig } from "./config";
 import { openDatabase, runMigrations } from "./database";
 import { createLogger } from "./logger";
@@ -11,12 +13,23 @@ const log = createLogger(config);
 const db = openDatabase(config.DATA_DIR);
 await runMigrations(db, config.DATA_DIR, log);
 
+const auth = createAuthService({
+  db,
+  log,
+  keys: deriveKeys(config.ENCRYPTION_KEY),
+  setupToken: config.SETUP_TOKEN,
+});
+if (!config.SETUP_TOKEN) {
+  log.info("SETUP_TOKEN not set: first-user setup is disabled (ignored once a user exists)");
+}
+
 const scheduler = createScheduler(db, log);
 const server = serve(
   {
     fetch: createApp({
       db,
       log,
+      auth,
       ...(config.WEB_DIR ? { webDir: config.WEB_DIR } : {}),
       trustedProxies: parseTrustedProxies(config.TRUSTED_PROXIES),
     }).fetch,

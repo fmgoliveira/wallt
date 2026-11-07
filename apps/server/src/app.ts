@@ -2,6 +2,8 @@ import type { BlockList } from "node:net";
 import { getConnInfo } from "@hono/node-server/conninfo";
 import { SCHEMA_VERSION } from "@wallt/db";
 import { Hono } from "hono";
+import { authRoutes } from "./auth/routes";
+import type { AuthService } from "./auth/service";
 import type { Db } from "./database";
 import type { Logger } from "./logger";
 import { parseTrustedProxies, resolveClientIp } from "./proxy";
@@ -15,11 +17,15 @@ export type AppDeps = {
   webDir?: string;
   /** Reverse proxies whose X-Real-IP is trusted (default: loopback only). */
   trustedProxies?: BlockList;
+  /** Mounts `/auth/*` when provided. */
+  auth?: AuthService;
+  /** Clock (ms) for the per-IP rate limiters; tests inject one. */
+  clock?: () => number;
 };
 
 export type AppEnv = { Variables: { clientIp: string } };
 
-export function createApp({ db, log, webDir, trustedProxies }: AppDeps) {
+export function createApp({ db, log, webDir, trustedProxies, auth, clock }: AppDeps) {
   const app = new Hono<AppEnv>();
   const trusted = trustedProxies ?? parseTrustedProxies("127.0.0.1,::1");
 
@@ -61,6 +67,8 @@ export function createApp({ db, log, webDir, trustedProxies }: AppDeps) {
       return c.json({ status: "error" }, 503);
     }
   });
+
+  if (auth) app.route("/auth", authRoutes(auth, clock));
 
   app.onError((err, c) => {
     log.error({ err, path: c.req.path }, "unhandled error");

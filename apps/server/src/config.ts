@@ -15,8 +15,10 @@ const schema = z.object({
   /** Reverse proxies (IPs/CIDRs) whose X-Real-IP is trusted; default loopback. */
   TRUSTED_PROXIES: z.string().default("127.0.0.1,::1"),
   TZ: z.string().min(1).optional(),
-  /** Optional until a feature needs it (auth secrets, bank secrets, backups). */
-  ENCRYPTION_KEY: base64Key.optional(),
+  /** Master secret: TOTP secrets are encrypted with it and the JWT key is derived from it. */
+  ENCRYPTION_KEY: base64Key,
+  /** One-time guard for creating the first user; setup is disabled when unset. */
+  SETUP_TOKEN: z.string().min(16).optional(),
 });
 
 export type Config = z.infer<typeof schema>;
