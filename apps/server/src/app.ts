@@ -4,6 +4,8 @@ import { SCHEMA_VERSION } from "@wallt/db";
 import { Hono } from "hono";
 import { authRoutes } from "./auth/routes";
 import type { AuthService } from "./auth/service";
+import { backupRoutes } from "./backup/routes";
+import type { BackupService } from "./backup/service";
 import type { Db } from "./database";
 import type { Logger } from "./logger";
 import { parseTrustedProxies, resolveClientIp } from "./proxy";
@@ -19,13 +21,15 @@ export type AppDeps = {
   trustedProxies?: BlockList;
   /** Mounts `/auth/*` when provided. */
   auth?: AuthService;
+  /** `/backups` status + manual run (needs `auth`); null = backups not configured. */
+  backup?: BackupService | null;
   /** Clock (ms) for the per-IP rate limiters; tests inject one. */
   clock?: () => number;
 };
 
 export type AppEnv = { Variables: { clientIp: string } };
 
-export function createApp({ db, log, webDir, trustedProxies, auth, clock }: AppDeps) {
+export function createApp({ db, log, webDir, trustedProxies, auth, backup, clock }: AppDeps) {
   const app = new Hono<AppEnv>();
   const trusted = trustedProxies ?? parseTrustedProxies("127.0.0.1,::1");
 
@@ -68,7 +72,10 @@ export function createApp({ db, log, webDir, trustedProxies, auth, clock }: AppD
     }
   });
 
-  if (auth) app.route("/auth", authRoutes(auth, clock));
+  if (auth) {
+    app.route("/auth", authRoutes(auth, clock));
+    if (backup !== undefined) app.route("/backups", backupRoutes(auth, backup));
+  }
 
   app.onError((err, c) => {
     log.error({ err, path: c.req.path }, "unhandled error");

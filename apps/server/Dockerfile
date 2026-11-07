@@ -36,6 +36,7 @@ WORKDIR /app
 COPY --from=native /native/node_modules ./node_modules
 COPY --from=build /repo/apps/server/dist/main.mjs ./main.mjs
 COPY --from=build /repo/apps/server/dist/restore.mjs ./restore.mjs
+COPY --from=build /repo/apps/server/dist/drive-auth.mjs ./drive-auth.mjs
 COPY --from=build /repo/apps/app/dist ./web
 RUN mkdir -p /data && chown node:node /data
 VOLUME /data
