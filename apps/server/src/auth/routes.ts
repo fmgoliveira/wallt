@@ -37,6 +37,9 @@ const confirmBody = z.object({
   ...device,
 });
 const refreshBody = z.object({ refreshToken: z.string().min(1).max(256) });
+/** Re-authentication for sensitive actions: current password AND a fresh TOTP code. */
+const reauthBody = z.object({ password: z.string().min(1).max(256), code: totpCode });
+const resetConfirmBody = z.object({ enrolToken: z.string().min(1).max(2048), code: totpCode });
 
 const dev = (b: { deviceName: string; platform: string; deviceId?: string | undefined }) => ({
   id: b.deviceId,
@@ -119,6 +122,37 @@ export function authRoutes(auth: AuthService, now: () => number = Date.now) {
   app.post(
     "/refresh",
     handle(refreshBody, refreshing, (b) => auth.refresh(b.refreshToken)),
+  );
+
+  // Everything below needs a valid access token; the sensitive ones also re-ask password + TOTP.
+  app.get("/devices", requireAuth(auth), (c) =>
+    c.json({ devices: auth.listDevices(c.get("userId"), c.get("deviceId")) }),
+  );
+  app.delete("/devices/:id", requireAuth(auth), (c) =>
+    auth.revokeDevice(c.get("userId"), c.req.param("id"))
+      ? c.body(null, 204)
+      : c.json({ error: "not_found" }, 404),
+  );
+  app.post(
+    "/recovery-codes/regenerate",
+    requireAuth(auth),
+    handle(reauthBody, sensitive, (b, c) =>
+      auth.regenerateRecoveryCodes(c.get("userId"), b.password, b.code),
+    ),
+  );
+  app.post(
+    "/2fa/reset",
+    requireAuth(auth),
+    handle(reauthBody, sensitive, (b, c) =>
+      auth.resetTwoFactor(c.get("userId"), c.get("deviceId"), b.password, b.code),
+    ),
+  );
+  app.post(
+    "/2fa/reset/confirm",
+    requireAuth(auth),
+    handle(resetConfirmBody, sensitive, (b, c) =>
+      auth.confirmTwoFactorReset(c.get("userId"), c.get("deviceId"), b),
+    ),
   );
 
   app.post("/logout", requireAuth(auth), (c) => {

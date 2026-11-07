@@ -3,7 +3,16 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 /** `access` = API calls; `mfa` = password ok, second factor pending; `enrol` = 2FA enrolment pending. */
 export type TokenScope = "access" | "mfa" | "enrol";
 
-export type Claims = { sub: string; scp: TokenScope; did?: string; iat: number; exp: number };
+export type Claims = {
+  sub: string;
+  scp: TokenScope;
+  /** Device the token belongs to (access tokens, 2FA reset). */
+  did?: string;
+  /** Encrypted pending TOTP secret carried by a 2FA *reset* enrolment token. */
+  sec?: string;
+  iat: number;
+  exp: number;
+};
 
 const HEADER = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
 
@@ -12,7 +21,7 @@ const sign = (key: Buffer, data: string) => createHmac("sha256", key).update(dat
 /** HS256 JWT. `nowMs` is injectable for tests. */
 export function signToken(
   key: Buffer,
-  claims: Pick<Claims, "sub" | "scp"> & { did?: string },
+  claims: Pick<Claims, "sub" | "scp"> & { did?: string; sec?: string },
   ttlSeconds: number,
   nowMs: number,
 ): string {
