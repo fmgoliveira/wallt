@@ -21,6 +21,7 @@ export function createFakeGoogle(
     denied: false,
     files: new Map<string, { name: string; parent: string; bytes: Uint8Array }>(),
     folders: new Map<string, string>(),
+    trashed: new Set<string>(),
     uploads: new Map<string, { name: string; parent: string }>(),
     idCounter: 0,
     tokenRequests: 0,
@@ -83,6 +84,10 @@ export function createFakeGoogle(
 
     if (url.pathname === "/upload/drive/v3/files" && method === "POST") {
       const meta = JSON.parse(String(init.body)) as { name: string; parents: string[] };
+      const parentId = meta.parents[0] as string;
+      if (!state.folders.has(parentId) || state.trashed.has(parentId)) {
+        return json({ error: { message: `File not found: ${parentId}.` } }, 404);
+      }
       const id = nextId("session");
       state.uploads.set(id, { name: meta.name, parent: meta.parents[0] as string });
       return new Response("{}", {
@@ -101,7 +106,9 @@ export function createFakeGoogle(
       if (q.includes("application/vnd.google-apps.folder")) {
         const name = /name='([^']+)'/.exec(q)?.[1];
         return json({
-          files: [...state.folders].filter(([, n]) => n === name).map(([id]) => ({ id })),
+          files: [...state.folders]
+            .filter(([id, n]) => n === name && !state.trashed.has(id))
+            .map(([id]) => ({ id })),
         });
       }
       const parent = /'([^']+)' in parents/.exec(q)?.[1];
@@ -119,6 +126,9 @@ export function createFakeGoogle(
     const m = /^\/drive\/v3\/files\/([^/]+)$/.exec(url.pathname);
     if (m) {
       const id = decodeURIComponent(m[1] as string);
+      if (state.folders.has(id) && method === "GET") {
+        return json({ id, trashed: state.trashed.has(id) });
+      }
       const file = state.files.get(id);
       if (!file) return json({ error: { message: "File not found" } }, 404);
       if (method === "DELETE") {
@@ -135,5 +145,12 @@ export function createFakeGoogle(
     state,
     /** Makes every issued access token invalid (simulates expiry before the client notices). */
     expireAccessTokens: () => state.validTokens.clear(),
+    /** Permanently deletes a folder and the files in it (as emptying the Drive bin would). */
+    deleteFolder(id: string) {
+      state.folders.delete(id);
+      for (const [fid, file] of state.files) if (file.parent === id) state.files.delete(fid);
+    },
+    /** Moves a folder to the bin: still addressable but `trashed`. */
+    trashFolder: (id: string) => void state.trashed.add(id),
   };
 }

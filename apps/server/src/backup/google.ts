@@ -176,10 +176,29 @@ export function createDriveStorage(opts: {
     return res.status === 401 ? send(await accessToken(true)) : res;
   }
 
-  async function folderId(): Promise<string> {
+  /** Folder id confirmed to exist (and not be trashed) during this process. */
+  let verifiedFolder: string | null = null;
+
+  /**
+   * The backup folder's id. A cached id is checked once per process; if the folder was deleted or trashed
+   * in Drive (or `refresh` is set because an upload hit a 404), it is looked up by name or created again.
+   */
+  async function folderId(refresh = false): Promise<string> {
     const secrets = opts.secrets.read();
     if (!secrets) throw new DriveAuthError("Google Drive is not linked; run drive-auth");
-    if (secrets.folderId) return secrets.folderId;
+    if (!refresh && secrets.folderId) {
+      if (verifiedFolder === secrets.folderId) return verifiedFolder;
+      const check = await api(
+        `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(secrets.folderId)}?fields=id,trashed`,
+      );
+      if (check.ok && !((await check.json()) as { trashed?: boolean }).trashed) {
+        verifiedFolder = secrets.folderId;
+        return verifiedFolder;
+      }
+      if (!check.ok && check.status !== 404)
+        throw await apiError("Checking the backup folder", check);
+      // deleted or trashed: fall through and find/create a new one
+    }
     const q = `mimeType='${FOLDER_MIME}' and name='${FOLDER_NAME}' and trashed=false`;
     const found = await api(
       `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)`,
@@ -196,16 +215,15 @@ export function createDriveStorage(opts: {
       id = ((await created.json()) as { id: string }).id;
     }
     opts.secrets.write({ ...secrets, folderId: id });
+    verifiedFolder = id;
     return id;
   }
 
   return {
     async upload(name, bytes) {
-      const parent = await folderId();
       // Resumable protocol, whole file in one PUT (works for any size, unlike multipart's 5 MB advice).
-      const start = await api(
-        "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id",
-        {
+      const begin = (parent: string) =>
+        api("https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id", {
           method: "POST",
           headers: {
             "content-type": "application/json; charset=UTF-8",
@@ -213,8 +231,10 @@ export function createDriveStorage(opts: {
             "x-upload-content-length": String(bytes.length),
           },
           body: JSON.stringify({ name, parents: [parent] }),
-        },
-      );
+        });
+      let start = await begin(await folderId());
+      // The folder vanished since it was verified: look it up / create it again and retry once.
+      if (start.status === 404) start = await begin(await folderId(true));
       const session = start.headers.get("location");
       if (!start.ok || !session) throw await apiError("Starting the upload", start);
       const put = await f(session, {

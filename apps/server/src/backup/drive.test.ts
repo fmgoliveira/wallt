@@ -133,6 +133,38 @@ describe("Drive storage", () => {
     expect((await storage.list()).length).toBe(2);
   });
 
+  it("recreates the backup folder when it was deleted or trashed in Drive", async () => {
+    for (const how of ["deleteFolder", "trashFolder"] as const) {
+      const { fake, secrets, storage } = await linked();
+      await storage.upload("before", new Uint8Array([1]));
+      const oldFolder = secrets.read()?.folderId as string;
+      fake[how](oldFolder);
+
+      await storage.upload("after", new Uint8Array([2])); // 404 on the cached folder -> new folder, retried
+      const newFolder = secrets.read()?.folderId as string;
+      expect(newFolder).not.toBe(oldFolder);
+      expect((await storage.list()).map((f) => f.name)).toEqual(["after"]);
+      expect(fake.state.folders.size).toBe(how === "deleteFolder" ? 1 : 2);
+    }
+  });
+
+  it("re-checks a cached folder id only once per process, and recreates a deleted folder on the next start", async () => {
+    const { fake, secrets, storage } = await linked();
+    await storage.upload("a", new Uint8Array([1]));
+    const calls = () => fake.state.log.filter((l) => l.includes("/drive/v3/files/")).length;
+    const before = calls();
+    await storage.upload("b", new Uint8Array([2]));
+    await storage.list();
+    expect(calls()).toBe(before); // no extra folder checks while the folder is known good
+
+    // new process (fresh client) with a cached id whose folder was trashed meanwhile
+    const folder = secrets.read()?.folderId as string;
+    fake.trashFolder(folder);
+    const restarted = createDriveStorage({ google, secrets, fetch: fake.fetch });
+    expect(await restarted.list()).toEqual([]);
+    expect(secrets.read()?.folderId).not.toBe(folder);
+  });
+
   it("follows pagination", async () => {
     const { storage } = await linked(createFakeGoogle({ pageSize: 2 }));
     for (let i = 0; i < 5; i++) await storage.upload(`f${i}`, new Uint8Array([i]));
