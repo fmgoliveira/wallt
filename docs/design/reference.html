@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Wallt — Design reference</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{--font:Geist,Inter,ui-sans-serif,system-ui,sans-serif;--mono:"Geist Mono",ui-monospace,monospace;--r-sm:6px;--r-md:8px;--r-lg:12px;--r-xl:16px}
+[data-theme=light]{--bg:#f4f5f7;--surface:#fff;--elevated:#fff;--border:#e4e7ec;--borderStrong:#d3d8e0;--text:#0c1118;--muted:#5b6573;--subtle:#8a94a3;
+ --accent:#1d2532;--accent2:#3a4658;--accentFg:#fff;--data:#41618a;--pos:#0f8a4f;--neg:#d1293d;--warn:#a15c00;
+ --hero1:#1d2532;--hero2:#0e131a;--glass:rgba(255,255,255,.74);--glassB:rgba(12,17,24,.07);--hl:rgba(255,255,255,.9);
+ --cardBg:linear-gradient(180deg,#fff,#fbfcfd);--shadow:0 1px 2px rgba(16,24,40,.05),0 6px 20px -8px rgba(16,24,40,.10);--glow1:#b9c6d8;--glow2:#d5dde8;--glowA:.9}
+[data-theme=dark]{--bg:#0a0c0f;--surface:#12151a;--elevated:#191d24;--border:#23282f;--borderStrong:#2e343d;--text:#eef1f5;--muted:#8b95a5;--subtle:#5f6978;
+ --accent:#e8edf3;--accent2:#b9c4d2;--accentFg:#0a0c0f;--data:#8fa8c9;--pos:#3fcf8e;--neg:#f2606f;--warn:#f0b54a;
+ --hero1:#2b3442;--hero2:#151a21;--glass:rgba(18,21,26,.66);--glassB:rgba(255,255,255,.07);--hl:rgba(255,255,255,.06);
+ --cardBg:linear-gradient(180deg,#15181e,#111419);--shadow:0 1px 2px rgba(0,0,0,.4),0 12px 32px -16px rgba(0,0,0,.7);--glow1:#2c3a50;--glow2:#1c2636;--glowA:.8}
+*{box-sizing:border-box;margin:0}
+body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14px;line-height:20px;letter-spacing:-.006em;-webkit-font-smoothing:antialiased;min-height:100vh;position:relative;overflow-x:hidden}
+.num{font-variant-numeric:tabular-nums}
+.glows{position:fixed;inset:0;pointer-events:none;z-index:0;opacity:var(--glowA)}
+.glows i{position:absolute;border-radius:50%;filter:blur(100px)}
+.glows i:nth-child(1){width:700px;height:500px;left:-200px;top:-260px;background:var(--glow1)}
+.glows i:nth-child(2){width:600px;height:600px;right:-260px;top:30%;background:var(--glow2)}
+.grid-bg{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:48px 48px;opacity:.35;mask-image:radial-gradient(ellipse 80% 50% at 50% 0%,#000 30%,transparent 75%)}
+main{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:32px}
+header.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;gap:16px;flex-wrap:wrap}
+.logo{display:flex;align-items:center;gap:10px;font-weight:600;font-size:16px;letter-spacing:-.02em}
+.mark{width:28px;height:28px;border-radius:7px;background:linear-gradient(160deg,#8fa8c9,#3a4658);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 0 0 1px var(--borderStrong)}
+h1{font-size:32px;line-height:36px;font-weight:600;letter-spacing:-.035em;margin-bottom:8px}
+h2{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--subtle);font-weight:500;margin:40px 0 12px;font-family:var(--mono)}
+h3{font-size:15px;line-height:20px;font-weight:600;letter-spacing:-.015em}
+.muted{color:var(--muted)}.small{font-size:12.5px;line-height:18px}
+.grid{display:grid;gap:12px}
+.g5{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+.g2{grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:20px}
+.card{background:var(--cardBg);border:1px solid var(--border);border-radius:var(--r-lg);padding:18px;box-shadow:var(--shadow),inset 0 1px 0 var(--hl)}
+.sw{height:56px;border-radius:var(--r-md);margin-bottom:8px;box-shadow:inset 0 0 0 1px var(--glassB)}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:var(--r-sm);font-size:12px;font-weight:500}
+.btn{font:inherit;font-weight:500;letter-spacing:-.01em;border:0;border-radius:var(--r-md);height:36px;padding:0 14px;cursor:pointer;transition:transform .12s,filter .12s,background .12s,box-shadow .12s;display:inline-flex;align-items:center;gap:8px}
+.btn:active{transform:scale(.98)}.btn:focus-visible{outline:2px solid var(--data);outline-offset:2px}
+.primary{background:linear-gradient(180deg,var(--accent2),var(--accent));color:var(--accentFg);box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 1px 2px rgba(0,0,0,.25),0 0 0 1px var(--accent)}
+[data-theme=dark] .primary{background:linear-gradient(180deg,#fff,#d5dde7);box-shadow:inset 0 -1px 0 rgba(0,0,0,.12),0 1px 2px rgba(0,0,0,.4)}
+.primary:hover{filter:brightness(1.08)}
+.secondary{background:var(--elevated);color:var(--text);box-shadow:0 0 0 1px var(--borderStrong),0 1px 2px rgba(0,0,0,.08),inset 0 1px 0 var(--hl)}.secondary:hover{background:var(--surface)}
+.ghost{background:transparent;color:var(--muted)}.ghost:hover{background:var(--glassB);color:var(--text)}
+.danger{background:linear-gradient(180deg,color-mix(in srgb,var(--neg) 90%,#fff),var(--neg));color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 1px 2px rgba(0,0,0,.2)}
+[data-theme=dark] .danger{background:color-mix(in srgb,var(--neg) 14%,transparent);color:var(--neg);box-shadow:0 0 0 1px color-mix(in srgb,var(--neg) 30%,transparent)}
+.kbd{font-family:var(--mono);font-size:11px;padding:1px 5px;border-radius:4px;background:var(--glassB);color:var(--muted)}
+.field{display:flex;flex-direction:column;gap:6px;flex:1;min-width:200px}
+.field label{font-size:12.5px;font-weight:500;color:var(--muted)}
+.input{font:inherit;color:var(--text);height:36px;border-radius:var(--r-md);border:0;background:var(--surface);padding:0 12px;outline:none;box-shadow:0 0 0 1px var(--borderStrong),0 1px 2px rgba(0,0,0,.04);transition:box-shadow .12s}
+[data-theme=dark] .input{background:var(--bg)}
+.input:focus{box-shadow:0 0 0 1px var(--data),0 0 0 4px color-mix(in srgb,var(--data) 22%,transparent)}
+.input.err{box-shadow:0 0 0 1px var(--neg),0 0 0 4px color-mix(in srgb,var(--neg) 14%,transparent)}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start}
+/* phone */
+.phone{width:360px;max-width:100%;height:740px;border-radius:36px;border:1px solid var(--borderStrong);background:var(--bg);position:relative;overflow:hidden;margin:0 auto;box-shadow:0 40px 80px -40px rgba(0,0,0,.6),inset 0 1px 0 var(--hl)}
+.phone .glows{position:absolute}
+.pscroll{position:relative;z-index:1;padding:20px 14px 120px;height:100%;overflow:auto;scrollbar-width:none}
+.hero{border-radius:var(--r-lg);padding:18px;color:#fff;background:radial-gradient(120% 80% at 100% 0%,rgba(143,168,201,.22),transparent 60%),linear-gradient(160deg,var(--hero1),var(--hero2));position:relative;overflow:hidden;box-shadow:inset 0 1px 0 rgba(255,255,255,.10),0 0 0 1px rgba(255,255,255,.06),0 16px 32px -16px rgba(0,0,0,.6)}
+.hero .lbl{font-size:12px;color:rgba(255,255,255,.6);font-weight:500}
+.hero .bal{font-size:34px;line-height:38px;font-weight:600;letter-spacing:-.04em;margin:6px 0 14px}
+.hero .bal small{font-size:20px;color:rgba(255,255,255,.45);font-weight:500}
+.hero .delta{background:rgba(63,207,142,.14);color:#5fe0a6}
+.spark{position:absolute;right:16px;bottom:16px;width:120px;height:40px}
+.seg{display:flex;background:var(--glassB);border-radius:var(--r-md);padding:3px;margin:14px 0}
+.seg span{flex:1;text-align:center;font-size:12.5px;font-weight:500;padding:5px 0;border-radius:6px;color:var(--muted)}
+.seg span.on{background:var(--elevated);color:var(--text);box-shadow:0 1px 2px rgba(0,0,0,.15),0 0 0 1px var(--border),inset 0 1px 0 var(--hl)}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{padding:14px}
+.stat .v{font-size:19px;font-weight:600;letter-spacing:-.03em;margin-top:4px}
+.bar{height:6px;border-radius:3px;background:var(--glassB);margin-top:12px;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg,var(--subtle),var(--text))}
+.bar i.w{background:linear-gradient(90deg,color-mix(in srgb,var(--neg) 60%,transparent),var(--neg))}
+.list{padding:2px 0;margin-top:10px}
+.day{font-size:11px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--subtle);padding:12px 14px 4px;font-family:var(--mono)}
+.li{display:flex;align-items:center;gap:12px;padding:10px 14px;min-height:60px;position:relative}
+.li+.li:before{content:"";position:absolute;left:62px;right:0;top:0;border-top:1px solid var(--border)}
+.tile{width:36px;height:36px;border-radius:var(--r-md);display:grid;place-items:center;flex:none;background:var(--elevated);color:var(--muted);box-shadow:0 0 0 1px var(--border),inset 0 1px 0 var(--hl)}
+.tile svg,.ico{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.li .t{flex:1;min-width:0}.li .t b{font-weight:500;display:block;letter-spacing:-.01em}
+.dot{display:inline-block;width:6px;height:6px;border-radius:2px;margin-right:6px;vertical-align:1px}
+.amt{font-weight:500;text-align:right;letter-spacing:-.01em}.amt .dec{color:var(--subtle)}
+.amt.inc{color:var(--pos)}.amt.inc .dec{color:color-mix(in srgb,var(--pos) 60%,transparent)}
+.tabbar{position:absolute;z-index:3;left:12px;right:12px;bottom:14px;height:60px;border-radius:var(--r-xl);background:var(--glass);box-shadow:0 0 0 1px var(--glassB),0 12px 32px -12px rgba(0,0,0,.5),inset 0 1px 0 var(--hl);backdrop-filter:blur(24px) saturate(1.6);-webkit-backdrop-filter:blur(24px) saturate(1.6);display:flex;align-items:center;justify-content:space-around}
+.tabbar span{display:flex;flex-direction:column;align-items:center;font-size:10.5px;font-weight:500;color:var(--subtle);gap:3px}
+.tabbar span.on{color:var(--text)}
+.tabbar svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.6}
+.fab{width:44px;height:40px;border-radius:10px;background:linear-gradient(180deg,var(--accent2),var(--accent));color:var(--accentFg);display:grid;place-items:center;box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 10px 24px -8px rgba(0,0,0,.6)}
+[data-theme=dark] .fab{background:linear-gradient(180deg,#fff,#d5dde7)}
+.fab svg{width:22px;height:22px;stroke:currentColor;stroke-width:2;fill:none}
+/* table */
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;font-size:11px;font-weight:500;color:var(--subtle);padding:10px 14px;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.06em;font-family:var(--mono)}
+.tbl td{padding:0 14px;height:42px;border-bottom:1px solid var(--border)}
+.tbl tr:last-child td{border-bottom:0}
+.tbl tr:hover td{background:var(--glassB)}
+.tbl tr.sel td{background:color-mix(in srgb,var(--data) 10%,transparent)}
+.tbl tr.sel td:first-child{box-shadow:inset 2px 0 0 var(--data)}
+.tbl .r{text-align:right}
+.toggle{display:flex;gap:8px}
+.chart{width:100%;height:150px;display:block;margin-top:12px}
+.empty{text-align:center;padding:32px 20px}
+.badge{width:48px;height:48px;border-radius:var(--r-lg);margin:0 auto 14px;display:grid;place-items:center;background:linear-gradient(180deg,var(--elevated),var(--surface));color:var(--text);box-shadow:0 0 0 1px var(--borderStrong),0 8px 20px -10px rgba(0,0,0,.4),inset 0 1px 0 var(--hl)}
+.badge svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.6}
+.dodont td{padding:10px 14px;vertical-align:top;border-bottom:1px solid var(--border);font-size:13px}
+.dodont tr:last-child td{border-bottom:0}
+code{font-family:var(--mono);font-size:12px;padding:1px 5px;border-radius:4px;background:var(--glassB)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="glows"><i></i><i></i></div><div class="grid-bg"></div>
+<main>
+<header class="top">
+  <div class="logo"><div class="mark"></div>Wallt <span class="muted small" style="font-weight:400">/ design reference</span></div>
+  <div class="toggle"><button class="btn secondary" onclick="setT('light')">Light</button><button class="btn secondary" onclick="setT('dark')">Dark</button></div>
+</header>
+<h1>Cool neutrals. Crisp depth.</h1>
+<p class="muted" style="max-width:640px">Blue-tinted greyscale everywhere; green and red only mean money in or a problem. Depth from layered surfaces, hairlines and top highlights — not colour. Rules: <code>docs/design/GUIDELINES.md</code>.</p>
+
+<h2>Colour</h2>
+<div class="grid g5" id="sw"></div>
+
+<h2>Gradients &amp; depth</h2>
+<div class="grid g5">
+  <div><div class="sw" style="background:radial-gradient(120% 80% at 100% 0%,rgba(143,168,201,.22),transparent 60%),linear-gradient(160deg,var(--hero1),var(--hero2))"></div><b class="small">hero</b><div class="small muted">Balance card, logo</div></div>
+  <div><div class="sw" style="background:linear-gradient(180deg,var(--accent2),var(--accent))"></div><b class="small">action</b><div class="small muted">Primary button, add button</div></div>
+  <div><div class="sw" style="background:var(--cardBg);box-shadow:var(--shadow),inset 0 1px 0 var(--hl),0 0 0 1px var(--border)"></div><b class="small">surface</b><div class="small muted">Card: 2% vertical + top highlight</div></div>
+  <div><div class="sw" style="background:linear-gradient(180deg,color-mix(in srgb,var(--data) 30%,transparent),transparent),var(--surface)"></div><b class="small">data area</b><div class="small muted">Chart fills</div></div>
+  <div><div class="sw" style="background:radial-gradient(circle at 30% 20%,var(--glow1),transparent 70%),var(--bg)"></div><b class="small">glow</b><div class="small muted">Backdrop only, desaturated</div></div>
+</div>
+
+<h2>Screens</h2>
+<div class="grid g2" style="align-items:start">
+  <div class="phone">
+    <div class="glows"><i></i><i></i></div>
+    <div class="pscroll">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding:0 2px"><div><div class="small muted">Sunday, 8 Nov</div><h3 style="font-size:18px;letter-spacing:-.03em">Overview</h3></div><div class="tile" style="width:32px;height:32px;border-radius:50%">FO</div></div>
+      <div class="hero">
+        <div class="lbl">Net worth</div><div class="bal num">€12 480<small>,52</small></div><span class="chip delta num">▲ 2.8% · €340</span>
+        <svg class="spark" viewBox="0 0 120 40"><defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8fa8c9" stop-opacity=".35"/><stop offset="1" stop-color="#8fa8c9" stop-opacity="0"/></linearGradient></defs><path d="M0 32 L15 28 L30 30 L45 22 L60 24 L75 15 L90 18 L105 9 L120 6 V40 H0Z" fill="url(#sg)"/><path d="M0 32 L15 28 L30 30 L45 22 L60 24 L75 15 L90 18 L105 9 L120 6" fill="none" stroke="#a9bdd8" stroke-width="1.5" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="seg"><span>Week</span><span class="on">Month</span><span>Year</span></div>
+      <div class="stats">
+        <div class="card stat"><div class="small muted">Spent</div><div class="v num">€1 284</div><div class="bar"><i style="width:62%"></i></div><div class="small muted num" style="margin-top:6px">62% of €2 070</div></div>
+        <div class="card stat"><div class="small muted">Groceries</div><div class="v num">€412</div><div class="bar"><i class="w" style="width:100%"></i></div><div class="small num" style="margin-top:6px;color:var(--neg)">€12 over</div></div>
+      </div>
+      <div class="card list" style="padding:2px 0">
+        <div class="day">Today</div>
+        <div class="li"><div class="tile"><svg viewBox="0 0 24 24"><path d="M3 11h18M5 11V7a7 7 0 0 1 14 0v4M6 11l1 9h10l1-9"/></svg></div><div class="t"><b>Pingo Doce</b><span class="small muted"><span class="dot" style="background:#e0a050"></span>Groceries</span></div><div class="amt num">−€23<span class="dec">,40</span></div></div>
+        <div class="li"><div class="tile"><svg viewBox="0 0 24 24"><path d="M5 17h14l-1.5-6h-11zM7 17v2M17 17v2M8 11l1.5-4h5L16 11"/></svg></div><div class="t"><b>Galp</b><span class="small muted"><span class="dot" style="background:#6fa3d8"></span>Transport</span></div><div class="amt num">−€48<span class="dec">,00</span></div></div>
+        <div class="day">Yesterday</div>
+        <div class="li"><div class="tile"><svg viewBox="0 0 24 24"><path d="M12 3v18M17 7H9.5a3 3 0 0 0 0 6h5a3 3 0 0 1 0 6H6"/></svg></div><div class="t"><b>Sinformania</b><span class="small muted"><span class="dot" style="background:var(--pos)"></span>Income</span></div><div class="amt inc num">+€1 850<span class="dec">,00</span></div></div>
+        <div class="li"><div class="tile"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4zM4 10h16"/></svg></div><div class="t"><b>Spotify</b><span class="small muted"><span class="dot" style="background:#a98bd6"></span>Subscriptions</span></div><div class="amt num">−€7<span class="dec">,99</span></div></div>
+      </div>
+    </div>
+    <div class="tabbar">
+      <span class="on"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9H3z"/></svg>Home</span>
+      <span><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Activity</span>
+      <div class="fab"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
+      <span><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9h-9z"/></svg>Budgets</span>
+      <span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>Settings</span>
+    </div>
+  </div>
+
+  <div class="grid" style="gap:16px">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:baseline"><div><div class="small muted">Spending · November</div><div class="num" style="font-size:24px;font-weight:600;letter-spacing:-.04em;margin-top:2px">€1 284<span style="color:var(--subtle)">,10</span></div></div><span class="chip num" style="background:color-mix(in srgb,var(--pos) 12%,transparent);color:var(--pos)">−8% vs Oct</span></div>
+      <svg class="chart" viewBox="0 0 400 150" preserveAspectRatio="none">
+        <defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--data)" stop-opacity=".30"/><stop offset="1" stop-color="var(--data)" stop-opacity="0"/></linearGradient></defs>
+        <g stroke="var(--border)" stroke-dasharray="2 4"><line x1="0" x2="400" y1="40" y2="40"/><line x1="0" x2="400" y1="90" y2="90"/></g>
+        <line x1="0" x2="400" y1="149" y2="149" stroke="var(--borderStrong)"/>
+        <path d="M0 120 C40 110 60 70 100 80 S160 120 200 90 S260 40 300 55 S360 70 400 30 V150 H0Z" fill="url(#ag)"/>
+        <path d="M0 120 C40 110 60 70 100 80 S160 120 200 90 S260 40 300 55 S360 70 400 30" fill="none" stroke="var(--data)" stroke-width="2" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+      </svg>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <table class="tbl num">
+        <thead><tr><th>Date</th><th>Payee</th><th>Category</th><th class="r">Amount</th></tr></thead>
+        <tbody>
+          <tr><td class="muted">08 Nov</td><td>Pingo Doce</td><td><span class="dot" style="background:#e0a050"></span>Groceries</td><td class="r">−€23,40</td></tr>
+          <tr class="sel"><td class="muted">08 Nov</td><td>Galp</td><td><span class="dot" style="background:#6fa3d8"></span>Transport</td><td class="r">−€48,00</td></tr>
+          <tr><td class="muted">07 Nov</td><td>Sinformania</td><td><span class="dot" style="background:var(--pos)"></span>Income</td><td class="r" style="color:var(--pos)">+€1 850,00</td></tr>
+          <tr><td class="muted">07 Nov</td><td>Spotify</td><td><span class="dot" style="background:#a98bd6"></span>Subscriptions</td><td class="r">−€7,99</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card empty">
+      <div class="badge"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9h-9z"/></svg></div>
+      <h3>No budgets yet</h3><p class="small muted" style="margin:4px 0 16px">Set a monthly limit and Wallt keeps an eye on it.</p>
+      <button class="btn primary">Create budget</button>
+    </div>
+  </div>
+</div>
+
+<h2>Controls</h2>
+<div class="card">
+  <div class="row" style="margin-bottom:20px;align-items:center"><button class="btn primary">Add transaction <span class="kbd" style="background:rgba(127,127,127,.18);color:inherit">N</span></button><button class="btn secondary">Import</button><button class="btn ghost">Cancel</button><button class="btn danger">Delete</button></div>
+  <div class="row">
+    <div class="field"><label>Payee</label><input class="input" placeholder="e.g. Pingo Doce"></div>
+    <div class="field"><label>Amount</label><input class="input num" value="€ 23,40" style="font-weight:500"></div>
+    <div class="field"><label>Date</label><input class="input err" value="31/02/2026"><span class="small" style="color:var(--neg)">Not a valid date</span></div>
+  </div>
+</div>
+
+<h2>Do / Don't</h2>
+<div class="card" style="padding:0;overflow:hidden"><table class="dodont" style="width:100%;border-collapse:collapse">
+<tr><td><b style="color:var(--pos)">Do</b> greyscale UI; colour only for money meaning</td><td><b style="color:var(--neg)">Don't</b> tinted buttons, coloured nav, rainbow icon tiles</td></tr>
+<tr><td><b style="color:var(--pos)">Do</b> depth with hairline + top highlight + soft shadow</td><td><b style="color:var(--neg)">Don't</b> flat fills with no edge, or heavy drop shadows</td></tr>
+<tr><td><b style="color:var(--pos)">Do</b> 6 / 8 / 12 / 16 radii, nested radius = outer − padding</td><td><b style="color:var(--neg)">Don't</b> pill-shaped everything or 20+ px card radii</td></tr>
+<tr><td><b style="color:var(--pos)">Do</b> Geist, tight tracking on large numbers, tabular figures</td><td><b style="color:var(--neg)">Don't</b> proportional or centred numbers</td></tr>
+</table></div>
+</main>
+<script>
+const names=[["bg","Page"],["surface","Cards"],["elevated","Sheets, menus"],["border","Hairlines"],["text","Primary text"],["muted","Secondary text"],["accent","Primary action"],["data","Charts, focus, selection"],["pos","positive · money in, success"],["neg","negative · over budget, error"]];
+document.getElementById("sw").innerHTML=names.map(([k,d])=>`<div><div class="sw" style="background:var(--${k})"></div><b class="small">${d.includes("·")?d.split(" · ")[0]:k}</b><div class="small muted">${d.includes("·")?d.split(" · ")[1]:d}</div></div>`).join("");
+function setT(t){document.documentElement.dataset.theme=t;try{localStorage.setItem("wallt-ref-theme",t)}catch(e){}}
+try{const s=localStorage.getItem("wallt-ref-theme");if(s)setT(s)}catch(e){}
+</script>
+</body>
+</html>
