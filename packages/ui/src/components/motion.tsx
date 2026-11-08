@@ -1,44 +1,56 @@
-import type { ReactNode } from "react";
-import { Children } from "react";
+import { Children, type ReactNode, useEffect } from "react";
+import { View } from "react-native";
 import {
   Easing,
-  Keyframe,
-  ReduceMotion,
   useAnimatedStyle,
+  useReducedMotion,
   useSharedValue,
+  withDelay,
   withSpring,
+  withTiming,
 } from "react-native-reanimated";
 import { motion } from "../tokens";
-import { AnimatedView } from "./primitives";
-
-function rise(delay: number) {
-  return new Keyframe({
-    0: { opacity: 0, transform: [{ translateY: motion.rise }] },
-    100: {
-      opacity: 1,
-      transform: [{ translateY: 0 }],
-      easing: Easing.out(Easing.cubic),
-    },
-  })
-    .duration(motion.duration.base)
-    .delay(delay)
-    .reduceMotion(ReduceMotion.System);
-}
+import { MotionView } from "./primitives";
 
 export interface RevealProps {
   /** Position in a staggered group; later items start `stagger.step` ms later, capped at `stagger.max`. */
   index?: number;
+  /** Applied to a plain wrapper View (layout of the Reveal itself, e.g. `self-start`). */
   className?: string | undefined;
   children?: ReactNode;
 }
 
-/** Entrance (guidelines §8): fade + 6 px rise, 180 ms, 25 ms stagger, at most 8 items. Instant with reduce motion. */
+/**
+ * Entrance (guidelines §8): fade + 6 px rise, 180 ms, 25 ms stagger, at most 8 items. Instant with reduce
+ * motion. Driven by shared values rather than layout animations: the `entering` path leaves elements
+ * `visibility: hidden` on web when the tree mounts late, which made whole screens invisible.
+ * Children are laid out in a column inside the animated view; put row layouts inside, not on `className`.
+ */
 export function Reveal({ index = 0, className, children }: RevealProps) {
-  const step = Math.min(index, motion.stagger.max - 1) * motion.stagger.step;
+  const reduce = useReducedMotion();
+  const progress = useSharedValue(reduce ? 1 : 0);
+
+  useEffect(() => {
+    if (reduce) {
+      progress.value = 1;
+      return;
+    }
+    const delay = Math.min(index, motion.stagger.max - 1) * motion.stagger.step;
+    progress.value = withDelay(
+      delay,
+      withTiming(1, { duration: motion.duration.base, easing: Easing.out(Easing.cubic) }),
+    );
+  }, [reduce, index, progress]);
+
+  const style = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    transform: [{ translateY: (1 - progress.value) * motion.rise }],
+  }));
+
   return (
-    <AnimatedView entering={rise(step)} className={className}>
-      {children}
-    </AnimatedView>
+    <View className={className}>
+      <MotionView style={style}>{children}</MotionView>
+    </View>
   );
 }
 
@@ -57,8 +69,8 @@ export function RevealGroup({ children, start = 0 }: { children: ReactNode; star
 }
 
 /**
- * Press feedback (scale 0.98, spring). Put `style` on an `AnimatedView` that wraps the pressable and
- * wire `onPressIn`/`onPressOut` to it. Never combine with a `className` on the same animated view.
+ * Press feedback (scale 0.98, spring). Put `style` on a `MotionView` that wraps the pressable and
+ * wire `onPressIn`/`onPressOut` to it.
  */
 export function usePressScale() {
   const scale = useSharedValue(1);

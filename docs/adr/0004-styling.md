@@ -103,5 +103,10 @@ Verified on web (light + dark, phone/desktop). **Android is still unverified by 
 `AnimatedView` (NativeWind-wrapped Reanimated view) supports `className` and `entering`/`exiting` only; the wrapper flattens `style` and
 silently drops `useAnimatedStyle` output on web and Android. Anything with an animated `style` (button press scale, segmented pill, press
 feedback) uses `MotionView` (an unwrapped `Animated.createAnimatedComponent(View)`) with plain style objects, `className` on a plain parent.
-`onLayout` does not fire on views under the wrapper either; measure with `ref.measure`. Entrances use `Reveal`/`RevealGroup` (Keyframe,
-180 ms, 25 ms stagger, max 8). Shared spring is critically damped (`damping 30, stiffness 340`) to avoid visible bounce.
+`onLayout` does not fire on views under the wrapper either; measure with `ref.measure`. Entrances use `Reveal`/`RevealGroup` (shared values, 180 ms, 25 ms
+stagger, max 8; not `entering` layout animations, which leave elements `visibility: hidden` on web when the tree mounts late). Shared spring is critically damped (`damping 30, stiffness 340`) to avoid visible bounce.
+
+### Static rendering and hydration (flicker fix)
+Expo's static/SSR render has no window size (width 0), so it always produced the **phone** layout; on desktop the browser painted that,
+then hydration swapped in the sidebar and replayed entrances (everything jumped). The root layout now renders the app only after it has
+mounted on the client (and fonts are loaded). The app is behind login, so there is nothing to server-render; the static HTML is an empty shell.
