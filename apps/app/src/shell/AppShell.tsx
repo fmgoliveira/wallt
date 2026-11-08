@@ -81,7 +81,7 @@ function SideNav({ wide }: { wide: boolean }) {
 
   return (
     <View
-      accessibilityRole="navigation"
+      role="navigation"
       aria-label="Main"
       className={cn(
         "my-3 ml-3 gap-4 rounded-lg p-2",
@@ -134,7 +134,7 @@ function BottomBar() {
         <Plus size={26} color={colors.accentFg} strokeWidth={2.4} />
       </Pressable>
       <View
-        accessibilityRole="navigation"
+        role="navigation"
         aria-label="Main"
         style={{ marginBottom: Math.max(insets.bottom, 8) }}
         className={cn("mx-3 h-[68px] flex-row rounded-lg px-1", glass)}
