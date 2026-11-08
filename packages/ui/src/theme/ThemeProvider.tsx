@@ -1,36 +1,12 @@
 import { useColorScheme as useNativeWindScheme, vars } from "nativewind";
-import { createContext, type ReactNode, useContext, useEffect, useMemo } from "react";
+import { type ReactNode, useEffect, useMemo } from "react";
 import { Platform, useColorScheme as useSystemScheme, View } from "react-native";
 import { Backdrop } from "../components/Backdrop";
 import { PortalHost } from "../components/Portal";
 import { ToastHost } from "../components/Toast";
-import {
-  type AccentName,
-  accentPalette,
-  type ColorScheme,
-  colorsByScheme,
-  type SemanticColors,
-  themeVars,
-} from "../tokens";
-import { type SchemePreference, useThemeStore } from "./store";
-
-export interface Theme {
-  scheme: ColorScheme;
-  preference: SchemePreference;
-  accent: AccentName;
-  /** Resolved hex colours, for places Tailwind classes cannot reach (icons, Reanimated, charts). */
-  colors: SemanticColors;
-  setPreference: (p: SchemePreference) => void;
-  setAccent: (a: AccentName) => void;
-}
-
-const ThemeContext = createContext<Theme | null>(null);
-
-export function useTheme(): Theme {
-  const theme = useContext(ThemeContext);
-  if (!theme) throw new Error("useTheme must be used inside <ThemeProvider>");
-  return theme;
-}
+import { accentPalette, type ColorScheme, colorsByScheme, themeVars } from "../tokens";
+import { type Theme, ThemeContext } from "./context";
+import { useThemeStore } from "./store";
 
 /**
  * Owns the colour scheme (ADR 0004 finding 4: do not rely on the default). Applies the semantic colour

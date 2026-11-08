@@ -1,7 +1,7 @@
 import { BlurView } from "expo-blur";
 import type { ReactNode } from "react";
 import { Platform, StyleSheet, View } from "react-native";
-import { useTheme } from "../theme/ThemeProvider";
+import { useTheme } from "../theme/context";
 import { cn, glass } from "./primitives";
 
 export interface GlassSurfaceProps {

@@ -1,6 +1,6 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { View } from "react-native";
-import { useTheme } from "../theme/ThemeProvider";
+import { useTheme } from "../theme/context";
 import { accentPalette, heroGradient, mixHex } from "../tokens";
 import { cn } from "./primitives";
 

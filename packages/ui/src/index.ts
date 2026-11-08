@@ -7,9 +7,11 @@ export { GlassSurface, type GlassSurfaceProps } from "./components/GlassSurface"
 export { HeroCard, type HeroCardProps } from "./components/HeroCard";
 export { Input, type InputProps } from "./components/Input";
 export { ListItem, type ListItemProps } from "./components/ListItem";
+export { MasterDetail, type MasterDetailProps } from "./components/MasterDetail";
 export {
   AnimatedView,
   cn,
+  glass,
   Text,
   type TextProps,
   type TextTone,
@@ -23,6 +25,7 @@ export { type TabItem, Tabs, type TabsProps } from "./components/Tabs";
 export { type ToastTone, toast } from "./components/Toast";
 export { contrastRatio, relativeLuminance } from "./contrast";
 export { type Breakpoint, breakpointForWidth, useBreakpoint } from "./hooks/useBreakpoint";
+export { type Theme, useTheme } from "./theme/context";
 export { type SchemePreference, useThemeStore } from "./theme/store";
-export { type Theme, ThemeProvider, useTheme } from "./theme/ThemeProvider";
+export { ThemeProvider } from "./theme/ThemeProvider";
 export * from "./tokens";
