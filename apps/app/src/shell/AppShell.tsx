@@ -2,6 +2,7 @@ import {
   actionGradient,
   actionShadow,
   Button,
+  Chip,
   cn,
   GlassSurface,
   Gradient,
@@ -23,6 +24,18 @@ import { isActive, phoneItems, wideItems } from "./nav";
 import { hydrateShellStore, useShellStore } from "./store";
 
 const icon = require("../../assets/icon.png");
+
+/**
+ * Web keeps its data in this browser only until the RemoteRepository exists (ADR 0005), so say so: it does not sync
+ * with Android or the server, and clearing site data erases it.
+ */
+function InterimDataNotice() {
+  return (
+    <View className="mx-auto w-full max-w-[1200px] px-4 pt-3 tablet:px-6 desktop:px-8">
+      <Chip tone="warning" label="Interim: web data stays in this browser only" />
+    </View>
+  );
+}
 
 /** Placeholder until the transaction editor exists (P2.6). */
 function addTransaction() {
@@ -199,6 +212,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <View className="flex-1 flex-row">
       {bp === "phone" ? null : <SideNav wide={bp === "desktop"} />}
       <View className="flex-1">
+        {Platform.OS === "web" ? <InterimDataNotice /> : null}
         <View className="flex-1">{children}</View>
         {bp === "phone" ? <BottomBar /> : null}
       </View>
