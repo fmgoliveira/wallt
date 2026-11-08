@@ -48,7 +48,7 @@ function AccountsContent({ onAdd }: { onAdd: () => void }) {
   const open = (id: string) => router.push({ pathname: "/accounts/[id]", params: { id } });
 
   return (
-    <>
+    <View className="gap-6">
       {accounts.length === 0 && active.isSuccess ? (
         <Card>
           <EmptyState
@@ -170,7 +170,7 @@ function AccountsContent({ onAdd }: { onAdd: () => void }) {
           </Card>
         </View>
       ) : null}
-    </>
+    </View>
   );
 }
 

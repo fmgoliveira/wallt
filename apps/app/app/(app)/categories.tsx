@@ -150,7 +150,7 @@ function CategoriesContent({
   const editingHasChildren = !!editing && all.some((c) => c.parentId === editing.id);
 
   return (
-    <>
+    <View className="gap-6">
       {query.isSuccess && roots.length === 0 ? (
         <Card>
           <EmptyState
@@ -196,7 +196,7 @@ function CategoriesContent({
           onClose={() => setForm(null)}
         />
       ) : null}
-    </>
+    </View>
   );
 }
 
