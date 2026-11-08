@@ -14,11 +14,12 @@ import {
   useTheme,
 } from "@wallt/ui";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, Receipt } from "lucide-react-native";
+import { Archive, ArchiveRestore, ArrowLeft, Pencil, Receipt, Trash2 } from "lucide-react-native";
 import { useState } from "react";
 import { View } from "react-native";
 import { AccountForm } from "../../../src/accounts/AccountForm";
 import { accountTypeIcon, accountTypeLabel } from "../../../src/accounts/meta";
+import { ActionRow } from "../../../src/components/ActionRow";
 import { DataGate } from "../../../src/data/DataGate";
 import {
   useAccountWithBalance,
@@ -156,16 +157,24 @@ function AccountDetail({ id }: { id: string }) {
         </Card>
       </View>
 
-      <View className="flex-row flex-wrap gap-2">
-        <Button label="Edit" variant="secondary" onPress={() => setEditing(true)} />
-        <Button
-          label={account.archived ? "Restore" : "Archive"}
-          variant="secondary"
-          loading={update.isPending}
+      <Card className="p-0 tablet:p-0">
+        <ActionRow icon={Pencil} label="Edit account" onPress={() => setEditing(true)} />
+        <ActionRow
+          divider
+          icon={account.archived ? ArchiveRestore : Archive}
+          label={account.archived ? "Restore account" : "Archive account"}
+          hint={account.archived ? "Show it in your accounts again" : "Hide it, keep its history"}
+          disabled={update.isPending}
           onPress={toggleArchive}
         />
-        <Button label="Delete" variant="destructive" onPress={() => setConfirmDelete(true)} />
-      </View>
+        <ActionRow
+          divider
+          icon={Trash2}
+          label="Delete account"
+          tone="negative"
+          onPress={() => setConfirmDelete(true)}
+        />
+      </Card>
 
       {editing ? <AccountForm account={account} onClose={() => setEditing(false)} /> : null}
       <Sheet

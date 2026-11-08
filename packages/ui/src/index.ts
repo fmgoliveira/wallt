@@ -31,6 +31,7 @@ export {
 export { Select, type SelectOption, type SelectProps } from "./components/Select";
 export { Sheet, type SheetProps } from "./components/Sheet";
 export { Skeleton, type SkeletonProps } from "./components/Skeleton";
+export { SortableList, type SortableListProps } from "./components/SortableList";
 export { CategoryDot, Chip, type ChipTone, IconTile, Kbd } from "./components/small";
 export { Table, type TableColumn, type TableProps } from "./components/Table";
 export { type TabItem, Tabs, type TabsProps } from "./components/Tabs";
