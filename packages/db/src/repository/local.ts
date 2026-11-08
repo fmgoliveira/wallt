@@ -33,6 +33,7 @@ import {
   type TransactionDetail,
   type TransactionFilter,
   type TransactionPatch,
+  type TransactionSort,
   type TransferPatch,
 } from "./types";
 
@@ -292,6 +293,26 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): R
       );
     }
     return and(...c);
+  }
+
+  /** Requested order first, then newest-first so paging is stable and equal keys never shuffle between pages. */
+  function orderFor(sort?: TransactionSort): SQL[] {
+    const newest = [
+      desc(t.transactions.bookingDate),
+      desc(t.transactions.createdAt),
+      desc(t.transactions.id),
+    ];
+    if (!sort || (sort.by === "date" && sort.dir === "desc")) return newest;
+    const dir = sort.dir === "asc" ? asc : desc;
+    if (sort.by === "date") {
+      return [
+        dir(t.transactions.bookingDate),
+        dir(t.transactions.createdAt),
+        dir(t.transactions.id),
+      ];
+    }
+    if (sort.by === "amount") return [dir(t.transactions.amount), ...newest];
+    return [dir(sql`lower(${t.transactions.payee})`), ...newest];
   }
 
   function checkSign(kind: Transaction["kind"], amount: number) {
@@ -755,17 +776,20 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): R
     const transactions: Repository["transactions"] = {
       list: (filter = {}) =>
         run(async () => {
+          // Sort and page over ids only, then load the full rows of that page: with a deep OFFSET the
+          // sorter would otherwise hold tens of thousands of wide rows (1+ s at 10k rows in, vs ~50 ms).
+          const page = db
+            .select({ id: t.transactions.id })
+            .from(t.transactions)
+            .where(whereFor(filter))
+            .orderBy(...orderFor(filter.sort))
+            .limit(filter.limit ?? 100)
+            .offset(filter.offset ?? 0);
           const rows = await db
             .select()
             .from(t.transactions)
-            .where(whereFor(filter))
-            .orderBy(
-              desc(t.transactions.bookingDate),
-              desc(t.transactions.createdAt),
-              desc(t.transactions.id),
-            )
-            .limit(filter.limit ?? 100)
-            .offset(filter.offset ?? 0);
+            .where(inArray(t.transactions.id, page))
+            .orderBy(...orderFor(filter.sort));
           return rows.map(txFromRow);
         }),
       count: (filter = {}) =>

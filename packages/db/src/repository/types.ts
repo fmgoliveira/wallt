@@ -144,6 +144,12 @@ export interface NewTransfer {
 }
 export type TransferPatch = Partial<NewTransfer>;
 
+/** Column to order a transaction list by. Ties fall back to newest first. */
+export interface TransactionSort {
+  by: "date" | "amount" | "payee";
+  dir: "asc" | "desc";
+}
+
 export interface TransactionFilter {
   accountIds?: string[];
   categoryIds?: string[];
@@ -163,7 +169,9 @@ export interface TransactionFilter {
 
 export interface TransactionsRepository {
   /** Newest booking date first (then newest created). `limit` defaults to 100. */
-  list(filter?: TransactionFilter & { limit?: number; offset?: number }): Promise<Transaction[]>;
+  list(
+    filter?: TransactionFilter & { limit?: number; offset?: number; sort?: TransactionSort },
+  ): Promise<Transaction[]>;
   count(filter?: TransactionFilter): Promise<number>;
   get(id: string): Promise<TransactionDetail | null>;
   create(input: NewTransaction): Promise<TransactionDetail>;

@@ -771,3 +771,106 @@ describe("split rules", () => {
     expect(moved.splits.reduce((s, x) => s + x.amount, 0)).toBe(-1200);
   });
 });
+
+describe("transaction sorting", () => {
+  it("orders by date, amount and payee, both ways, with stable ties", async () => {
+    const a = await account();
+    const mk = (amount: number, bookingDate: string, payee: string) =>
+      repo.transactions.create({ accountId: a.id, amount, currency: "EUR", bookingDate, payee });
+    await mk(-500, "2026-11-01", "bravo");
+    await mk(-100, "2026-11-03", "Alpha");
+    await mk(900, "2026-11-02", "charlie");
+    const names = async (sort: { by: "date" | "amount" | "payee"; dir: "asc" | "desc" }) =>
+      (await repo.transactions.list({ sort })).map((x) => x.payee);
+    expect(await names({ by: "date", dir: "desc" })).toEqual(["Alpha", "charlie", "bravo"]);
+    expect(await names({ by: "date", dir: "asc" })).toEqual(["bravo", "charlie", "Alpha"]);
+    expect(await names({ by: "amount", dir: "asc" })).toEqual(["bravo", "Alpha", "charlie"]);
+    expect(await names({ by: "amount", dir: "desc" })).toEqual(["charlie", "Alpha", "bravo"]);
+    expect(await names({ by: "payee", dir: "asc" })).toEqual(["Alpha", "bravo", "charlie"]); // case-insensitive
+    // paging stays consistent under a sort
+    const p1 = await repo.transactions.list({ sort: { by: "amount", dir: "asc" }, limit: 2 });
+    const p2 = await repo.transactions.list({
+      sort: { by: "amount", dir: "asc" },
+      limit: 2,
+      offset: 2,
+    });
+    expect([...p1, ...p2].map((x) => x.payee)).toEqual(["bravo", "Alpha", "charlie"]);
+  });
+});
+
+describe("scale", () => {
+  it("serves filtered, sorted pages from 50k rows quickly", async () => {
+    const a = await account();
+    const food = await repo.categories.create({ name: "Food", type: "expense" });
+    const seed = await repo.transactions.create({
+      accountId: a.id,
+      amount: -1,
+      currency: "EUR",
+      bookingDate: "2026-01-01",
+      payee: "seed",
+      categoryId: food.id,
+    });
+    const cols = (raw.prepare("PRAGMA table_info(transactions)").all() as { name: string }[]).map(
+      (c) => c.name,
+    );
+    const expr = (c: string) =>
+      c === "id"
+        ? "lower(hex(randomblob(16)))"
+        : c === "amount"
+          ? "-(i % 5000) - 1"
+          : c === "booking_date"
+            ? "date('2026-01-01', '+' || (i % 900) || ' days')"
+            : c === "payee"
+              ? "'payee ' || (i % 700)"
+              : c === "created_at"
+                ? "strftime('%Y-%m-%dT%H:%M:%fZ', '2026-01-01', '+' || i || ' seconds')"
+                : `(SELECT ${c} FROM transactions WHERE id = '${seed.id}')`;
+    raw.exec(
+      `WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 50000)
+       INSERT INTO transactions (${cols.join(",")}) SELECT ${cols.map(expr).join(",")} FROM n`,
+    );
+    expect(await repo.transactions.count()).toBe(50_001);
+
+    const timed = async (label: string, fn: () => Promise<unknown>) => {
+      const t0 = performance.now();
+      await fn();
+      const ms = performance.now() - t0;
+      console.info(`50k rows - ${label}: ${ms.toFixed(0)} ms`);
+      return ms;
+    };
+    const budget = 750; // generous: the page must stay interactive on a slow CI box
+    const page = { limit: 100 };
+    expect(await timed("newest page", () => repo.transactions.list(page))).toBeLessThan(budget);
+    expect(
+      await timed("by amount", () =>
+        repo.transactions.list({ ...page, sort: { by: "amount", dir: "asc" } }),
+      ),
+    ).toBeLessThan(budget);
+    expect(
+      await timed("by payee", () =>
+        repo.transactions.list({ ...page, sort: { by: "payee", dir: "asc" } }),
+      ),
+    ).toBeLessThan(budget);
+    expect(
+      await timed("deep page (10k rows in)", () =>
+        repo.transactions.list({ ...page, offset: 10_000 }),
+      ),
+    ).toBeLessThan(budget);
+    expect(
+      await timed("period + account", () =>
+        repo.transactions.list({
+          ...page,
+          accountIds: [a.id],
+          from: "2026-03-01",
+          to: "2026-03-31",
+        }),
+      ),
+    ).toBeLessThan(budget);
+    expect(
+      await timed("text search", () => repo.transactions.list({ ...page, search: "payee 69" })),
+    ).toBeLessThan(budget);
+    expect(
+      await timed("count", () => repo.transactions.count({ search: "payee 69" })),
+    ).toBeLessThan(budget);
+  }, 60_000);
+});
