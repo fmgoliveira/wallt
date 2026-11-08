@@ -77,3 +77,11 @@ export const glass =
   "web:backdrop-blur-2xl web:backdrop-saturate-150 " +
   "web:shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_8px_32px_rgba(15,23,42,0.10)] " +
   "dark:web:shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_8px_32px_rgba(0,0,0,0.35)]";
+
+/**
+ * Glass for overlays that sit on top of content (sheet, toast, floating bars). Web blurs what is behind it;
+ * native has no backdrop blur, so the fill is nearly opaque there to keep text behind from showing through.
+ */
+export const glassOverlay =
+  "border border-white/70 bg-elevated dark:border-white/10 " +
+  "web:bg-white/75 dark:web:bg-slate-900/70 web:backdrop-blur-2xl web:backdrop-saturate-150";

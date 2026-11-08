@@ -1,4 +1,4 @@
-import { cn, glass, Text, toast, useBreakpoint, useTheme } from "@wallt/ui";
+import { cn, glass, glassOverlay, Text, toast, useBreakpoint, useTheme } from "@wallt/ui";
 import { usePathname } from "expo-router";
 import { PanelLeftClose, PanelLeftOpen, Plus } from "lucide-react-native";
 import { type ReactNode, useEffect } from "react";
@@ -137,7 +137,7 @@ function BottomBar() {
         role="navigation"
         aria-label="Main"
         style={{ marginBottom: Math.max(insets.bottom, 8) }}
-        className={cn("mx-3 h-[68px] flex-row rounded-lg px-1", glass)}
+        className={cn("mx-3 h-[68px] flex-row rounded-lg px-1", glassOverlay)}
       >
         {phoneItems.map((item) => (
           <NavButton key={item.key} item={item} active={isActive(item, pathname)} variant="bar" />

@@ -1,10 +1,18 @@
 import { type ReactNode, useEffect } from "react";
 import { Platform, Pressable, ScrollView, View } from "react-native";
-import { FadeIn, FadeOut, ReduceMotion, SlideInDown, SlideOutDown } from "react-native-reanimated";
+import {
+  Easing,
+  FadeIn,
+  FadeOut,
+  ReduceMotion,
+  SlideInDown,
+  SlideOutDown,
+} from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBreakpoint } from "../hooks/useBreakpoint";
 import { motion } from "../tokens";
 import { Portal } from "./Portal";
-import { AnimatedView, cn, Text } from "./primitives";
+import { AnimatedView, cn, glassOverlay, Text } from "./primitives";
 
 export interface SheetProps {
   visible: boolean;
@@ -21,6 +29,7 @@ export interface SheetProps {
 export function Sheet({ visible, onClose, title, children }: SheetProps) {
   const bp = useBreakpoint();
   const desktop = bp === "desktop";
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     if (!visible || Platform.OS !== "web" || typeof document === "undefined") return;
@@ -35,7 +44,9 @@ export function Sheet({ visible, onClose, title, children }: SheetProps) {
 
   const enter = desktop
     ? FadeIn.duration(motion.duration.base).reduceMotion(ReduceMotion.System)
-    : SlideInDown.springify().damping(motion.spring.damping).reduceMotion(ReduceMotion.System);
+    : SlideInDown.duration(motion.duration.slow)
+        .easing(Easing.out(Easing.cubic))
+        .reduceMotion(ReduceMotion.System);
   const exit = desktop
     ? FadeOut.duration(motion.duration.fast).reduceMotion(ReduceMotion.System)
     : SlideOutDown.duration(motion.duration.base).reduceMotion(ReduceMotion.System);
@@ -68,7 +79,8 @@ export function Sheet({ visible, onClose, title, children }: SheetProps) {
           aria-modal
           aria-label={title}
           className={cn(
-            "max-h-[85%] shadow-e3 bg-white/75 dark:bg-slate-900/70 border border-white/70 dark:border-white/10 web:backdrop-blur-3xl web:backdrop-saturate-150",
+            "max-h-[85%] shadow-e3",
+            glassOverlay,
             desktop ? "w-full max-w-[480px] rounded-lg" : "w-full rounded-t-lg",
           )}
         >
@@ -83,7 +95,8 @@ export function Sheet({ visible, onClose, title, children }: SheetProps) {
             </View>
           ) : null}
           <ScrollView
-            contentContainerClassName="px-5 pt-2 pb-6 gap-3"
+            contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+            contentContainerClassName="px-5 pt-2 gap-3"
             keyboardShouldPersistTaps="handled"
           >
             {children}
