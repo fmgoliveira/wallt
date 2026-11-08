@@ -12,6 +12,8 @@ const webBlur: Record<GlassLevel, string> = {
   toast: "web:backdrop-blur-[24px] web:backdrop-saturate-[1.6]",
 };
 
+const nativeAlpha: Record<GlassLevel, number> = { bar: 0.92, sheet: 1, toast: 1 };
+
 export interface GlassSurfaceProps {
   level: GlassLevel;
   /** Corner radius token (`xl` for the floating tab bar and sheets, `lg` for toasts and rail). */
@@ -36,7 +38,8 @@ export function GlassSurface({
   const { scheme, colors } = useTheme();
   const spec = glassLevels[level];
   const native = Platform.OS !== "web";
-  const alpha = Math.min(1, spec.fill[scheme] + (native ? 0.12 : 0));
+  // Android blur is weak, so floating layers there are (nearly) opaque to stop content behind showing through.
+  const alpha = native ? nativeAlpha[level] : spec.fill[scheme];
   const edge = withAlpha(scheme === "light" ? colors.text : "#ffffff", 0.07);
   const highlight = scheme === "light" ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.06)";
   const lift =
@@ -56,7 +59,7 @@ export function GlassSurface({
         style,
       ]}
     >
-      {native ? (
+      {native && alpha < 1 ? (
         <BlurView
           intensity={spec.intensity}
           tint={scheme === "dark" ? "dark" : "light"}
