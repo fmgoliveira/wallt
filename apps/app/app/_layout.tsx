@@ -7,6 +7,7 @@ import { useFonts } from "expo-font";
 import { DefaultTheme, ThemeProvider as NavigationThemeProvider, Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
+import { DataProvider } from "../src/data/RepositoryProvider";
 
 // Navigation paints its own opaque background; make it transparent so our themed backdrop shows.
 const transparentNavTheme = {
@@ -46,7 +47,9 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider>
-      <ThemedStack />
+      <DataProvider>
+        <ThemedStack />
+      </DataProvider>
     </ThemeProvider>
   );
 }
