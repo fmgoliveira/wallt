@@ -1,9 +1,13 @@
-// Bundles the server and the restore CLI into ESM files. Only the native addon stays external
+// Bundles the server and its CLIs into ESM files. Only the native addon stays external
 // (installed in the image).
 import { build } from "esbuild";
 
 await build({
-  entryPoints: { main: "src/main.ts", restore: "src/restore-cli.ts" },
+  entryPoints: {
+    main: "src/main.ts",
+    restore: "src/restore-cli.ts",
+    "drive-auth": "src/drive-auth-cli.ts",
+  },
   outdir: "dist",
   outExtension: { ".js": ".mjs" },
   bundle: true,

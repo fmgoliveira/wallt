@@ -19,6 +19,10 @@ services:
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:?set ENCRYPTION_KEY in .env (openssl rand -base64 32)}
       # One-time guard for creating the first user; remove it after setup.
       SETUP_TOKEN: ${SETUP_TOKEN:-}
+      # Encrypted Drive backups (disabled unless all three are set; see docs/deploy.md)
+      BACKUP_AGE_RECIPIENT: ${BACKUP_AGE_RECIPIENT:-}
+      GDRIVE_CLIENT_ID: ${GDRIVE_CLIENT_ID:-}
+      GDRIVE_CLIENT_SECRET: ${GDRIVE_CLIENT_SECRET:-}
       # Peers whose X-Real-IP is trusted: host nginx reaches the container from the bridge gateway.
       TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.1,::1,172.16.0.0/12}
     read_only: true

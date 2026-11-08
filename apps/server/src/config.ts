@@ -17,6 +17,13 @@ const schema = z.object({
   TZ: z.string().min(1).optional(),
   /** Master secret: TOTP secrets are encrypted with it and the JWT key is derived from it. */
   ENCRYPTION_KEY: base64Key,
+  /** age public key; backups run only when this and the Google client below are all set. */
+  BACKUP_AGE_RECIPIENT: z
+    .string()
+    .regex(/^age1[a-z0-9]{50,}$/, "must be an age public key (age1...)")
+    .optional(),
+  GDRIVE_CLIENT_ID: z.string().min(1).optional(),
+  GDRIVE_CLIENT_SECRET: z.string().min(1).optional(),
   /** One-time guard for creating the first user; setup is disabled when unset. */
   SETUP_TOKEN: z.string().min(16).optional(),
 });
