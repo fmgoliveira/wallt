@@ -16,10 +16,12 @@ export { HeroCard, type HeroCardProps } from "./components/HeroCard";
 export { Input, type InputProps } from "./components/Input";
 export { ListItem, type ListItemProps } from "./components/ListItem";
 export { MasterDetail, type MasterDetailProps } from "./components/MasterDetail";
+export { Reveal, RevealGroup, type RevealProps, usePressScale } from "./components/motion";
 export { Progress, type ProgressProps } from "./components/Progress";
 export {
   AnimatedView,
   cn,
+  MotionView,
   Text,
   type TextProps,
   type TextTone,

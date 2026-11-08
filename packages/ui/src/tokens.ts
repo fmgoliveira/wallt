@@ -118,7 +118,7 @@ export const motion = {
     emphasized: [0.3, 0, 0, 1],
     exit: [0.4, 0, 1, 1],
   },
-  spring: { damping: 20, stiffness: 260, mass: 1 },
+  spring: { damping: 30, stiffness: 340, mass: 1 },
   press: { scale: 0.98 },
   stagger: { step: 25, max: 8 },
   rise: 6,

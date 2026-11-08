@@ -39,7 +39,7 @@ export function Input({ label, helper, error, className, onFocus, onBlur, ...res
           setFocused(false);
           onBlur?.(e);
         }}
-        className="web:outline-none"
+        className="web:outline-none web:transition-shadow web:duration-150"
         style={{
           minHeight: height,
           paddingHorizontal: 12,

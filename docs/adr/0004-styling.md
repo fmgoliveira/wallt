@@ -98,3 +98,10 @@ shadow) applied through the `style` prop because NativeWind's `shadow-*` utiliti
 Verified on web (light + dark, phone/desktop). **Android is still unverified by me** (the device screen was locked); on-device checks of Geist,
 `expo-blur` glass, `boxShadow` and gradients remain open in #79. Native caveat carried over from P2.2: do not put `className` and an animated
 `style` on the same Reanimated view (use a plain wrapper View for `className`).
+
+### Motion (P2.10 follow-up)
+`AnimatedView` (NativeWind-wrapped Reanimated view) supports `className` and `entering`/`exiting` only; the wrapper flattens `style` and
+silently drops `useAnimatedStyle` output on web and Android. Anything with an animated `style` (button press scale, segmented pill, press
+feedback) uses `MotionView` (an unwrapped `Animated.createAnimatedComponent(View)`) with plain style objects, `className` on a plain parent.
+`onLayout` does not fire on views under the wrapper either; measure with `ref.measure`. Entrances use `Reveal`/`RevealGroup` (Keyframe,
+180 ms, 25 ms stagger, max 8). Shared spring is critically damped (`damping 30, stiffness 340`) to avoid visible bounce.

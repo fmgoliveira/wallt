@@ -14,7 +14,7 @@ import {
   withAlpha,
 } from "../tokens";
 import { Gradient } from "./Gradient";
-import { AnimatedView, cn, Text, type TextTone } from "./primitives";
+import { cn, MotionView, Text, type TextTone } from "./primitives";
 import { Kbd } from "./small";
 
 export type ButtonVariant = "primary" | "secondary" | "ghost" | "destructive";
@@ -97,7 +97,7 @@ export function Button({
 
   return (
     <View className={className}>
-      <AnimatedView style={anim}>
+      <MotionView style={anim}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={label}
@@ -115,7 +115,7 @@ export function Button({
             "flex-row items-center justify-center gap-2 overflow-hidden px-4 web:focus-visible:outline web:focus-visible:outline-2 web:focus-visible:outline-offset-2 web:focus-visible:outline-data",
             inactive
               ? "opacity-50 web:cursor-not-allowed"
-              : "web:cursor-pointer web:hover:brightness-[1.06]",
+              : "web:cursor-pointer web:transition-[filter,background-color] web:duration-150 web:hover:brightness-[1.06]",
             variant === "ghost" && !inactive && "web:hover:bg-text/5",
           )}
           style={{
@@ -137,7 +137,7 @@ export function Button({
           </Text>
           {kbd ? <Kbd onAccent={variant === "primary"}>{kbd}</Kbd> : null}
         </Pressable>
-      </AnimatedView>
+      </MotionView>
     </View>
   );
 }

@@ -51,7 +51,7 @@ export function Select<T extends string>({
         accessibilityLabel={label ? `${label}: ${selected?.label ?? placeholder}` : undefined}
         accessibilityState={{ expanded: open }}
         onPress={() => setOpen(true)}
-        className="flex-row items-center justify-between px-3 web:cursor-pointer web:outline-none"
+        className="flex-row items-center justify-between px-3 web:cursor-pointer web:outline-none web:transition-shadow web:duration-150"
         style={{
           minHeight: height,
           borderRadius: radius.md,
@@ -83,7 +83,7 @@ export function Select<T extends string>({
                   setOpen(false);
                 }}
                 className={cn(
-                  "min-h-touch flex-row items-center justify-between rounded-md px-3 web:cursor-pointer web:hover:bg-text/5",
+                  "min-h-touch flex-row items-center justify-between rounded-md px-3 web:cursor-pointer web:transition-colors web:duration-150 web:hover:bg-text/5",
                   active && "bg-data/10",
                 )}
               >
