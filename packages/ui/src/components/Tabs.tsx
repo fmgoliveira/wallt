@@ -1,4 +1,6 @@
 import { Pressable, View } from "react-native";
+import { useTheme } from "../theme/context";
+import { controlShadow, radius } from "../tokens";
 import { cn, Text } from "./primitives";
 
 export interface TabItem<T extends string> {
@@ -13,15 +15,17 @@ export interface TabsProps<T extends string> {
   className?: string | undefined;
 }
 
-/** Segmented-style tabs for in-screen switching (not the app navigation, see P2.2). */
+/**
+ * Segmented control for in-screen switching (not app navigation, see the shell). Track `text/5`; the active
+ * segment is `elevated` with the depth recipe so it looks raised.
+ */
 export function Tabs<T extends string>({ items, value, onChange, className }: TabsProps<T>) {
+  const { colors, scheme } = useTheme();
   return (
     <View
       accessibilityRole="tablist"
-      className={cn(
-        "flex-row gap-1 self-start rounded-md border border-white/60 bg-white/40 p-1 dark:border-white/10 dark:bg-white/[0.05] web:backdrop-blur-xl",
-        className,
-      )}
+      className={cn("flex-row gap-0.5 self-start bg-text/5 p-[3px]", className)}
+      style={{ borderRadius: radius.md }}
     >
       {items.map((item) => {
         const active = item.value === value;
@@ -32,15 +36,18 @@ export function Tabs<T extends string>({ items, value, onChange, className }: Ta
             accessibilityState={{ selected: active }}
             onPress={() => onChange(item.value)}
             className={cn(
-              "min-h-[36px] min-w-touch items-center justify-center rounded-sm px-4 web:cursor-pointer",
-              active ? "bg-white/90 shadow-e1 dark:bg-white/15" : "web:hover:bg-border/60",
+              "min-h-[34px] min-w-touch items-center justify-center px-4 web:cursor-pointer web:outline-none web:focus-visible:bg-text/5",
+              !active && "web:hover:bg-text/5",
             )}
+            style={{
+              borderRadius: radius.sm,
+              backgroundColor: active ? colors.elevated : undefined,
+              boxShadow: active
+                ? `0 0 0 1px ${colors.border}, ${controlShadow(scheme)}`
+                : undefined,
+            }}
           >
-            <Text
-              variant="small"
-              tone={active ? "default" : "muted"}
-              className={active ? "font-inter-semibold" : "font-inter-medium"}
-            >
+            <Text variant="small" weight="medium" tone={active ? "default" : "muted"}>
               {item.label}
             </Text>
           </Pressable>

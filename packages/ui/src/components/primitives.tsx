@@ -9,28 +9,32 @@ export function cn(...parts: (string | false | null | undefined)[]): string {
 }
 
 // NativeWind does not map `className` onto Reanimated components automatically (ADR 0004 finding 3).
+// Never combine `className` with an animated `style` on one view on native: put `className` on a plain
+// wrapper View and the animated style on the inner AnimatedView (see Button, Skeleton).
 cssInterop(Animated.View, { className: "style" });
 
 export const AnimatedView = Animated.View;
 
-export type TextVariant = "display" | "heading" | "title" | "body" | "small" | "caption";
+export type TextVariant = "display" | "heading" | "title" | "body" | "small" | "label";
 export type TextTone =
   | "default"
   | "onAccent"
   | "onHero"
   | "muted"
-  | "accent"
+  | "subtle"
+  | "data"
   | "positive"
   | "negative"
   | "warning";
+export type TextWeight = "regular" | "medium" | "semibold";
 
 const variantClass: Record<TextVariant, string> = {
-  display: "text-display font-inter-bold",
-  heading: "text-heading font-inter-semibold",
-  title: "text-title font-inter-semibold",
+  display: "text-display font-geist-semibold",
+  heading: "text-heading font-geist-semibold",
+  title: "text-title font-geist-semibold",
   body: "text-body font-sans",
   small: "text-small font-sans",
-  caption: "text-caption font-inter-medium",
+  label: "text-label font-mono uppercase",
 };
 
 const toneClass: Record<TextTone, string> = {
@@ -38,16 +42,24 @@ const toneClass: Record<TextTone, string> = {
   onAccent: "text-accent-fg",
   onHero: "text-white",
   muted: "text-muted",
-  accent: "text-accent",
+  subtle: "text-subtle",
+  data: "text-data",
   positive: "text-positive",
   negative: "text-negative",
   warning: "text-warning",
 };
 
+const weightClass: Record<TextWeight, string | undefined> = {
+  regular: undefined,
+  medium: "font-geist-medium",
+  semibold: "font-geist-semibold",
+};
+
 export interface TextProps extends RNTextProps {
   variant?: TextVariant;
   tone?: TextTone;
-  /** Use tabular figures so digits line up (all monetary amounts). */
+  weight?: TextWeight;
+  /** Tabular figures so digits line up (every number; `<Amount>` always sets it). */
   tabular?: boolean;
   className?: string | undefined;
   children?: ReactNode;
@@ -55,33 +67,23 @@ export interface TextProps extends RNTextProps {
 
 export function Text({
   variant = "body",
-  tone = "default",
+  tone = variant === "label" ? "subtle" : "default",
+  weight,
   tabular,
   className,
+  style,
   ...rest
 }: TextProps) {
   return (
     <RNText
       {...rest}
-      className={cn(variantClass[variant], toneClass[tone], tabular && "tabular-nums", className)}
+      style={tabular ? [{ fontVariant: ["tabular-nums"] }, style] : style}
+      className={cn(
+        variantClass[variant],
+        toneClass[tone],
+        weight && weightClass[weight],
+        className,
+      )}
     />
   );
 }
-
-/**
- * Shared "glass" recipe: a white-tinted translucent fill, a bright hairline edge, an inner top highlight and
- * (web) a heavy saturating backdrop blur. Needs the themed `<Backdrop>` glows behind it to read as glass.
- */
-export const glass =
-  "border border-white/70 bg-white/55 dark:border-white/10 dark:bg-white/[0.06] " +
-  "web:backdrop-blur-2xl web:backdrop-saturate-150 " +
-  "web:shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_8px_32px_rgba(15,23,42,0.10)] " +
-  "dark:web:shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_8px_32px_rgba(0,0,0,0.35)]";
-
-/**
- * Glass for overlays that sit on top of content (sheet, toast, floating bars). Web blurs what is behind it;
- * native has no backdrop blur, so the fill is nearly opaque there to keep text behind from showing through.
- */
-export const glassOverlay =
-  "border border-white/70 bg-elevated dark:border-white/10 " +
-  "web:bg-white/75 dark:web:bg-slate-900/70 web:backdrop-blur-2xl web:backdrop-saturate-150";

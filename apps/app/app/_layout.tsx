@@ -1,13 +1,9 @@
 import "../global.css";
 
-import {
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_600SemiBold,
-  Inter_700Bold,
-  useFonts,
-} from "@expo-google-fonts/inter";
+import { Geist_400Regular, Geist_500Medium, Geist_600SemiBold } from "@expo-google-fonts/geist";
+import { GeistMono_500Medium } from "@expo-google-fonts/geist-mono";
 import { ThemeProvider, useTheme } from "@wallt/ui";
+import { useFonts } from "expo-font";
 import { DefaultTheme, ThemeProvider as NavigationThemeProvider, Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 
@@ -30,13 +26,13 @@ function ThemedStack() {
 }
 
 export default function RootLayout() {
-  // Inter is bundled with the app (self-hosted: no network font fetch). Render after load so text
+  // Geist is bundled with the app (self-hosted: no network font fetch). Render after load so text
   // never flashes in a fallback face with different metrics.
   const [loaded, error] = useFonts({
-    Inter_400Regular,
-    Inter_500Medium,
-    Inter_600SemiBold,
-    Inter_700Bold,
+    Geist_400Regular,
+    Geist_500Medium,
+    Geist_600SemiBold,
+    GeistMono_500Medium,
   });
 
   if (!loaded && !error) return null;

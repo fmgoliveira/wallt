@@ -4,7 +4,8 @@ import { Easing, FadeInUp, FadeOutUp, ReduceMotion } from "react-native-reanimat
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { create } from "zustand";
 import { motion } from "../tokens";
-import { AnimatedView, cn, glassOverlay, Text } from "./primitives";
+import { GlassSurface } from "./GlassSurface";
+import { AnimatedView, cn, Text } from "./primitives";
 
 export type ToastTone = "info" | "success" | "error";
 
@@ -44,7 +45,7 @@ export const toast = {
 const AUTO_DISMISS_MS = 4000;
 
 const toneBar: Record<ToastTone, string> = {
-  info: "bg-accent",
+  info: "bg-data",
   success: "bg-positive",
   error: "bg-negative",
 };
@@ -65,20 +66,21 @@ function ToastView({ item }: { item: ToastItem }) {
       exiting={FadeOutUp.duration(motion.duration.fast).reduceMotion(ReduceMotion.System)}
       role={item.tone === "error" ? "alert" : "status"}
       accessibilityLiveRegion={item.tone === "error" ? "assertive" : "polite"}
-      className={cn(
-        "w-full max-w-[420px] flex-row overflow-hidden rounded-md shadow-e3",
-        glassOverlay,
-      )}
+      className="w-full max-w-[420px]"
     >
-      <View className={cn("w-1", toneBar[item.tone])} />
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`${item.message}. Dismiss`}
-        onPress={() => dismiss(item.id)}
-        className="min-h-touch flex-1 justify-center px-4 py-3"
-      >
-        <Text variant="small">{item.message}</Text>
-      </Pressable>
+      <GlassSurface level="toast" rounded="lg" className="flex-row">
+        <View className={cn("w-[3px]", toneBar[item.tone])} />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${item.message}. Dismiss`}
+          onPress={() => dismiss(item.id)}
+          className="min-h-touch flex-1 justify-center px-4 py-3"
+        >
+          <Text variant="small" weight="medium">
+            {item.message}
+          </Text>
+        </Pressable>
+      </GlassSurface>
     </AnimatedView>
   );
 }

@@ -1,34 +1,70 @@
 import { BlurView } from "expo-blur";
 import type { ReactNode } from "react";
-import { Platform, StyleSheet, View } from "react-native";
+import { Platform, StyleSheet, View, type ViewStyle } from "react-native";
 import { useTheme } from "../theme/context";
-import { cn, glass } from "./primitives";
+import { type GlassLevel, glassLevels, radius, withAlpha } from "../tokens";
+import { cn } from "./primitives";
+
+// Static class names so Tailwind can see them. Blur px per level come from `glassLevels`.
+const webBlur: Record<GlassLevel, string> = {
+  bar: "web:backdrop-blur-[24px] web:backdrop-saturate-[1.6]",
+  sheet: "web:backdrop-blur-[32px] web:backdrop-saturate-[1.6]",
+  toast: "web:backdrop-blur-[24px] web:backdrop-saturate-[1.6]",
+};
 
 export interface GlassSurfaceProps {
+  level: GlassLevel;
+  /** Corner radius token (`xl` for the floating tab bar and sheets, `lg` for toasts and rail). */
+  rounded?: keyof typeof radius;
   className?: string | undefined;
-  /** Blur strength for the native `BlurView` (0-100). */
-  intensity?: number;
+  style?: ViewStyle;
   children?: ReactNode;
 }
 
 /**
- * Translucent "glass" surface (ADR 0004). Web: CSS `backdrop-filter`. Native: `expo-blur` BlurView under a
- * translucent fill. If blur is unavailable the translucent fill + border still read as a card.
+ * Glass (guidelines §4): translucent fill + hairline + top highlight + backdrop blur.
+ * Web: CSS `backdrop-filter`. Native: `expo-blur` under a slightly denser fill, so that if blur is weak
+ * (Android) text behind a floating layer still does not show through.
  */
-export function GlassSurface({ className, intensity = 40, children }: GlassSurfaceProps) {
-  const { scheme } = useTheme();
-  const base = cn("overflow-hidden rounded-lg", glass, className);
+export function GlassSurface({
+  level,
+  rounded = "lg",
+  className,
+  style,
+  children,
+}: GlassSurfaceProps) {
+  const { scheme, colors } = useTheme();
+  const spec = glassLevels[level];
+  const native = Platform.OS !== "web";
+  const alpha = Math.min(1, spec.fill[scheme] + (native ? 0.12 : 0));
+  const edge = withAlpha(scheme === "light" ? colors.text : "#ffffff", 0.07);
+  const highlight = scheme === "light" ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.06)";
+  const lift =
+    scheme === "light"
+      ? "0 12px 32px -12px rgba(16,24,40,0.22)"
+      : "0 12px 32px -12px rgba(0,0,0,0.6)";
 
-  if (Platform.OS === "web") {
-    return <View className={base}>{children}</View>;
-  }
   return (
-    <View className={base}>
-      <BlurView
-        intensity={intensity}
-        tint={scheme === "dark" ? "dark" : "light"}
-        style={StyleSheet.absoluteFill}
-      />
+    <View
+      className={cn("overflow-hidden", webBlur[level], className)}
+      style={[
+        {
+          borderRadius: radius[rounded],
+          backgroundColor: withAlpha(colors[spec.from], alpha),
+          boxShadow: `0 0 0 1px ${edge}, ${lift}, inset 0 1px 0 ${highlight}`,
+        },
+        style,
+      ]}
+    >
+      {native ? (
+        <BlurView
+          intensity={spec.intensity}
+          tint={scheme === "dark" ? "dark" : "light"}
+          experimentalBlurMethod="dimezisBlurView"
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+        />
+      ) : null}
       {children}
     </View>
   );

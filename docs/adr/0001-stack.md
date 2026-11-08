@@ -49,7 +49,9 @@ Mobile/native packages follow **Expo SDK 58's bundled versions** (not npm latest
 | expo-sqlite | ~58.0.15 | planned (P2.3, Android only) | local DB; async API only |
 | drizzle-orm / drizzle-kit | 0.45.4 / 0.31.11 | in use (P1.2) | schema + migrations shared by app and server |
 | @tanstack/react-query | 5.106.1 | planned (P2) | server/derived data |
-| zustand | 5.1.0 | planned (P2.1) | UI state, owned colour scheme |
+| zustand | 5.1.0 | in use (P2.1) | UI state, owned colour scheme |
+| @expo-google-fonts/geist / geist-mono | 0.4.2 / 0.4.3 | in use (P2.10, #79) | Geist + Geist Mono, bundled with the app (replaces Inter) |
+| lucide-react-native + react-native-svg | 1.70.0 + 15.16.0 | in use (P2.2) | icons (stroke 1.6); svg also used for glows and gradients |
 | react-hook-form + @hookform/resolvers | 7.91.0 + 7.0.3 | planned (P2.6) | forms |
 | zod | 4.6.7 | in use (P1.1, `packages/core`) | shared validation |
 

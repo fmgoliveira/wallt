@@ -4,7 +4,7 @@ import { Appearance, Platform, useColorScheme as useSystemScheme, View } from "r
 import { Backdrop } from "../components/Backdrop";
 import { PortalHost } from "../components/Portal";
 import { ToastHost } from "../components/Toast";
-import { accentPalette, type ColorScheme, colorsByScheme, themeVars } from "../tokens";
+import { type ColorScheme, resolveColors, themeVars } from "../tokens";
 import { type Theme, ThemeContext } from "./context";
 import { useThemeStore } from "./store";
 
@@ -15,9 +15,9 @@ import { useThemeStore } from "./store";
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const system = useSystemScheme();
   const preference = useThemeStore((s) => s.preference);
-  const accent = useThemeStore((s) => s.accent);
+  const dataColor = useThemeStore((s) => s.dataColor);
   const setPreference = useThemeStore((s) => s.setPreference);
-  const setAccent = useThemeStore((s) => s.setAccent);
+  const setDataColor = useThemeStore((s) => s.setDataColor);
   const hydrate = useThemeStore((s) => s.hydrate);
   const { setColorScheme } = useNativeWindScheme();
 
@@ -43,7 +43,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
   }, [scheme, preference, setColorScheme]);
 
-  const cssVars = useMemo(() => themeVars(scheme, accent), [scheme, accent]);
+  const cssVars = useMemo(() => themeVars(scheme, dataColor), [scheme, dataColor]);
   const nativeVars = useMemo(() => vars(cssVars), [cssVars]);
 
   useEffect(() => {
@@ -51,19 +51,19 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const root = document.documentElement;
     for (const [k, v] of Object.entries(cssVars)) root.style.setProperty(k, v);
     root.style.colorScheme = scheme;
-    root.style.backgroundColor = colorsByScheme[scheme].bg;
-  }, [cssVars, scheme]);
+    root.style.backgroundColor = resolveColors(scheme, dataColor).bg;
+  }, [cssVars, scheme, dataColor]);
 
   const theme = useMemo<Theme>(
     () => ({
       scheme,
       preference,
-      accent,
-      colors: { ...colorsByScheme[scheme], accent: accentPalette[accent][scheme] },
+      dataColor,
+      colors: resolveColors(scheme, dataColor),
       setPreference,
-      setAccent,
+      setDataColor,
     }),
-    [scheme, preference, accent, setPreference, setAccent],
+    [scheme, preference, dataColor, setPreference, setDataColor],
   );
 
   return (

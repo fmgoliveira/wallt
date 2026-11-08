@@ -1,6 +1,8 @@
 import { useId, useState } from "react";
 import { TextInput, type TextInputProps, View } from "react-native";
 import { useTheme } from "../theme/context";
+import { fontFamily, radius, ringShadow, typeScale } from "../tokens";
+import { useControlHeight } from "./Button";
 import { cn, Text } from "./primitives";
 
 export interface InputProps extends Omit<TextInputProps, "style"> {
@@ -11,14 +13,15 @@ export interface InputProps extends Omit<TextInputProps, "style"> {
 }
 
 export function Input({ label, helper, error, className, onFocus, onBlur, ...rest }: InputProps) {
-  const { colors } = useTheme();
+  const { scheme, colors } = useTheme();
+  const height = useControlHeight();
   const [focused, setFocused] = useState(false);
   const id = useId();
 
   return (
-    <View className={cn("gap-1", className)}>
+    <View className={cn("gap-1.5", className)}>
       {label ? (
-        <Text variant="caption" tone="muted" nativeID={`${id}-label`}>
+        <Text variant="small" tone="muted" weight="medium" nativeID={`${id}-label`}>
           {label}
         </Text>
       ) : null}
@@ -26,8 +29,8 @@ export function Input({ label, helper, error, className, onFocus, onBlur, ...res
         accessibilityLabel={label}
         accessibilityLabelledBy={label ? `${id}-label` : undefined}
         accessibilityHint={error ?? helper}
-        placeholderTextColor={colors.muted}
-        selectionColor={colors.accent}
+        placeholderTextColor={colors.subtle}
+        selectionColor={colors.data}
         onFocus={(e) => {
           setFocused(true);
           onFocus?.(e);
@@ -36,23 +39,26 @@ export function Input({ label, helper, error, className, onFocus, onBlur, ...res
           setFocused(false);
           onBlur?.(e);
         }}
-        className={cn(
-          "min-h-touch rounded-md border bg-white/50 dark:bg-white/[0.05] web:backdrop-blur-xl px-3 font-sans text-body text-text web:outline-none",
-          error
-            ? "border-negative"
-            : focused
-              ? "border-accent"
-              : "border-white/70 dark:border-white/15",
-          focused && "web:ring-2 web:ring-accent/30",
-        )}
+        className="web:outline-none"
+        style={{
+          minHeight: height,
+          paddingHorizontal: 12,
+          borderRadius: radius.md,
+          // Dark inputs sit on `bg` (inset look); light inputs on `surface`.
+          backgroundColor: scheme === "dark" ? colors.bg : colors.surface,
+          color: colors.text,
+          fontFamily: fontFamily.regular,
+          fontSize: typeScale.body.size,
+          boxShadow: ringShadow(colors, error ? "error" : focused ? "focus" : "default"),
+        }}
         {...rest}
       />
       {error ? (
-        <Text variant="caption" tone="negative">
+        <Text variant="small" tone="negative">
           {error}
         </Text>
       ) : helper ? (
-        <Text variant="caption" tone="muted">
+        <Text variant="small" tone="muted">
           {helper}
         </Text>
       ) : null}

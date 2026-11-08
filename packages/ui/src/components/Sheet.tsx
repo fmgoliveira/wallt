@@ -11,8 +11,9 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBreakpoint } from "../hooks/useBreakpoint";
 import { motion } from "../tokens";
+import { GlassSurface } from "./GlassSurface";
 import { Portal } from "./Portal";
-import { AnimatedView, cn, glassOverlay, Text } from "./primitives";
+import { AnimatedView, cn, Text } from "./primitives";
 
 export interface SheetProps {
   visible: boolean;
@@ -22,9 +23,9 @@ export interface SheetProps {
 }
 
 /**
- * Bottom sheet on phone/tablet, centred modal on desktop (plan §9.2). Rendered inline as an absolute
- * overlay through `<Portal>` (not RN `Modal`) so it stays inside the theme provider and covers the whole
- * screen wherever it is declared. Closes on backdrop tap and on Escape (web).
+ * Bottom sheet on phone/tablet, centred modal on desktop (plan §9.2). Glass level `sheet`, radius xl,
+ * 32x4 grab handle, scrim `black/40` + 4 px blur on web. Rendered through `<Portal>` so it stays inside
+ * the theme provider. Closes on scrim tap and on Escape (web).
  */
 export function Sheet({ visible, onClose, title, children }: SheetProps) {
   const bp = useBreakpoint();
@@ -49,7 +50,9 @@ export function Sheet({ visible, onClose, title, children }: SheetProps) {
         .reduceMotion(ReduceMotion.System);
   const exit = desktop
     ? FadeOut.duration(motion.duration.fast).reduceMotion(ReduceMotion.System)
-    : SlideOutDown.duration(motion.duration.base).reduceMotion(ReduceMotion.System);
+    : SlideOutDown.duration(motion.duration.base)
+        .easing(Easing.in(Easing.cubic))
+        .reduceMotion(ReduceMotion.System);
 
   return (
     <Portal>
@@ -62,7 +65,7 @@ export function Sheet({ visible, onClose, title, children }: SheetProps) {
         <AnimatedView
           entering={FadeIn.duration(motion.duration.base).reduceMotion(ReduceMotion.System)}
           exiting={FadeOut.duration(motion.duration.fast).reduceMotion(ReduceMotion.System)}
-          className="absolute inset-0 bg-black/50"
+          className="absolute inset-0 bg-black/40 web:backdrop-blur-[4px]"
         >
           <Pressable
             accessibilityRole="button"
@@ -78,29 +81,31 @@ export function Sheet({ visible, onClose, title, children }: SheetProps) {
           role="dialog"
           aria-modal
           aria-label={title}
-          className={cn(
-            "max-h-[85%] shadow-e3",
-            glassOverlay,
-            desktop ? "w-full max-w-[480px] rounded-lg" : "w-full rounded-t-lg",
-          )}
+          className={cn("max-h-[85%]", desktop ? "w-full max-w-[560px]" : "w-full")}
         >
-          {desktop ? null : (
-            <View className="items-center pt-2">
-              <View className="h-1 w-10 rounded-full bg-border" />
-            </View>
-          )}
-          {title ? (
-            <View className="px-5 pt-4 pb-2">
-              <Text variant="title">{title}</Text>
-            </View>
-          ) : null}
-          <ScrollView
-            contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
-            contentContainerClassName="px-5 pt-2 gap-3"
-            keyboardShouldPersistTaps="handled"
+          <GlassSurface
+            level="sheet"
+            rounded="xl"
+            style={desktop ? undefined : { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }}
           >
-            {children}
-          </ScrollView>
+            {desktop ? null : (
+              <View className="items-center pt-2">
+                <View className="h-1 w-8 rounded-full bg-border-strong" />
+              </View>
+            )}
+            {title ? (
+              <View className="px-5 pt-4 pb-2">
+                <Text variant="title">{title}</Text>
+              </View>
+            ) : null}
+            <ScrollView
+              contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+              contentContainerClassName="px-5 pt-2 gap-3"
+              keyboardShouldPersistTaps="handled"
+            >
+              {children}
+            </ScrollView>
+          </GlassSurface>
         </AnimatedView>
       </View>
     </Portal>

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AccessibilityInfo, Animated, Easing, View } from "react-native";
 import { useTheme } from "../theme/context";
-import { motion } from "../tokens";
+import { motion, withAlpha } from "../tokens";
 import { cn } from "./primitives";
 
 export interface SkeletonProps {
@@ -9,13 +9,13 @@ export interface SkeletonProps {
 }
 
 /**
- * Placeholder block. Pulses; static when the OS asks for reduced motion. Size it with `className`.
- * Uses React Native's own `Animated` (native driver): the NativeWind wrapper around Reanimated views
- * can drop the animated style on Android, which made these bars invisible.
+ * Placeholder block (`text/6`) with a slow pulse; static when the OS asks for reduced motion. Size it with
+ * `className`. Uses React Native's own `Animated`: the NativeWind wrapper around Reanimated views can drop
+ * the animated style on Android, which made these bars invisible.
  */
 export function Skeleton({ className }: SkeletonProps) {
   const { colors } = useTheme();
-  const opacity = useRef(new Animated.Value(0.9)).current;
+  const opacity = useRef(new Animated.Value(1)).current;
   const [reduce, setReduce] = useState(false);
 
   useEffect(() => {
@@ -32,20 +32,20 @@ export function Skeleton({ className }: SkeletonProps) {
 
   useEffect(() => {
     if (reduce) {
-      opacity.setValue(0.7);
+      opacity.setValue(1);
       return;
     }
     const half = motion.duration.slow * 3;
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(opacity, {
-          toValue: 0.45,
+          toValue: 0.5,
           duration: half,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
         Animated.timing(opacity, {
-          toValue: 0.9,
+          toValue: 1,
           duration: half,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
@@ -62,7 +62,7 @@ export function Skeleton({ className }: SkeletonProps) {
       importantForAccessibility="no-hide-descendants"
       className={cn("h-4 overflow-hidden rounded-sm", className)}
     >
-      <Animated.View style={{ flex: 1, opacity, backgroundColor: colors.border }} />
+      <Animated.View style={{ flex: 1, opacity, backgroundColor: withAlpha(colors.text, 0.06) }} />
     </View>
   );
 }

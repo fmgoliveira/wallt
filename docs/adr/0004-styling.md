@@ -83,3 +83,18 @@ Implemented in `packages/ui` + `apps/app` (#14). Verified on **web** (phone 390 
 glass (`backdrop-filter`), gradients (hero card, logo mark, background glows only). **Android is still unverified** (no emulator/device in
 the dev environment); `expo-blur` `BlurView` is used on native with a translucent fill, so the fallback is a plain translucent card.
 To be checked before P2.2 builds on it; if NativeWind misbehaves on device, fall back as decided above.
+
+## Update: visual design pass (P2.10, #79, 2026-11-08)
+Owner decisions (answered in the session): (1) replace the indigo palette and "gradients in three places" with the greyscale palette and
+monochrome gradient rules of `docs/design/GUIDELINES.md` §2–§3; (2) the user-selectable accent is kept **for `data` only** (charts, focus ring,
+selection, links; steel blue default); (3) Inter → **Geist** + **Geist Mono**.
+
+What changed in code: `tokens.ts` is the single source (semantic palette incl. `borderStrong`/`subtle`/`data`, `dataPalette`, radii 6/8/12/16,
+Geist type scale with tracking, gradient/depth/glass/ring helpers); the Tailwind preset exposes only semantic colours (no brand colours);
+`GlassSurface` has three levels (bar, sheet, toast) and is used only for floating layers, cards are solid `surfaceGradient`; the backdrop is two
+static desaturated glows (SVG radial gradients, no CSS blur, so web and Android match); depth is a `box-shadow` recipe (inset highlight + layered
+shadow) applied through the `style` prop because NativeWind's `shadow-*` utilities do not map to it on native.
+
+Verified on web (light + dark, phone/desktop). **Android is still unverified by me** (the device screen was locked); on-device checks of Geist,
+`expo-blur` glass, `boxShadow` and gradients remain open in #79. Native caveat carried over from P2.2: do not put `className` and an animated
+`style` on the same Reanimated view (use a plain wrapper View for `className`).
