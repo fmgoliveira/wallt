@@ -5,10 +5,12 @@ import {
   cn,
   GlassSurface,
   Gradient,
+  MotionView,
   radius,
   Text,
   toast,
   useBreakpoint,
+  usePressScale,
   useTheme,
 } from "@wallt/ui";
 import { usePathname } from "expo-router";
@@ -74,27 +76,32 @@ function Brand({ showName }: { showName: boolean }) {
 /** 44x40 add button (guidelines §7): `actionGradient`, radius md. Centre of the phone tab bar; compact on the rail. */
 function AddTabButton({ fill }: { fill?: boolean }) {
   const { scheme, colors } = useTheme();
+  const press = usePressScale();
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="Add transaction"
-      onPress={addTransaction}
-      className={cn(
-        "items-center justify-center overflow-hidden web:cursor-pointer web:outline-none web:focus-visible:outline web:focus-visible:outline-2 web:focus-visible:outline-offset-2 web:focus-visible:outline-data",
-        fill && "self-stretch",
-      )}
-      style={{
-        width: fill ? undefined : 44,
-        height: 40,
-        borderRadius: radius.md,
-        boxShadow: actionShadow(scheme),
-      }}
-    >
-      <Gradient fill spec={actionGradient(scheme)} />
-      <View>
-        <Plus size={20} color={colors.accentFg} strokeWidth={2} />
-      </View>
-    </Pressable>
+    <MotionView style={press.style}>
+      <Pressable
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
+        accessibilityRole="button"
+        accessibilityLabel="Add transaction"
+        onPress={addTransaction}
+        className={cn(
+          "items-center justify-center overflow-hidden web:cursor-pointer web:outline-none web:focus-visible:outline web:focus-visible:outline-2 web:focus-visible:outline-offset-2 web:focus-visible:outline-data",
+          fill && "self-stretch",
+        )}
+        style={{
+          width: fill ? undefined : 44,
+          height: 40,
+          borderRadius: radius.md,
+          boxShadow: actionShadow(scheme),
+        }}
+      >
+        <Gradient fill spec={actionGradient(scheme)} />
+        <View>
+          <Plus size={20} color={colors.accentFg} strokeWidth={2} />
+        </View>
+      </Pressable>
+    </MotionView>
   );
 }
 

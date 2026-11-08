@@ -35,7 +35,7 @@ export function NavButton({
         accessibilityLabel={item.label}
         accessibilityState={{ selected: active }}
         className={cn(
-          "min-h-touch web:cursor-pointer web:outline-none web:focus-visible:outline web:focus-visible:outline-2 web:focus-visible:outline-offset-2 web:focus-visible:outline-data",
+          "min-h-touch web:cursor-pointer web:outline-none web:transition-colors web:duration-150 web:focus-visible:outline web:focus-visible:outline-2 web:focus-visible:outline-offset-2 web:focus-visible:outline-data",
           layout[variant],
           variant !== "bar" && active && "bg-text/5",
           variant !== "bar" && !active && "web:hover:bg-text/5",

@@ -81,7 +81,7 @@ export function Table<Row>({
               onPress={() => onRowPress(row)}
               className={cn(
                 rowClass,
-                "web:cursor-pointer web:outline-none web:hover:bg-text/5 web:focus-visible:bg-text/5",
+                "web:cursor-pointer web:outline-none web:transition-colors web:duration-150 web:hover:bg-text/5 web:focus-visible:bg-text/5",
               )}
             >
               {bar}

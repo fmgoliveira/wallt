@@ -1,6 +1,6 @@
 import { cssInterop } from "nativewind";
 import type { ReactNode } from "react";
-import { Text as RNText, type TextProps as RNTextProps } from "react-native";
+import { Text as RNText, type TextProps as RNTextProps, View } from "react-native";
 import Animated from "react-native-reanimated";
 
 /** Join class names, skipping falsy values. */
@@ -8,12 +8,16 @@ export function cn(...parts: (string | false | null | undefined)[]): string {
   return parts.filter(Boolean).join(" ");
 }
 
-// NativeWind does not map `className` onto Reanimated components automatically (ADR 0004 finding 3).
-// Never combine `className` with an animated `style` on one view on native: put `className` on a plain
-// wrapper View and the animated style on the inner AnimatedView (see Button, Skeleton).
+// NativeWind maps `className` onto Reanimated's Animated.View via cssInterop (ADR 0004 finding 3), but that wrapper
+// flattens the `style` prop and silently drops animated styles (useAnimatedStyle) on both web and Android.
+// So there are two views:
+//  - AnimatedView: className + entering/exiting layout animations only (never an animated `style`).
+//  - MotionView: animated `style` (useAnimatedStyle). It is a separate component, not wrapped by NativeWind,
+//    so give it plain style objects only and put any className on a plain parent View.
 cssInterop(Animated.View, { className: "style" });
 
 export const AnimatedView = Animated.View;
+export const MotionView = Animated.createAnimatedComponent(View);
 
 export type TextVariant = "display" | "heading" | "title" | "body" | "small" | "label";
 export type TextTone =
