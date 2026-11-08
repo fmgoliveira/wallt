@@ -2,6 +2,7 @@ import { Text, useBreakpoint } from "@wallt/ui";
 import Head from "expo-router/head";
 import type { ReactNode } from "react";
 import { ScrollView, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export interface PageProps {
   title: string;
@@ -14,6 +15,7 @@ export interface PageProps {
 /** Standard screen frame: web <title>, header, max-width content, room for the phone tab bar. */
 export function Page({ title, subtitle, actions, children }: PageProps) {
   const bp = useBreakpoint();
+  const insets = useSafeAreaInsets();
   return (
     <>
       <Head>
@@ -21,6 +23,7 @@ export function Page({ title, subtitle, actions, children }: PageProps) {
         <title>{`${title} · Wallt`}</title>
       </Head>
       <ScrollView
+        style={{ paddingTop: insets.top }}
         contentContainerClassName="mx-auto w-full max-w-[1200px] gap-6 px-4 pt-6 pb-32 tablet:px-6 desktop:px-8 desktop:pt-8 desktop:pb-10"
         keyboardShouldPersistTaps="handled"
       >

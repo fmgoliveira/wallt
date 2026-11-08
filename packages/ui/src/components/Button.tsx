@@ -59,35 +59,39 @@ export function Button({
   const spinner = variant === "primary" || variant === "danger" ? colors.accentFg : colors.accent;
 
   return (
-    <AnimatedView style={style} className={className}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={label}
-        accessibilityState={{ disabled: !!inactive, busy: !!loading }}
-        disabled={inactive}
-        onPressIn={(e) => {
-          scale.value = withSpring(0.97, motion.spring);
-          onPressIn?.(e);
-        }}
-        onPressOut={(e) => {
-          scale.value = withSpring(1, motion.spring);
-          onPressOut?.(e);
-        }}
-        className={cn(
-          "min-h-touch flex-row items-center justify-center gap-2 rounded-md px-4 web:focus-visible:outline-2 web:focus-visible:outline-accent",
-          size === "lg" && "min-h-[52px] px-6",
-          container[variant],
-          inactive ? "opacity-50 web:cursor-not-allowed" : cn("web:cursor-pointer", hover[variant]),
-        )}
-        {...rest}
-      >
-        {loading ? <ActivityIndicator size="small" color={spinner} /> : leading}
-        <View>
-          <Text variant="body" tone={labelTone[variant]} className="font-inter-semibold">
-            {label}
-          </Text>
-        </View>
-      </Pressable>
-    </AnimatedView>
+    <View className={className}>
+      <AnimatedView style={style}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={label}
+          accessibilityState={{ disabled: !!inactive, busy: !!loading }}
+          disabled={inactive}
+          onPressIn={(e) => {
+            scale.value = withSpring(0.97, motion.spring);
+            onPressIn?.(e);
+          }}
+          onPressOut={(e) => {
+            scale.value = withSpring(1, motion.spring);
+            onPressOut?.(e);
+          }}
+          className={cn(
+            "min-h-touch flex-row items-center justify-center gap-2 rounded-md px-4 web:focus-visible:outline-2 web:focus-visible:outline-accent",
+            size === "lg" && "min-h-[52px] px-6",
+            container[variant],
+            inactive
+              ? "opacity-50 web:cursor-not-allowed"
+              : cn("web:cursor-pointer", hover[variant]),
+          )}
+          {...rest}
+        >
+          {loading ? <ActivityIndicator size="small" color={spinner} /> : leading}
+          <View>
+            <Text variant="body" tone={labelTone[variant]} className="font-inter-semibold">
+              {label}
+            </Text>
+          </View>
+        </Pressable>
+      </AnimatedView>
+    </View>
   );
 }
