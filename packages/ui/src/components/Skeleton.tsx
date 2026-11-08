@@ -1,40 +1,60 @@
-import { useEffect } from "react";
-import { View } from "react-native";
-import {
-  ReduceMotion,
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withRepeat,
-  withTiming,
-} from "react-native-reanimated";
+import { useEffect, useRef, useState } from "react";
+import { AccessibilityInfo, Animated, Easing, View } from "react-native";
 import { useTheme } from "../theme/context";
 import { motion } from "../tokens";
-import { AnimatedView, cn } from "./primitives";
+import { cn } from "./primitives";
 
 export interface SkeletonProps {
   className?: string | undefined;
 }
 
-/** Placeholder block. Pulses; static when the OS asks for reduced motion. Size it with `className`. */
+/**
+ * Placeholder block. Pulses; static when the OS asks for reduced motion. Size it with `className`.
+ * Uses React Native's own `Animated` (native driver): the NativeWind wrapper around Reanimated views
+ * can drop the animated style on Android, which made these bars invisible.
+ */
 export function Skeleton({ className }: SkeletonProps) {
   const { colors } = useTheme();
-  const reduce = useReducedMotion();
-  const opacity = useSharedValue(1);
+  const opacity = useRef(new Animated.Value(0.9)).current;
+  const [reduce, setReduce] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    AccessibilityInfo.isReduceMotionEnabled().then((v) => {
+      if (alive) setReduce(v);
+    });
+    const sub = AccessibilityInfo.addEventListener("reduceMotionChanged", setReduce);
+    return () => {
+      alive = false;
+      sub.remove();
+    };
+  }, []);
 
   useEffect(() => {
     if (reduce) {
-      opacity.value = 0.7;
+      opacity.setValue(0.7);
       return;
     }
-    opacity.value = withRepeat(
-      withTiming(0.45, { duration: motion.duration.slow * 3, reduceMotion: ReduceMotion.System }),
-      -1,
-      true,
+    const half = motion.duration.slow * 3;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, {
+          toValue: 0.45,
+          duration: half,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 0.9,
+          duration: half,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ]),
     );
+    loop.start();
+    return () => loop.stop();
   }, [reduce, opacity]);
-
-  const style = useAnimatedStyle(() => ({ opacity: opacity.value }));
 
   return (
     <View
@@ -42,7 +62,7 @@ export function Skeleton({ className }: SkeletonProps) {
       importantForAccessibility="no-hide-descendants"
       className={cn("h-4 overflow-hidden rounded-sm", className)}
     >
-      <AnimatedView style={[{ flex: 1, backgroundColor: colors.border }, style]} />
+      <Animated.View style={{ flex: 1, opacity, backgroundColor: colors.border }} />
     </View>
   );
 }
