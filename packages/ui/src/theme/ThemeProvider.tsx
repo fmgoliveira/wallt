@@ -1,6 +1,6 @@
 import { useColorScheme as useNativeWindScheme, vars } from "nativewind";
 import { type ReactNode, useEffect, useMemo } from "react";
-import { Platform, useColorScheme as useSystemScheme, View } from "react-native";
+import { Appearance, Platform, useColorScheme as useSystemScheme, View } from "react-native";
 import { Backdrop } from "../components/Backdrop";
 import { PortalHost } from "../components/Portal";
 import { ToastHost } from "../components/Toast";
@@ -27,9 +27,21 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const scheme: ColorScheme =
     preference === "system" ? (system === "dark" ? "dark" : "light") : preference;
 
+  // Keep `dark:` variants in step with the user's choice.
+  // Web: NativeWind toggles the `dark` class. Native: NativeWind throws on manual switching unless its
+  // darkMode flag is "class", so drive React Native's own appearance instead (the `dark:` media variants
+  // follow it). `"unspecified"` hands control back to the OS for "system".
   useEffect(() => {
-    setColorScheme(scheme);
-  }, [scheme, setColorScheme]);
+    if (Platform.OS === "web") {
+      try {
+        setColorScheme(scheme);
+      } catch {
+        // darkMode flag not "class": the CSS variables still carry the theme
+      }
+    } else {
+      Appearance.setColorScheme(preference === "system" ? "unspecified" : preference);
+    }
+  }, [scheme, preference, setColorScheme]);
 
   const cssVars = useMemo(() => themeVars(scheme, accent), [scheme, accent]);
   const nativeVars = useMemo(() => vars(cssVars), [cssVars]);
