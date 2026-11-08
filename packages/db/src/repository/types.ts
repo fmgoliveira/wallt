@@ -31,13 +31,24 @@ export type NewAccount = Pick<Account, "name" | "type" | "currency" | "openingBa
   >;
 export type AccountPatch = Partial<Omit<Account, Stamped>>;
 
+/**
+ * An account with its derived balance (PLAN §3.1): `openingBalance` + the sum of its non-deleted transactions
+ * (booked and pending), in integer minor units. Never stored, so it can never conflict during sync.
+ */
+export type AccountWithBalance = Account & { balance: number; transactionCount: number };
+
 export interface AccountsRepository {
   /** Active accounts ordered by `sortOrder`, then name. Archived ones only with `includeArchived`. */
   list(options?: { includeArchived?: boolean }): Promise<Account[]>;
+  /** Same as `list`, with each account's derived balance and transaction count. */
+  listWithBalances(options?: { includeArchived?: boolean }): Promise<AccountWithBalance[]>;
   get(id: string): Promise<Account | null>;
+  getWithBalance(id: string): Promise<AccountWithBalance | null>;
+  /** Sets `sortOrder` to each account's position in `ids`; pass every account you want ordered. */
+  reorder(ids: string[]): Promise<void>;
   create(input: NewAccount): Promise<Account>;
   update(id: string, patch: AccountPatch): Promise<Account>;
-  /** Soft delete (tombstone). Does not touch the account's transactions. */
+  /** Soft delete (tombstone). Refused (`validation`) while the account has transactions: archive it instead. */
   delete(id: string): Promise<void>;
 }
 

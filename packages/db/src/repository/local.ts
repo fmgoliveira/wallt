@@ -17,6 +17,7 @@ import { createDrizzle, type RawSqlExecutor, type WalltDb } from "./executor";
 import type { Stamper } from "./stamper";
 import {
   type AccountPatch,
+  type AccountWithBalance,
   type CategoryPatch,
   type NewAccount,
   type NewCategory,
@@ -114,6 +115,37 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): R
       serverSeq: null,
     };
   };
+
+  /* ----------------------------------------------------------- derived balances */
+
+  /** Sum and count of non-deleted transactions per account (exact: integer minor units). */
+  async function accountTotals(accountId?: string) {
+    const rows = await db
+      .select({
+        accountId: t.transactions.accountId,
+        total: sql<number>`coalesce(sum(${t.transactions.amount}), 0)`,
+        count: sql<number>`count(*)`,
+      })
+      .from(t.transactions)
+      .where(
+        and(
+          isNull(t.transactions.deletedAt),
+          accountId ? eq(t.transactions.accountId, accountId) : undefined,
+        ),
+      )
+      .groupBy(t.transactions.accountId);
+    return new Map(
+      rows.map((r) => [r.accountId, { total: Number(r.total), count: Number(r.count) }]),
+    );
+  }
+
+  function withBalance(a: Account, totals?: { total: number; count: number }): AccountWithBalance {
+    return {
+      ...a,
+      balance: a.openingBalance + (totals?.total ?? 0),
+      transactionCount: totals?.count ?? 0,
+    };
+  }
 
   /* ---------------------------------------------------------------- lookups */
 
@@ -376,9 +408,51 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): R
           await db.insert(t.accounts).values(row);
           return row;
         }),
+      listWithBalances: (options) =>
+        run(async () => {
+          const conds = [isNull(t.accounts.deletedAt)];
+          if (!options?.includeArchived) conds.push(eq(t.accounts.archived, false));
+          const list = (await db
+            .select()
+            .from(t.accounts)
+            .where(and(...conds))
+            .orderBy(
+              asc(t.accounts.sortOrder),
+              asc(t.accounts.name),
+              asc(t.accounts.id),
+            )) as Account[];
+          const totals = await accountTotals();
+          return list.map((a) => withBalance(a, totals.get(a.id)));
+        }),
+      getWithBalance: (id) =>
+        run(async () => {
+          const [row] = await db
+            .select()
+            .from(t.accounts)
+            .where(and(eq(t.accounts.id, id), isNull(t.accounts.deletedAt)));
+          if (!row) return null;
+          const totals = await accountTotals(id);
+          return withBalance(row as Account, totals.get(id));
+        }),
+      reorder: (ids) =>
+        atomic(async () => {
+          for (const [position, id] of ids.entries()) {
+            await activeAccount(id);
+            await db
+              .update(t.accounts)
+              .set({ sortOrder: position, ...stamp() })
+              .where(eq(t.accounts.id, id));
+          }
+        }),
       update: (id, patch: AccountPatch) =>
         atomic(async () => {
           const current = await activeAccount(id);
+          if (patch.currency !== undefined && patch.currency !== current.currency) {
+            const { count } = (await accountTotals(id)).get(id) ?? { count: 0 };
+            if (count > 0) {
+              throw invalid("Currency cannot change once the account has transactions");
+            }
+          }
           const row = validate(accountSchema, { ...current, ...patch, ...stamp() }, "account");
           await db.update(t.accounts).set(row).where(eq(t.accounts.id, id));
           return row;
@@ -386,6 +460,11 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): R
       delete: (id) =>
         atomic(async () => {
           await activeAccount(id);
+          // Never orphan transactions: an account that has any must be archived, not deleted.
+          const { count } = (await accountTotals(id)).get(id) ?? { count: 0 };
+          if (count > 0) {
+            throw invalid(`Account has ${count} transaction(s): archive it instead of deleting`);
+          }
           const now = stamp();
           await db
             .update(t.accounts)
