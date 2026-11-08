@@ -38,12 +38,12 @@ export function Table<Row>({
 
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} className={className}>
-      <View accessibilityRole="table" style={{ minWidth, flexGrow: 1 }}>
-        <View accessibilityRole="row" className="flex-row border-b border-border bg-bg py-2">
+      <View role="table" style={{ minWidth, flexGrow: 1 }}>
+        <View role="row" className="flex-row border-b border-border bg-bg py-2">
           {columns.map((c) => (
             <View
               key={c.key}
-              accessibilityRole="columnheader"
+              role="columnheader"
               className={cell(c)}
               style={c.width ? { width: c.width, flexShrink: 0 } : undefined}
             >
@@ -57,7 +57,7 @@ export function Table<Row>({
           const content = columns.map((c) => (
             <View
               key={c.key}
-              accessibilityRole="cell"
+              role="cell"
               className={cn(cell(c), "justify-center")}
               style={c.width ? { width: c.width, flexShrink: 0 } : undefined}
             >
@@ -75,7 +75,7 @@ export function Table<Row>({
               {content}
             </Pressable>
           ) : (
-            <View key={rowKey(row)} accessibilityRole="row" className={rowClass}>
+            <View key={rowKey(row)} role="row" className={rowClass}>
               {content}
             </View>
           );
