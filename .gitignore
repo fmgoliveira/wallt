@@ -13,7 +13,8 @@ coverage/
 .env
 .env.*
 !.env.example
-data/
+/data/
+/apps/server/data/
 *.db
 *.db-wal
 *.db-shm
