@@ -73,6 +73,21 @@ describe("accounts", () => {
     await expectCode(repo.accounts.update(a.id, { currency: "eur" }), "validation");
   });
 
+  it("refuses to delete an account that has transactions (archive instead)", async () => {
+    const a = await account();
+    const t1 = await repo.transactions.create({
+      accountId: a.id,
+      amount: -1,
+      currency: "EUR",
+      bookingDate: "2026-11-01",
+    });
+    await expectCode(repo.accounts.delete(a.id), "validation");
+    expect(await repo.accounts.get(a.id)).not.toBeNull();
+    await repo.transactions.delete(t1.id);
+    await repo.accounts.delete(a.id); // fine once its transactions are gone
+    expect(await repo.accounts.get(a.id)).toBeNull();
+  });
+
   it("soft-deletes: the row stays as a tombstone", async () => {
     const a = await account();
     await repo.accounts.delete(a.id);
@@ -466,5 +481,99 @@ describe("stamping", () => {
       server_seq: number | null;
     }[];
     expect(rows.every((r) => r.server_seq === null)).toBe(true);
+  });
+});
+
+describe("derived account balances", () => {
+  const tx = (accountId: string, amount: number, over: Record<string, unknown> = {}) =>
+    repo.transactions.create({
+      accountId,
+      amount,
+      currency: "EUR",
+      bookingDate: "2026-11-01",
+      ...over,
+    });
+
+  it("is the opening balance plus every non-deleted transaction, never stored", async () => {
+    const a = await account({ openingBalance: 100_000 });
+    const b = await account({ name: "Savings", openingBalance: 0 });
+    await tx(a.id, -1234);
+    await tx(a.id, 250_000);
+    const pending = await tx(a.id, -500, { status: "pending" });
+    await tx(b.id, 7);
+    const list = await repo.accounts.listWithBalances();
+    expect(list.map((x) => [x.name, x.balance, x.transactionCount])).toEqual([
+      ["Checking", 100_000 - 1234 + 250_000 - 500, 3],
+      ["Savings", 7, 1],
+    ]);
+    // deleting a transaction updates the balance; the account row itself is untouched
+    const before = raw.prepare("SELECT updated_at, hlc FROM accounts WHERE id = ?").get(a.id);
+    await repo.transactions.delete(pending.id);
+    expect((await repo.accounts.getWithBalance(a.id))?.balance).toBe(100_000 - 1234 + 250_000);
+    expect(raw.prepare("SELECT updated_at, hlc FROM accounts WHERE id = ?").get(a.id)).toEqual(
+      before,
+    );
+    expect(
+      raw
+        .prepare("PRAGMA table_info(accounts)")
+        .all()
+        .map((c) => (c as { name: string }).name),
+    ).not.toContain("balance");
+  });
+
+  it("handles an account with no transactions and a negative opening balance (credit card)", async () => {
+    const card = await account({ type: "credit_card", openingBalance: -45_000 });
+    expect(await repo.accounts.getWithBalance(card.id)).toMatchObject({
+      balance: -45_000,
+      transactionCount: 0,
+    });
+    expect(await repo.accounts.getWithBalance("019e0000-0000-7000-8000-000000000000")).toBeNull();
+  });
+
+  it("stays exact for large amounts (integer minor units, no floats)", async () => {
+    const a = await account({ openingBalance: 9_000_000_000_000 });
+    await tx(a.id, 1);
+    await tx(a.id, 2);
+    expect((await repo.accounts.getWithBalance(a.id))?.balance).toBe(9_000_000_000_003);
+  });
+
+  it("respects includeArchived", async () => {
+    await account({ name: "Old", archived: true });
+    expect((await repo.accounts.listWithBalances()).length).toBe(0);
+    expect((await repo.accounts.listWithBalances({ includeArchived: true })).length).toBe(1);
+  });
+
+  it("locks the currency once the account has transactions", async () => {
+    const empty = await account();
+    expect((await repo.accounts.update(empty.id, { currency: "USD" })).currency).toBe("USD");
+    const used = await account({ name: "Used" });
+    await tx(used.id, -1);
+    await expectCode(repo.accounts.update(used.id, { currency: "USD" }), "validation");
+    expect((await repo.accounts.update(used.id, { currency: "EUR", name: "Used 2" })).name).toBe(
+      "Used 2",
+    );
+  });
+});
+
+describe("account ordering", () => {
+  it("reorders by position and bumps the clock for each moved account", async () => {
+    const a = await account({ name: "A" });
+    const b = await account({ name: "B" });
+    const c = await account({ name: "C" });
+    await repo.accounts.reorder([c.id, a.id, b.id]);
+    const list = await repo.accounts.list();
+    expect(list.map((x) => x.name)).toEqual(["C", "A", "B"]);
+    expect(list.map((x) => x.sortOrder)).toEqual([0, 1, 2]);
+    expect(list.every((x) => x.hlc > a.hlc)).toBe(true);
+  });
+
+  it("rejects unknown ids and rolls back", async () => {
+    const a = await account({ name: "A" });
+    const b = await account({ name: "B" });
+    await expectCode(
+      repo.accounts.reorder([b.id, "019e0000-0000-7000-8000-000000000000", a.id]),
+      "not_found",
+    );
+    expect((await repo.accounts.list()).map((x) => x.name)).toEqual(["A", "B"]);
   });
 });

@@ -73,6 +73,17 @@ function useRepoMutation<TInput, TOutput>(
 export const useAccounts = (options?: { includeArchived?: boolean }) =>
   useRepoQuery([...queryKeys.accounts, "list", options ?? {}], (r) => r.accounts.list(options));
 
+/** Accounts with derived balances (opening balance + transactions). */
+export const useAccountsWithBalances = (options?: { includeArchived?: boolean }) =>
+  useRepoQuery([...queryKeys.accounts, "balances", options ?? {}], (r) =>
+    r.accounts.listWithBalances(options),
+  );
+
+export const useAccountWithBalance = (id: string | undefined) =>
+  useRepoQuery([...queryKeys.accounts, "detail", id ?? null], async (r) =>
+    id ? r.accounts.getWithBalance(id) : null,
+  );
+
 export const useCategories = (options?: {
   includeArchived?: boolean;
   type?: "expense" | "income";
@@ -104,6 +115,8 @@ export const useUpdateAccount = () =>
   useRepoMutation("accounts", (r, input: { id: string; patch: AccountPatch }) =>
     r.accounts.update(input.id, input.patch),
   );
+export const useReorderAccounts = () =>
+  useRepoMutation("accounts", (r, ids: string[]) => r.accounts.reorder(ids));
 export const useDeleteAccount = () =>
   useRepoMutation("accounts", (r, id: string) => r.accounts.delete(id));
 
