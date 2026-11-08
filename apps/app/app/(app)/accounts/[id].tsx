@@ -29,6 +29,7 @@ import {
 } from "../../../src/data/hooks";
 import { Page } from "../../../src/shell/Page";
 import { placeholderIcon } from "../../../src/shell/placeholder";
+import { useEditorStore } from "../../../src/transactions/editorStore";
 
 function AccountDetail({ id }: { id: string }) {
   const router = useRouter();
@@ -142,9 +143,14 @@ function AccountDetail({ id }: { id: string }) {
               <ListItem
                 key={t.id}
                 divider={i > 0}
-                title={t.payee || t.descriptionClean || "Transaction"}
+                title={
+                  t.kind === "transfer"
+                    ? "Transfer"
+                    : t.payee || t.descriptionClean || "Transaction"
+                }
                 subtitle={t.bookingDate}
                 trailing={<Amount value={t.amount} currency={t.currency} />}
+                onPress={() => useEditorStore.getState().openEdit(t.id)}
               />
             ))
           ) : (
@@ -152,6 +158,8 @@ function AccountDetail({ id }: { id: string }) {
               icon={placeholderIcon(Receipt)}
               title="No transactions yet"
               description="Transactions you add to this account show up here."
+              actionLabel="Add transaction"
+              onAction={() => useEditorStore.getState().openNew(id)}
             />
           )}
         </Card>
