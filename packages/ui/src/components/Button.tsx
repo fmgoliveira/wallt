@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { ActivityIndicator, Pressable, type PressableProps, View } from "react-native";
 import { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
-import { useTheme } from "../theme/ThemeProvider";
+import { useTheme } from "../theme/context";
 import { motion } from "../tokens";
 import { AnimatedView, cn, Text, type TextTone } from "./primitives";
 

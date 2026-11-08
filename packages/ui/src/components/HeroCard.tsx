@@ -1,7 +1,7 @@
 import { LinearGradient } from "expo-linear-gradient";
 import type { ReactNode } from "react";
 import { View } from "react-native";
-import { useTheme } from "../theme/ThemeProvider";
+import { useTheme } from "../theme/context";
 import { heroGradient } from "../tokens";
 import { cn } from "./primitives";
 
