@@ -577,3 +577,48 @@ describe("account ordering", () => {
     expect((await repo.accounts.list()).map((x) => x.name)).toEqual(["A", "B"]);
   });
 });
+
+describe("category usage and ordering", () => {
+  it("counts usage, refuses delete/type change while used, and archiving keeps history", async () => {
+    const acc = await account();
+    const food = await repo.categories.create({ name: "Food", type: "expense" });
+    const spare = await repo.categories.create({ name: "Spare", type: "expense" });
+    await repo.transactions.create({
+      accountId: acc.id,
+      amount: -500,
+      currency: "EUR",
+      bookingDate: "2026-11-01",
+      categoryId: food.id,
+    });
+    expect(await repo.categories.usage()).toEqual({ [food.id]: 1 });
+    await expectCode(repo.categories.delete(food.id), "validation");
+    await expectCode(repo.categories.update(food.id, { type: "income" }), "validation");
+    await repo.categories.update(food.id, { archived: true });
+    expect((await repo.categories.get(food.id))?.archived).toBe(true);
+    expect((await repo.transactions.list())[0]?.categoryId).toBe(food.id);
+    await repo.categories.delete(spare.id); // unused: fine
+    expect(await repo.categories.get(spare.id)).toBeNull();
+  });
+
+  it("refuses a type change while the category has subcategories", async () => {
+    const food = await repo.categories.create({ name: "Food", type: "expense" });
+    await repo.categories.create({ name: "Cafe", type: "expense", parentId: food.id });
+    await expectCode(repo.categories.update(food.id, { type: "income" }), "validation");
+  });
+
+  it("reorders siblings only", async () => {
+    const a = await repo.categories.create({ name: "A", type: "expense" });
+    const b = await repo.categories.create({ name: "B", type: "expense" });
+    const c = await repo.categories.create({ name: "C", type: "expense", parentId: a.id });
+    await repo.categories.reorder([b.id, a.id]);
+    expect((await repo.categories.list()).filter((x) => !x.parentId).map((x) => x.name)).toEqual([
+      "B",
+      "A",
+    ]);
+    await expectCode(repo.categories.reorder([a.id, c.id]), "validation");
+    await expectCode(
+      repo.categories.reorder([a.id, "019e0000-0000-7000-8000-000000000000"]),
+      "not_found",
+    );
+  });
+});

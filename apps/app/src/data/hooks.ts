@@ -120,6 +120,12 @@ export const useReorderAccounts = () =>
 export const useDeleteAccount = () =>
   useRepoMutation("accounts", (r, id: string) => r.accounts.delete(id));
 
+export const useCategoryUsage = () =>
+  useRepoQuery([...queryKeys.categories, "usage"], (r) => r.categories.usage());
+
+export const useReorderCategories = () =>
+  useRepoMutation("categories", (r, ids: string[]) => r.categories.reorder(ids));
+
 export const useCreateCategory = () =>
   useRepoMutation("categories", (r, input: NewCategory) => r.categories.create(input));
 export const useUpdateCategory = () =>
