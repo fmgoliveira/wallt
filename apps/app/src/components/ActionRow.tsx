@@ -30,7 +30,7 @@ export function ActionRow({
       disabled={disabled}
       onPress={onPress}
       className={cn(
-        "min-h-[56px] flex-row items-center px-3.5 py-2.5 active:bg-text/5",
+        "min-h-[56px] flex-row rounded-md items-center px-3.5 py-2.5 active:bg-text/5",
         "web:cursor-pointer web:outline-none web:transition-colors web:duration-150 web:hover:bg-text/5 web:focus-visible:bg-text/5",
         disabled && "opacity-50 web:cursor-not-allowed web:hover:bg-transparent",
       )}

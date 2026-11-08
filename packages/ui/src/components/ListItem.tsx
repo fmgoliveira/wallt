@@ -73,7 +73,7 @@ export function ListItem({
       onPress={onPress}
       className={cn(
         base,
-        "web:cursor-pointer web:outline-none web:transition-colors web:duration-150 web:hover:bg-text/5 web:focus-visible:bg-text/5 active:bg-text/5",
+        "rounded-md web:cursor-pointer web:outline-none web:transition-colors web:duration-150 web:hover:bg-text/5 web:focus-visible:bg-text/5 active:bg-text/5",
       )}
     >
       {body}
