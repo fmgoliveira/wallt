@@ -1,12 +1,14 @@
 import type { ReactNode } from "react";
 import { View } from "react-native";
+import { useTheme } from "../theme/context";
+import { depthShadow, radius } from "../tokens";
 import { Button } from "./Button";
 import { cn, Text } from "./primitives";
 
 export interface EmptyStateProps {
   title: string;
   description?: string;
-  /** Large glyph or illustration slot. */
+  /** Line icon (stroke 1.6) shown in the raised badge. */
   icon?: ReactNode;
   actionLabel?: string;
   onAction?: () => void;
@@ -21,10 +23,22 @@ export function EmptyState({
   onAction,
   className,
 }: EmptyStateProps) {
+  const { scheme, colors } = useTheme();
   return (
     <View className={cn("items-center justify-center gap-3 px-6 py-10", className)}>
       {icon ? (
-        <View className="h-16 w-16 items-center justify-center rounded-full bg-accent/10">
+        <View
+          className="items-center justify-center"
+          style={{
+            width: 48,
+            height: 48,
+            borderRadius: radius.lg,
+            backgroundColor: colors.elevated,
+            borderWidth: 1,
+            borderColor: colors.border,
+            boxShadow: depthShadow(scheme),
+          }}
+        >
           {icon}
         </View>
       ) : null}

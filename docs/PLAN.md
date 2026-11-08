@@ -287,8 +287,9 @@ Design:
 Goal: one design language, but **layouts adapt** to the platform — the web is a desktop-class app.
 
 ### 9.1 Visual direction
-- Clean, modern fintech: generous whitespace, soft surfaces, 1 accent color (user-selectable), large rounded numbers, subtle depth instead of heavy shadows.
-- Typography: Inter or Geist (self-hosted, same on both), tabular figures for all amounts.
+Full rules: [`docs/design/GUIDELINES.md`](design/GUIDELINES.md) (visual reference: `docs/design/reference.html`).
+- Clean, modern fintech: generous whitespace, soft surfaces, greyscale UI with one user-selectable `data` colour (charts, focus, selection; #79), large rounded numbers, subtle depth instead of heavy shadows.
+- Typography: Geist + Geist Mono (self-hosted via `@expo-google-fonts`, same on both; decided in #79), tabular figures for all amounts.
 - Tokens in `packages/ui/tokens.ts` → Tailwind preset: colors (semantic: `bg`, `surface`, `text`, `muted`, `accent`, `positive`, `negative`, `warning`), spacing 4-pt grid, radius (8/12/20), elevation, motion durations/easings. Light + dark from day one.
 - Category colors from a curated palette with checked contrast in both themes.
 - Motion: list item enter/exit, number tickers on balances, sheet/drawer springs; respect "reduce motion".
@@ -344,6 +345,7 @@ Each task = one GitHub issue = one PR (unless noted). Acceptance criteria (AC) m
 7. Transactions list (Android) + virtualized table (web) with search/filters/bulk edit.
 8. Dashboard v1.
 9. Lock screen (biometric/PIN, Android), privacy mode.
+10. Visual design pass: apply `docs/design/GUIDELINES.md` to all P2 screens and components (#79). **Last P2 task; P3 starts after it is merged.**
 
 ### P3 — Sync
 1. HLC + outbox + `packages/sync` protocol types.

@@ -57,8 +57,11 @@ export const settings: NavItem = {
 };
 export const more: NavItem = { key: "more", label: "More", href: "/more", icon: Ellipsis };
 
-/** Phone bottom tabs (plan §9.2). Reports and Settings live under "More". */
-export const phoneItems: readonly NavItem[] = [dashboard, transactions, accounts, budgets, more];
+/**
+ * Phone tab bar (plan §9.2, guidelines §7): two tabs, the add button in the middle, two tabs.
+ * Budgets, Reports and Settings live under "More".
+ */
+export const phoneItems: readonly NavItem[] = [dashboard, transactions, accounts, more];
 
 /** Rail (tablet) and sidebar (desktop) show every destination. */
 export const wideItems: readonly NavItem[] = [
@@ -71,7 +74,7 @@ export const wideItems: readonly NavItem[] = [
 ];
 
 /** Routes reached through "More" on phones. */
-export const moreItems: readonly NavItem[] = [reports, settings];
+export const moreItems: readonly NavItem[] = [budgets, reports, settings];
 
 export function isActive(item: NavItem, pathname: string): boolean {
   if (item.href === "/") return pathname === "/";

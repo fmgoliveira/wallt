@@ -1,12 +1,12 @@
 import { cn, Text, useTheme } from "@wallt/ui";
 import { type Href, Link } from "expo-router";
-import { Pressable, View } from "react-native";
+import { Pressable } from "react-native";
 import type { NavItem } from "./nav";
 
 export type NavVariant = "bar" | "rail" | "sidebar" | "sidebar-collapsed";
 
 const layout: Record<NavVariant, string> = {
-  bar: "flex-1 items-center justify-center gap-0.5 py-2",
+  bar: "flex-1 items-center justify-center gap-[3px] py-2",
   rail: "w-full items-center justify-center gap-1 rounded-md py-2.5",
   sidebar: "flex-row items-center gap-3 rounded-md px-3 py-2.5",
   "sidebar-collapsed": "w-full items-center justify-center rounded-md py-3",
@@ -25,7 +25,8 @@ export function NavButton({
   const { colors } = useTheme();
   const Icon = item.icon;
   const labelled = variant !== "sidebar-collapsed";
-  const color = active ? colors.accent : colors.muted;
+  // Greyscale nav: active = `text`, inactive = `subtle` (guidelines §7, never coloured).
+  const color = active ? colors.text : colors.subtle;
 
   return (
     <Link href={item.href as Href} asChild>
@@ -34,26 +35,20 @@ export function NavButton({
         accessibilityLabel={item.label}
         accessibilityState={{ selected: active }}
         className={cn(
-          "min-h-touch web:cursor-pointer web:outline-none web:focus-visible:ring-2 web:focus-visible:ring-accent",
+          "min-h-touch web:cursor-pointer web:outline-none web:focus-visible:outline web:focus-visible:outline-2 web:focus-visible:outline-offset-2 web:focus-visible:outline-data",
           layout[variant],
-          variant !== "bar" && active && "bg-accent/15",
-          variant !== "bar" && !active && "web:hover:bg-white/40 dark:web:hover:bg-white/10",
+          variant !== "bar" && active && "bg-text/5",
+          variant !== "bar" && !active && "web:hover:bg-text/5",
         )}
       >
-        <View className={cn(variant === "bar" && active && "rounded-full bg-accent/15 px-4 py-1")}>
-          <Icon size={variant === "bar" ? 22 : 20} color={color} strokeWidth={active ? 2.4 : 2} />
-        </View>
+        <Icon size={variant === "bar" ? 20 : 18} color={color} strokeWidth={1.6} />
         {labelled ? (
           <Text
-            variant="caption"
-            tone={active ? "accent" : "muted"}
+            variant="small"
+            tone={active ? "default" : "subtle"}
+            weight="medium"
             numberOfLines={1}
-            className={cn(
-              active && "font-inter-semibold",
-              variant === "rail" && "text-[11px]",
-              variant === "bar" && "text-[11px]",
-              variant === "sidebar" && "text-body",
-            )}
+            className={cn(variant !== "sidebar" && "text-[10.5px]")}
           >
             {variant === "bar" ? (item.shortLabel ?? item.label) : item.label}
           </Text>

@@ -1,14 +1,14 @@
 import { create } from "zustand";
-import { type AccentName, accentPalette, type ColorScheme } from "../tokens";
+import { type ColorScheme, type DataColorName, dataPalette } from "../tokens";
 
 export type SchemePreference = "system" | ColorScheme;
 
 interface ThemeState {
   /** What the user picked; `system` follows the OS. */
   preference: SchemePreference;
-  accent: AccentName;
+  dataColor: DataColorName;
   setPreference: (p: SchemePreference) => void;
-  setAccent: (a: AccentName) => void;
+  setDataColor: (d: DataColorName) => void;
   /** Load the persisted choice. Called from an effect so static/SSR output and hydration agree. */
   hydrate: () => void;
 }
@@ -17,15 +17,15 @@ const STORAGE_KEY = "wallt.theme";
 
 interface Persisted {
   preference: SchemePreference;
-  accent: AccentName;
+  dataColor: DataColorName;
 }
 
 function isPreference(v: unknown): v is SchemePreference {
   return v === "system" || v === "light" || v === "dark";
 }
 
-function isAccent(v: unknown): v is AccentName {
-  return typeof v === "string" && v in accentPalette;
+function isDataColor(v: unknown): v is DataColorName {
+  return typeof v === "string" && v in dataPalette;
 }
 
 /**
@@ -33,7 +33,7 @@ function isAccent(v: unknown): v is AccentName {
  * settings table once the local DB exists (P2.3).
  */
 function load(): Persisted {
-  const fallback: Persisted = { preference: "system", accent: "indigo" };
+  const fallback: Persisted = { preference: "system", dataColor: "steel" };
   try {
     const raw = globalThis.localStorage?.getItem(STORAGE_KEY);
     if (!raw) return fallback;
@@ -42,7 +42,7 @@ function load(): Persisted {
     const p = parsed as Record<string, unknown>;
     return {
       preference: isPreference(p.preference) ? p.preference : fallback.preference,
-      accent: isAccent(p.accent) ? p.accent : fallback.accent,
+      dataColor: isDataColor(p.dataColor) ? p.dataColor : fallback.dataColor,
     };
   } catch {
     return fallback;
@@ -59,14 +59,14 @@ function save(state: Persisted): void {
 
 export const useThemeStore = create<ThemeState>((set, get) => ({
   preference: "system",
-  accent: "indigo",
+  dataColor: "steel",
   hydrate: () => set(load()),
   setPreference: (preference) => {
     set({ preference });
-    save({ preference, accent: get().accent });
+    save({ preference, dataColor: get().dataColor });
   },
-  setAccent: (accent) => {
-    set({ accent });
-    save({ preference: get().preference, accent });
+  setDataColor: (dataColor) => {
+    set({ dataColor });
+    save({ preference: get().preference, dataColor });
   },
 }));

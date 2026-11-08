@@ -1,4 +1,16 @@
-import { cn, glass, glassOverlay, Text, toast, useBreakpoint, useTheme } from "@wallt/ui";
+import {
+  actionGradient,
+  actionShadow,
+  Button,
+  cn,
+  GlassSurface,
+  Gradient,
+  radius,
+  Text,
+  toast,
+  useBreakpoint,
+  useTheme,
+} from "@wallt/ui";
 import { usePathname } from "expo-router";
 import { PanelLeftClose, PanelLeftOpen, Plus } from "lucide-react-native";
 import { type ReactNode, useEffect } from "react";
@@ -34,12 +46,22 @@ function useAddShortcut() {
 }
 
 function Brand({ showName }: { showName: boolean }) {
+  const { colors } = useTheme();
   return (
     <View className={cn("flex-row items-center gap-3", !showName && "justify-center")}>
-      <View className="h-10 w-10 items-center justify-center rounded-md bg-white/70 dark:bg-white/20">
+      <View
+        className="items-center justify-center"
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: radius.md,
+          backgroundColor: colors.elevated,
+          boxShadow: `0 0 0 1px ${colors.borderStrong}`,
+        }}
+      >
         <Image
           source={icon}
-          style={{ width: 32, height: 32 }}
+          style={{ width: 28, height: 28 }}
           resizeMode="contain"
           accessibilityLabel="Wallt"
         />
@@ -49,24 +71,29 @@ function Brand({ showName }: { showName: boolean }) {
   );
 }
 
-function AddButton({ compact }: { compact: boolean }) {
-  const { colors } = useTheme();
+/** 44x40 add button (guidelines §7): `actionGradient`, radius md. Centre of the phone tab bar; compact on the rail. */
+function AddTabButton({ fill }: { fill?: boolean }) {
+  const { scheme, colors } = useTheme();
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel="Add transaction"
       onPress={addTransaction}
       className={cn(
-        "min-h-touch flex-row items-center justify-center gap-2 rounded-md bg-accent web:cursor-pointer web:outline-none web:hover:opacity-90 web:focus-visible:ring-2 web:focus-visible:ring-accent/60",
-        compact ? "w-full" : "px-4",
+        "items-center justify-center overflow-hidden web:cursor-pointer web:outline-none web:focus-visible:outline web:focus-visible:outline-2 web:focus-visible:outline-offset-2 web:focus-visible:outline-data",
+        fill && "self-stretch",
       )}
+      style={{
+        width: fill ? undefined : 44,
+        height: 40,
+        borderRadius: radius.md,
+        boxShadow: actionShadow(scheme),
+      }}
     >
-      <Plus size={20} color={colors.accentFg} strokeWidth={2.4} />
-      {compact ? null : (
-        <Text tone="onAccent" className="font-inter-semibold">
-          Add transaction
-        </Text>
-      )}
+      <Gradient fill spec={actionGradient(scheme)} />
+      <View>
+        <Plus size={20} color={colors.accentFg} strokeWidth={2} />
+      </View>
     </Pressable>
   );
 }
@@ -80,40 +107,51 @@ function SideNav({ wide }: { wide: boolean }) {
   const Toggle = collapsed ? PanelLeftOpen : PanelLeftClose;
 
   return (
-    <View
-      role="navigation"
-      aria-label="Main"
-      className={cn(
-        "my-3 ml-3 gap-4 rounded-lg p-2",
-        glass,
-        expanded ? "w-[232px]" : wide ? "w-[76px]" : "w-[92px]",
-      )}
-    >
-      <View className="px-1 pt-2">
-        <Brand showName={expanded} />
-      </View>
-      <View className="gap-1">
-        {wideItems.map((item) => (
-          <NavButton
-            key={item.key}
-            item={item}
-            active={isActive(item, pathname)}
-            variant={expanded ? "sidebar" : wide ? "sidebar-collapsed" : "rail"}
-          />
-        ))}
-      </View>
-      <View className="flex-1" />
-      <AddButton compact={!expanded} />
-      {wide ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          onPress={toggle}
-          className="min-h-touch items-center justify-center rounded-md web:cursor-pointer web:outline-none web:hover:bg-white/40 dark:web:hover:bg-white/10 web:focus-visible:ring-2 web:focus-visible:ring-accent"
-        >
-          <Toggle size={20} color={colors.muted} />
-        </Pressable>
-      ) : null}
+    <View className="my-3 ml-3">
+      <GlassSurface
+        level="bar"
+        rounded="lg"
+        className={cn("flex-1 gap-4 p-2", expanded ? "w-[232px]" : wide ? "w-[76px]" : "w-[92px]")}
+      >
+        <View role="navigation" aria-label="Main" className="flex-1 gap-4">
+          <View className="px-1 pt-2">
+            <Brand showName={expanded} />
+          </View>
+          <View className="gap-1">
+            {wideItems.map((item) => (
+              <NavButton
+                key={item.key}
+                item={item}
+                active={isActive(item, pathname)}
+                variant={expanded ? "sidebar" : wide ? "sidebar-collapsed" : "rail"}
+              />
+            ))}
+          </View>
+          <View className="flex-1" />
+          {expanded ? (
+            <Button
+              label="Add transaction"
+              kbd="N"
+              leading={<Plus size={18} color={colors.accentFg} strokeWidth={2} />}
+              onPress={addTransaction}
+            />
+          ) : (
+            <View className="items-center">
+              <AddTabButton />
+            </View>
+          )}
+          {wide ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              onPress={toggle}
+              className="min-h-touch items-center justify-center rounded-md web:cursor-pointer web:outline-none web:hover:bg-text/5 web:focus-visible:outline web:focus-visible:outline-2 web:focus-visible:outline-data"
+            >
+              <Toggle size={18} color={colors.subtle} strokeWidth={1.6} />
+            </Pressable>
+          ) : null}
+        </View>
+      </GlassSurface>
     </View>
   );
 }
@@ -121,35 +159,29 @@ function SideNav({ wide }: { wide: boolean }) {
 function BottomBar() {
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
-  const { colors } = useTheme();
+  const half = phoneItems.length / 2;
   return (
-    <>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Add transaction"
-        onPress={addTransaction}
-        style={{ bottom: 76 + Math.max(insets.bottom, 8) + 8 }}
-        className="absolute right-4 z-40 h-14 w-14 items-center justify-center rounded-full bg-accent shadow-e3 web:cursor-pointer web:outline-none web:hover:opacity-90 web:focus-visible:ring-2 web:focus-visible:ring-accent/60"
-      >
-        <Plus size={26} color={colors.accentFg} strokeWidth={2.4} />
-      </Pressable>
-      <View
-        role="navigation"
-        aria-label="Main"
-        style={{ marginBottom: Math.max(insets.bottom, 8) }}
-        className={cn("mx-3 h-[68px] flex-row rounded-lg px-1", glassOverlay)}
-      >
-        {phoneItems.map((item) => (
-          <NavButton key={item.key} item={item} active={isActive(item, pathname)} variant="bar" />
-        ))}
-      </View>
-    </>
+    <View style={{ marginBottom: Math.max(insets.bottom, 8) }} className="mx-3">
+      <GlassSurface level="bar" rounded="xl" className="h-[60px] flex-row items-center px-1">
+        <View role="navigation" aria-label="Main" className="flex-1 flex-row items-center">
+          {phoneItems.slice(0, half).map((item) => (
+            <NavButton key={item.key} item={item} active={isActive(item, pathname)} variant="bar" />
+          ))}
+          <View className="items-center justify-center px-2">
+            <AddTabButton />
+          </View>
+          {phoneItems.slice(half).map((item) => (
+            <NavButton key={item.key} item={item} active={isActive(item, pathname)} variant="bar" />
+          ))}
+        </View>
+      </GlassSurface>
+    </View>
   );
 }
 
 /**
- * Responsive shell (plan §9.2): phone < 640 bottom tabs + FAB, tablet 640-1023 rail,
- * desktop >= 1024 collapsible sidebar. Content area is whatever the route renders.
+ * Responsive shell (plan §9.2): phone < 640 glass tab bar with the add button in the middle,
+ * tablet 640-1023 rail, desktop >= 1024 collapsible sidebar. The content area is whatever the route renders.
  */
 export function AppShell({ children }: { children: ReactNode }) {
   const bp = useBreakpoint();

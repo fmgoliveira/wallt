@@ -1,4 +1,4 @@
-import { Card, HeroCard, Skeleton, Text } from "@wallt/ui";
+import { Amount, Card, HeroCard, Skeleton, Text } from "@wallt/ui";
 import { View } from "react-native";
 import { Page } from "../../src/shell/Page";
 
@@ -6,17 +6,17 @@ export default function Dashboard() {
   return (
     <Page title="Dashboard" subtitle="Your money at a glance">
       <HeroCard>
-        <Text variant="caption" tone="onHero" className="opacity-80">
-          NET WORTH
+        <Text variant="small" tone="onHero" weight="medium" className="opacity-60">
+          Net worth
         </Text>
-        <Text variant="display" tone="onHero" tabular>
-          — €
-        </Text>
-        <Text variant="small" tone="onHero" className="opacity-90">
+        <View className="my-1.5">
+          <Amount value={0} size="display" tone="onHero" ticker />
+        </View>
+        <Text variant="small" tone="onHero" className="opacity-60">
           Add an account to get started
         </Text>
       </HeroCard>
-      <View className="gap-4 tablet:flex-row">
+      <View className="gap-3 tablet:flex-row tablet:gap-4">
         {["This month", "Budgets", "Recent"].map((t) => (
           <Card key={t} className="gap-3 tablet:flex-1">
             <Text variant="title">{t}</Text>

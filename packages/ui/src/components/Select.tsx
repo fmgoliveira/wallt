@@ -1,5 +1,8 @@
 import { useId, useState } from "react";
 import { Pressable, View } from "react-native";
+import { useTheme } from "../theme/context";
+import { radius, ringShadow } from "../tokens";
+import { useControlHeight } from "./Button";
 import { cn, Text } from "./primitives";
 import { Sheet } from "./Sheet";
 
@@ -30,14 +33,16 @@ export function Select<T extends string>({
   error,
   className,
 }: SelectProps<T>) {
+  const { scheme, colors } = useTheme();
+  const height = useControlHeight();
   const [open, setOpen] = useState(false);
   const id = useId();
   const selected = options.find((o) => o.value === value);
 
   return (
-    <View className={cn("gap-1", className)}>
+    <View className={cn("gap-1.5", className)}>
       {label ? (
-        <Text variant="caption" tone="muted" nativeID={`${id}-label`}>
+        <Text variant="small" tone="muted" weight="medium" nativeID={`${id}-label`}>
           {label}
         </Text>
       ) : null}
@@ -46,18 +51,21 @@ export function Select<T extends string>({
         accessibilityLabel={label ? `${label}: ${selected?.label ?? placeholder}` : undefined}
         accessibilityState={{ expanded: open }}
         onPress={() => setOpen(true)}
-        className={cn(
-          "min-h-touch flex-row items-center justify-between rounded-md border bg-white/50 dark:bg-white/[0.05] web:backdrop-blur-xl px-3 web:cursor-pointer web:hover:bg-white/70 dark:web:hover:bg-white/10",
-          error ? "border-negative" : "border-white/70 dark:border-white/15",
-        )}
+        className="flex-row items-center justify-between px-3 web:cursor-pointer web:outline-none"
+        style={{
+          minHeight: height,
+          borderRadius: radius.md,
+          backgroundColor: scheme === "dark" ? colors.bg : colors.surface,
+          boxShadow: ringShadow(colors, error ? "error" : open ? "focus" : "default"),
+        }}
       >
-        <Text tone={selected ? "default" : "muted"}>{selected?.label ?? placeholder}</Text>
-        <Text tone="muted" accessibilityElementsHidden>
+        <Text tone={selected ? "default" : "subtle"}>{selected?.label ?? placeholder}</Text>
+        <Text tone="subtle" accessibilityElementsHidden>
           ▾
         </Text>
       </Pressable>
       {error ? (
-        <Text variant="caption" tone="negative">
+        <Text variant="small" tone="negative">
           {error}
         </Text>
       ) : null}
@@ -75,19 +83,19 @@ export function Select<T extends string>({
                   setOpen(false);
                 }}
                 className={cn(
-                  "min-h-touch flex-row items-center justify-between rounded-md px-3 web:cursor-pointer web:hover:bg-border/40",
-                  active && "bg-accent/10",
+                  "min-h-touch flex-row items-center justify-between rounded-md px-3 web:cursor-pointer web:hover:bg-text/5",
+                  active && "bg-data/10",
                 )}
               >
                 <View>
-                  <Text className={active ? "font-inter-semibold" : undefined}>{o.label}</Text>
+                  <Text weight={active ? "semibold" : "medium"}>{o.label}</Text>
                   {o.description ? (
-                    <Text variant="caption" tone="muted">
+                    <Text variant="small" tone="muted">
                       {o.description}
                     </Text>
                   ) : null}
                 </View>
-                {active ? <Text tone="accent">✓</Text> : null}
+                {active ? <Text tone="data">✓</Text> : null}
               </Pressable>
             );
           })}
