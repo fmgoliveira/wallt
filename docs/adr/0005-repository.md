@@ -44,3 +44,22 @@ integrity or structure, so they were put to the owner.
   to settle before P2.4 is verified on web.
 - Re-stamping `user_id` and replacing the stamper are P3 work items; neither needs a schema change.
 - Derived account balances (P2.4) and transfers (P2.6) are not in the repository yet.
+
+## Update: interim web database (2026-11-08)
+Owner chose **B now, A later**: web runs the same `LocalRepository` on expo-sqlite's WASM build (wa-sqlite + OPFS) as an
+*interim*; the `RemoteRepository` (endpoints, web login, `server_seq`) stays the production plan from ADR 0002 and is its own
+task before P3. Web data is **local to the browser** (no sync with Android/server; clearing site data erases it); the shell
+shows an "Interim" notice on web. Verified on web: open, seed (38 categories), writes, persistence across reload.
+
+Things that cost time, so the next person does not repeat them:
+- Needs cross-origin isolation (`COOP: same-origin`, `COEP: credentialless`): set in `metro.config.js` for the dev server.
+  **The Hono server must send the same two headers for the production export (not done: it touches security headers, owner
+  review).** `database.ts` refuses to open on a non-isolated page with a clear error.
+- `expo-sqlite` must not be in the server-render graph (its web code contains `import()`, which makes Metro fail with
+  "Failed to get the SHA-1 for …/expo/internal/async-require-module.js" through the pnpm symlink on Windows). So the web
+  output is **`single`** (SPA; the app already renders client-only behind login) and `database.ts` `require`s it lazily.
+- Adding `"wasm"` to `resolver.assetExts` breaks resolution of the router entry in this monorepo (any variant tried).
+  Workaround: `metro.config.js` resolves the worker's `./wa-sqlite/wa-sqlite.wasm` import to an empty module, the real file
+  is served from `apps/app/public/wa-sqlite.wasm`, and `configureWeb({ wasmURL })` points the worker at it. **That copy must
+  match the installed expo-sqlite revision: refresh it when upgrading expo-sqlite.**
+- Open risks from ADR 0002 still apply: Safari/Firefox untested, one tab per database (OPFS access handles).
