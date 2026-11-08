@@ -10,7 +10,8 @@
       "!pnpm-lock.yaml",
       "!**/*.md",
       "!**/*.yaml",
-      "!**/*.yml"
+      "!**/*.yml",
+      "!docs/design/reference.html"
     ]
   }
 }
