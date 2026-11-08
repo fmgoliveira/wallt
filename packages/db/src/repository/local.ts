@@ -139,6 +139,37 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): R
     );
   }
 
+  /** Non-deleted transactions + splits that use each category (a transaction counts once per row that names it). */
+  async function categoryUsage(categoryId?: string) {
+    const out = new Map<string, number>();
+    const add = (id: string | null, n: unknown) => {
+      if (id) out.set(id, (out.get(id) ?? 0) + Number(n));
+    };
+    const tx = await db
+      .select({ id: t.transactions.categoryId, n: sql<number>`count(*)` })
+      .from(t.transactions)
+      .where(
+        and(
+          isNull(t.transactions.deletedAt),
+          categoryId ? eq(t.transactions.categoryId, categoryId) : undefined,
+        ),
+      )
+      .groupBy(t.transactions.categoryId);
+    for (const r of tx) add(r.id, r.n);
+    const splits = await db
+      .select({ id: t.transactionSplits.categoryId, n: sql<number>`count(*)` })
+      .from(t.transactionSplits)
+      .where(
+        and(
+          isNull(t.transactionSplits.deletedAt),
+          categoryId ? eq(t.transactionSplits.categoryId, categoryId) : undefined,
+        ),
+      )
+      .groupBy(t.transactionSplits.categoryId);
+    for (const r of splits) add(r.id, r.n);
+    return out;
+  }
+
   function withBalance(a: Account, totals?: { total: number; count: number }): AccountWithBalance {
     return {
       ...a,
@@ -526,10 +557,38 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): R
           await db.insert(t.categories).values(row);
           return row;
         }),
+      usage: () => run(async () => Object.fromEntries(await categoryUsage())),
+      reorder: (ids) =>
+        atomic(async () => {
+          const rows = [];
+          for (const id of ids) rows.push(await activeCategory(id));
+          const first = rows[0];
+          if (first && rows.some((r) => r.parentId !== first.parentId || r.type !== first.type)) {
+            throw invalid("Categories can only be reordered among siblings of the same type");
+          }
+          for (const [position, id] of ids.entries()) {
+            await db
+              .update(t.categories)
+              .set({ sortOrder: position, ...stamp() })
+              .where(eq(t.categories.id, id));
+          }
+        }),
       update: (id, patch: CategoryPatch) =>
         atomic(async () => {
           const current = await activeCategory(id);
           const merged = { ...current, ...patch, ...stamp() };
+          if (merged.type !== current.type) {
+            // Changing the type would strand children of the other type and mislabel history.
+            const [child] = await db
+              .select({ id: t.categories.id })
+              .from(t.categories)
+              .where(and(eq(t.categories.parentId, id), isNull(t.categories.deletedAt)))
+              .limit(1);
+            if (child) throw invalid("Move or remove the subcategories before changing the type");
+            if ((await categoryUsage(id)).get(id)) {
+              throw invalid("The type cannot change once the category has transactions");
+            }
+          }
           await checkParent(merged.parentId, merged.type, id);
           const row = validate(categorySchema, merged, "category");
           await db.update(t.categories).set(row).where(eq(t.categories.id, id));
@@ -538,6 +597,13 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): R
       delete: (id) =>
         atomic(async () => {
           await activeCategory(id);
+          // History keeps its category: a used category must be archived, not deleted.
+          const used = (await categoryUsage(id)).get(id) ?? 0;
+          if (used > 0) {
+            throw invalid(
+              `Category is used by ${used} transaction(s): archive it instead of deleting`,
+            );
+          }
           const children = await db
             .select({ id: t.categories.id })
             .from(t.categories)

@@ -63,7 +63,14 @@ export interface CategoriesRepository {
   get(id: string): Promise<Category | null>;
   create(input: NewCategory): Promise<Category>;
   update(id: string, patch: CategoryPatch): Promise<Category>;
-  /** Soft delete; children are re-parented to the root (a category tree never dangles). */
+  /** Number of transactions/splits per category id (categories with none are absent). Derived, never stored. */
+  usage(): Promise<Record<string, number>>;
+  /** Sets sortOrder to the position in `ids`. All ids must share the same parent and type. */
+  reorder(ids: string[]): Promise<void>;
+  /**
+   * Soft delete; children are re-parented to the root (a category tree never dangles). Refused (`validation`)
+   * while any transaction or split uses it: archive it instead. The type cannot change once used or with children.
+   */
   delete(id: string): Promise<void>;
 }
 

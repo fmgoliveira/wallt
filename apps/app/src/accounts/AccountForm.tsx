@@ -1,27 +1,10 @@
 import type { AccountWithBalance } from "@wallt/db";
-import {
-  AmountInput,
-  Button,
-  categoryPalette,
-  Input,
-  Select,
-  Sheet,
-  Tabs,
-  Text,
-  toast,
-  useTheme,
-} from "@wallt/ui";
+import { AmountInput, Button, Input, Select, Sheet, Tabs, Text, toast } from "@wallt/ui";
 import { useState } from "react";
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
+import { ColorPicker } from "../components/ColorPicker";
 import { useCreateAccount, useUpdateAccount } from "../data/hooks";
-import {
-  type AccountType,
-  accountColorHex,
-  accountColorName,
-  accountColorNames,
-  accountTypes,
-  currencyOptions,
-} from "./meta";
+import { type AccountType, accountTypes, currencyOptions } from "./meta";
 
 const include = [
   { value: "yes", label: "Included" },
@@ -36,7 +19,6 @@ export function AccountForm({
   account?: AccountWithBalance | undefined;
   onClose: () => void;
 }) {
-  const { scheme, colors } = useTheme();
   const create = useCreateAccount();
   const update = useUpdateAccount();
   const editing = !!account;
@@ -81,11 +63,6 @@ export function AccountForm({
     }
   }
 
-  const ring = (selected: boolean) =>
-    selected
-      ? `0 0 0 2px ${colors.bg}, 0 0 0 3.5px ${colors.text}`
-      : `0 0 0 1px ${colors.borderStrong}`;
-
   return (
     <Sheet visible onClose={onClose} title={editing ? "Edit account" : "New account"}>
       <Input
@@ -129,43 +106,7 @@ export function AccountForm({
         placeholder="0,00"
         error={openingError}
       />
-      <View className="gap-1.5">
-        <Text variant="small" tone="muted" weight="medium">
-          Colour
-        </Text>
-        <View className="flex-row flex-wrap" accessibilityRole="radiogroup">
-          <Pressable
-            accessibilityRole="radio"
-            accessibilityLabel="No colour"
-            accessibilityState={{ checked: colorHex === null }}
-            onPress={() => setColorHex(null)}
-            className="h-11 w-11 items-center justify-center web:cursor-pointer web:outline-none"
-          >
-            <View className="h-6 w-6 rounded-sm" style={{ boxShadow: ring(colorHex === null) }} />
-          </Pressable>
-          {accountColorNames.map((n) => {
-            const selected = accountColorName(colorHex) === n;
-            return (
-              <Pressable
-                key={n}
-                accessibilityRole="radio"
-                accessibilityLabel={n}
-                accessibilityState={{ checked: selected }}
-                onPress={() => setColorHex(accountColorHex(n))}
-                className="h-11 w-11 items-center justify-center web:cursor-pointer web:outline-none"
-              >
-                <View
-                  className="h-6 w-6 rounded-sm"
-                  style={{
-                    backgroundColor: categoryPalette[n][scheme],
-                    boxShadow: selected ? ring(true) : undefined,
-                  }}
-                />
-              </Pressable>
-            );
-          })}
-        </View>
-      </View>
+      <ColorPicker value={colorHex} onChange={setColorHex} />
       <View className="gap-1.5">
         <Text variant="small" tone="muted" weight="medium">
           Net worth

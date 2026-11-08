@@ -78,6 +78,7 @@ export const moreItems: readonly NavItem[] = [budgets, reports, settings];
 
 export function isActive(item: NavItem, pathname: string): boolean {
   if (item.href === "/") return pathname === "/";
+  if (item.key === "settings" && pathname.startsWith("/categories")) return true;
   if (item.key === "more")
     return moreItems.some((m) => isActive(m, pathname)) || pathname === "/more";
   return pathname === item.href || pathname.startsWith(`${item.href}/`);
