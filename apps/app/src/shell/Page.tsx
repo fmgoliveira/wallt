@@ -27,18 +27,20 @@ export function Page({ title, subtitle, actions, children }: PageProps) {
         contentContainerClassName="mx-auto w-full max-w-[1200px] gap-6 px-4 pt-6 pb-32 tablet:px-6 desktop:px-8 desktop:pt-8 desktop:pb-10"
         keyboardShouldPersistTaps="handled"
       >
-        <Reveal className="flex-row items-end justify-between gap-4">
-          <View className="flex-1 gap-1">
-            <Text
-              variant={bp === "phone" ? "heading" : "display"}
-              accessibilityRole="header"
-              aria-level={1}
-            >
-              {title}
-            </Text>
-            {subtitle ? <Text tone="muted">{subtitle}</Text> : null}
+        <Reveal>
+          <View className="flex-row items-end justify-between gap-4">
+            <View className="flex-1 gap-1">
+              <Text
+                variant={bp === "phone" ? "heading" : "display"}
+                accessibilityRole="header"
+                aria-level={1}
+              >
+                {title}
+              </Text>
+              {subtitle ? <Text tone="muted">{subtitle}</Text> : null}
+            </View>
+            {actions}
           </View>
-          {actions}
         </Reveal>
         <RevealGroup start={1}>{children}</RevealGroup>
       </ScrollView>
