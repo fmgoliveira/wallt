@@ -6,16 +6,19 @@ import {
   EmptyState,
   IconTile,
   ListItem,
+  SortableList,
   Tabs,
   Text,
   useTheme,
 } from "@wallt/ui";
-import { ArrowDown, ArrowUp, ChevronRight, Plus, Tags } from "lucide-react-native";
+import { ChevronRight, Plus, Tags } from "lucide-react-native";
+import type { ReactNode } from "react";
 import { useState } from "react";
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
 import { CategoryForm } from "../../src/categories/CategoryForm";
 import { categoryIcon } from "../../src/categories/icons";
 import { colorForScheme } from "../../src/components/colors";
+import { ListHeader } from "../../src/components/ReorderToggle";
 import { DataGate } from "../../src/data/DataGate";
 import { useCategories, useCategoryUsage, useReorderCategories } from "../../src/data/hooks";
 import { Page } from "../../src/shell/Page";
@@ -33,39 +36,20 @@ function CategoryRow({
   uses,
   child,
   divider,
-  sorting,
-  canUp,
-  canDown,
-  onMove,
+  handle,
   onOpen,
 }: {
   category: Category;
   uses: number;
   child: boolean;
   divider: boolean;
-  sorting: boolean;
-  canUp: boolean;
-  canDown: boolean;
-  onMove: (delta: -1 | 1) => void;
+  /** Drag grip while reordering, otherwise null. */
+  handle: ReactNode;
   onOpen: () => void;
 }) {
   const { scheme, colors } = useTheme();
   const Icon = categoryIcon(category.icon);
   const tint = colorForScheme(category.color, scheme) ?? colors.muted;
-  const arrow = (delta: -1 | 1, enabled: boolean) => {
-    const A = delta === -1 ? ArrowUp : ArrowDown;
-    return (
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Move ${category.name} ${delta === -1 ? "up" : "down"}`}
-        disabled={!enabled}
-        onPress={() => onMove(delta)}
-        className="h-11 w-11 items-center justify-center"
-      >
-        <A size={18} color={enabled ? colors.text : colors.subtle} strokeWidth={1.6} />
-      </Pressable>
-    );
-  };
   return (
     <View className={child ? "pl-6" : undefined} style={{ opacity: category.archived ? 0.6 : 1 }}>
       <ListItem
@@ -78,19 +62,14 @@ function CategoryRow({
           </IconTile>
         }
         trailing={
-          sorting ? (
-            <View className="flex-row">
-              {arrow(-1, canUp)}
-              {arrow(1, canDown)}
-            </View>
-          ) : (
+          handle ?? (
             <View className="flex-row items-center gap-2">
               {category.archived ? <Chip label="Archived" /> : null}
               <ChevronRight size={16} color={colors.subtle} strokeWidth={1.6} />
             </View>
           )
         }
-        onPress={sorting ? undefined : onOpen}
+        onPress={handle ? undefined : onOpen}
       />
     </View>
   );
@@ -115,33 +94,13 @@ function CategoriesContent({
   const childrenOf = (id: string) => all.filter((c) => c.parentId === id);
   const uses = usage.data ?? {};
 
-  function move(siblings: Category[], index: number, delta: -1 | 1) {
-    const ids = siblings.map((c) => c.id);
-    const a = ids[index];
-    const b = ids[index + delta];
-    if (a === undefined || b === undefined) return;
-    ids[index] = b;
-    ids[index + delta] = a;
-    reorder.mutate(ids);
-  }
-
-  const row = (
-    c: Category,
-    siblings: Category[],
-    index: number,
-    child: boolean,
-    divider: boolean,
-  ) => (
+  const row = (c: Category, child: boolean, divider: boolean, handle: ReactNode) => (
     <CategoryRow
-      key={c.id}
       category={c}
       uses={uses[c.id] ?? 0}
       child={child}
       divider={divider}
-      sorting={sorting}
-      canUp={index > 0}
-      canDown={index < siblings.length - 1}
-      onMove={(d) => move(siblings, index, d)}
+      handle={handle}
       onOpen={() => setForm({ category: c })}
     />
   );
@@ -162,27 +121,38 @@ function CategoriesContent({
           />
         </Card>
       ) : (
-        <Card className="p-0 tablet:p-0">
-          {roots.map((root, i) => {
-            const kids = childrenOf(root.id);
-            return (
-              <View key={root.id}>
-                {row(root, roots, i, false, i > 0)}
-                {kids.map((k, j) => row(k, kids, j, true, true))}
-              </View>
-            );
-          })}
-        </Card>
-      )}
-      {roots.length > 1 ? (
-        <View className="flex-row">
-          <Button
-            label={sorting ? "Done" : "Reorder"}
-            variant="ghost"
-            onPress={() => setSorting((s) => !s)}
+        <View className="gap-2">
+          <ListHeader
+            title="Categories"
+            sorting={sorting}
+            canReorder={roots.length > 1}
+            onToggle={() => setSorting((v) => !v)}
           />
+          <Card className="p-0 tablet:p-0">
+            <SortableList
+              items={roots}
+              getId={(r) => r.id}
+              enabled={sorting}
+              onReorder={(ids) => reorder.mutate(ids)}
+              renderItem={(root, { handle, index }) => {
+                const kids = childrenOf(root.id);
+                return (
+                  <View>
+                    {row(root, false, index > 0, handle)}
+                    <SortableList
+                      items={kids}
+                      getId={(k) => k.id}
+                      enabled={sorting}
+                      onReorder={(ids) => reorder.mutate(ids)}
+                      renderItem={(k, kid) => row(k, true, true, kid.handle)}
+                    />
+                  </View>
+                );
+              }}
+            />
+          </Card>
         </View>
-      ) : null}
+      )}
       <Text variant="small" tone="muted">
         Archived categories stay on past transactions but disappear from pickers. Reordering moves a
         category among its siblings.
