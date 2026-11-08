@@ -1,9 +1,10 @@
 import { useEffect } from "react";
 import { Pressable, View } from "react-native";
-import { FadeOut, ReduceMotion, SlideInUp } from "react-native-reanimated";
+import { Easing, FadeInUp, FadeOutUp, ReduceMotion } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { create } from "zustand";
 import { motion } from "../tokens";
-import { AnimatedView, cn, Text } from "./primitives";
+import { AnimatedView, cn, glassOverlay, Text } from "./primitives";
 
 export type ToastTone = "info" | "success" | "error";
 
@@ -58,13 +59,16 @@ function ToastView({ item }: { item: ToastItem }) {
 
   return (
     <AnimatedView
-      entering={SlideInUp.springify()
-        .damping(motion.spring.damping)
+      entering={FadeInUp.duration(motion.duration.base)
+        .easing(Easing.out(Easing.cubic))
         .reduceMotion(ReduceMotion.System)}
-      exiting={FadeOut.duration(motion.duration.fast).reduceMotion(ReduceMotion.System)}
+      exiting={FadeOutUp.duration(motion.duration.fast).reduceMotion(ReduceMotion.System)}
       role={item.tone === "error" ? "alert" : "status"}
       accessibilityLiveRegion={item.tone === "error" ? "assertive" : "polite"}
-      className="w-full max-w-[420px] flex-row overflow-hidden rounded-md border border-white/70 bg-white/75 shadow-e3 dark:border-white/10 dark:bg-slate-900/70 web:backdrop-blur-2xl"
+      className={cn(
+        "w-full max-w-[420px] flex-row overflow-hidden rounded-md shadow-e3",
+        glassOverlay,
+      )}
     >
       <View className={cn("w-1", toneBar[item.tone])} />
       <Pressable
@@ -82,11 +86,13 @@ function ToastView({ item }: { item: ToastItem }) {
 /** Mounted once by `ThemeProvider`. Top-centre, below the safe area on phones. */
 export function ToastHost() {
   const items = useToastStore((s) => s.items);
+  const insets = useSafeAreaInsets();
   if (items.length === 0) return null;
   return (
     <View
       pointerEvents="box-none"
-      className="absolute inset-x-0 top-0 z-[60] items-center gap-2 p-4 pt-12"
+      style={{ paddingTop: insets.top + 12 }}
+      className="absolute inset-x-0 top-0 z-[60] items-center gap-2 px-4"
     >
       {items.map((item) => (
         <ToastView key={item.id} item={item} />

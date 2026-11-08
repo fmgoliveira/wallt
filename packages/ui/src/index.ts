@@ -12,6 +12,7 @@ export {
   AnimatedView,
   cn,
   glass,
+  glassOverlay,
   Text,
   type TextProps,
   type TextTone,
