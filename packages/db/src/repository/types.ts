@@ -132,6 +132,18 @@ export type TransactionPatch = Partial<Omit<Transaction, Stamped | "transferPeer
   tagIds?: string[];
 };
 
+/** A transfer between two of your accounts in the same currency. `amount` is positive minor units. */
+export interface NewTransfer {
+  fromAccountId: string;
+  toAccountId: string;
+  amount: number;
+  bookingDate: string;
+  notes?: string;
+  status?: Transaction["status"];
+  excludedFromReports?: boolean;
+}
+export type TransferPatch = Partial<NewTransfer>;
+
 export interface TransactionFilter {
   accountIds?: string[];
   categoryIds?: string[];
@@ -156,7 +168,17 @@ export interface TransactionsRepository {
   get(id: string): Promise<TransactionDetail | null>;
   create(input: NewTransaction): Promise<TransactionDetail>;
   update(id: string, patch: TransactionPatch): Promise<TransactionDetail>;
-  /** Soft delete the transaction, its splits and its tag links. */
+  /**
+   * Creates the two linked rows of a transfer: `[source leg (negative), destination leg (positive)]`.
+   * Transfers have no category, splits or tags. Different accounts, same currency (no FX yet).
+   */
+  createTransfer(input: NewTransfer): Promise<[TransactionDetail, TransactionDetail]>;
+  /** Edits both legs together; `id` may be either leg. */
+  updateTransfer(id: string, patch: TransferPatch): Promise<[TransactionDetail, TransactionDetail]>;
+  /**
+   * Soft delete the transaction, its splits and its tag links. Deleting either leg of a transfer deletes
+   * both. `create`/`update` refuse the `transfer` kind: use the transfer methods.
+   */
   delete(id: string): Promise<void>;
 }
 

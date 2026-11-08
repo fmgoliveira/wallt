@@ -6,10 +6,12 @@ import type {
   NewCategory,
   NewTag,
   NewTransaction,
+  NewTransfer,
   Repository,
   TagPatch,
   TransactionFilter,
   TransactionPatch,
+  TransferPatch,
 } from "@wallt/db";
 import { useDataState } from "./RepositoryProvider";
 
@@ -31,7 +33,7 @@ const invalidates: Record<Root, Root[]> = {
   accounts: ["accounts", "transactions"],
   categories: ["categories", "transactions"],
   tags: ["tags", "transactions"],
-  transactions: ["transactions", "accounts"],
+  transactions: ["transactions", "accounts", "categories"],
 };
 
 function invalidate(client: QueryClient, root: Root) {
@@ -151,3 +153,10 @@ export const useUpdateTransaction = () =>
   );
 export const useDeleteTransaction = () =>
   useRepoMutation("transactions", (r, id: string) => r.transactions.delete(id));
+
+export const useCreateTransfer = () =>
+  useRepoMutation("transactions", (r, input: NewTransfer) => r.transactions.createTransfer(input));
+export const useUpdateTransfer = () =>
+  useRepoMutation("transactions", (r, input: { id: string; patch: TransferPatch }) =>
+    r.transactions.updateTransfer(input.id, input.patch),
+  );

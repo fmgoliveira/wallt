@@ -622,3 +622,152 @@ describe("category usage and ordering", () => {
     );
   });
 });
+
+describe("transfers", () => {
+  const two = async () => {
+    const a = await account({ name: "A", openingBalance: 100_000 });
+    const b = await account({ name: "B", openingBalance: 0 });
+    return { a, b };
+  };
+  const date = "2026-11-02";
+
+  it("creates two linked legs that move money between accounts and net to zero", async () => {
+    const { a, b } = await two();
+    const [out, inn] = await repo.transactions.createTransfer({
+      fromAccountId: a.id,
+      toAccountId: b.id,
+      amount: 25_000,
+      bookingDate: date,
+    });
+    expect([out.amount, inn.amount]).toEqual([-25_000, 25_000]);
+    expect(out.kind).toBe("transfer");
+    expect(out.transferPeerId).toBe(inn.id);
+    expect(inn.transferPeerId).toBe(out.id);
+    expect(out.accountId).toBe(a.id);
+    expect(inn.accountId).toBe(b.id);
+    const balances = await repo.accounts.listWithBalances();
+    expect(balances.map((x) => x.balance)).toEqual([75_000, 25_000]);
+    expect(balances.reduce((s, x) => s + x.balance, 0)).toBe(100_000);
+  });
+
+  it("refuses bad transfers", async () => {
+    const { a, b } = await two();
+    const usd = await account({ name: "USD", currency: "USD" });
+    const base = { bookingDate: date, amount: 100 };
+    await expectCode(
+      repo.transactions.createTransfer({ ...base, fromAccountId: a.id, toAccountId: a.id }),
+      "validation",
+    );
+    await expectCode(
+      repo.transactions.createTransfer({ ...base, fromAccountId: a.id, toAccountId: usd.id }),
+      "validation",
+    );
+    await expectCode(
+      repo.transactions.createTransfer({
+        bookingDate: date,
+        amount: 0,
+        fromAccountId: a.id,
+        toAccountId: b.id,
+      }),
+      "validation",
+    );
+  });
+
+  it("edits both legs together, from either leg", async () => {
+    const { a, b } = await two();
+    const c = await account({ name: "C", openingBalance: 0 });
+    const [out, inn] = await repo.transactions.createTransfer({
+      fromAccountId: a.id,
+      toAccountId: b.id,
+      amount: 1000,
+      bookingDate: date,
+    });
+    const [o2, i2] = await repo.transactions.updateTransfer(inn.id, {
+      amount: 4000,
+      toAccountId: c.id,
+      notes: "rent share",
+    });
+    expect([o2.id, i2.id]).toEqual([out.id, inn.id]);
+    expect([o2.amount, i2.amount]).toEqual([-4000, 4000]);
+    expect(i2.accountId).toBe(c.id);
+    expect([o2.notes, i2.notes]).toEqual(["rent share", "rent share"]);
+    const balances = await repo.accounts.listWithBalances();
+    expect(balances.map((x) => x.balance)).toEqual([96_000, 0, 4000]);
+  });
+
+  it("deleting either leg deletes both and restores balances", async () => {
+    const { a, b } = await two();
+    const [out, inn] = await repo.transactions.createTransfer({
+      fromAccountId: a.id,
+      toAccountId: b.id,
+      amount: 1000,
+      bookingDate: date,
+    });
+    await repo.transactions.delete(inn.id);
+    expect(await repo.transactions.get(out.id)).toBeNull();
+    expect(await repo.transactions.get(inn.id)).toBeNull();
+    expect((await repo.accounts.listWithBalances()).map((x) => x.balance)).toEqual([100_000, 0]);
+  });
+
+  it("keeps transfers out of the generic create/update paths", async () => {
+    const { a, b } = await two();
+    await expectCode(
+      repo.transactions.create({
+        accountId: a.id,
+        amount: -5,
+        currency: "EUR",
+        bookingDate: date,
+        kind: "transfer",
+      }),
+      "validation",
+    );
+    const [out] = await repo.transactions.createTransfer({
+      fromAccountId: a.id,
+      toAccountId: b.id,
+      amount: 5,
+      bookingDate: date,
+    });
+    await expectCode(repo.transactions.update(out.id, { amount: -9 }), "validation");
+    await expectCode(
+      repo.transactions.updateTransfer("019e0000-0000-7000-8000-000000000000", {}),
+      "not_found",
+    );
+  });
+});
+
+describe("split rules", () => {
+  it("rejects splits that do not sum to the amount, on create and update", async () => {
+    const a = await account();
+    const food = await repo.categories.create({ name: "Food", type: "expense" });
+    const home = await repo.categories.create({ name: "Home", type: "expense" });
+    const base = { accountId: a.id, currency: "EUR", bookingDate: "2026-11-02", amount: -1000 };
+    await expectCode(
+      repo.transactions.create({
+        ...base,
+        splits: [
+          { amount: -600, categoryId: food.id },
+          { amount: -399, categoryId: home.id },
+        ],
+      }),
+      "validation",
+    );
+    const ok = await repo.transactions.create({
+      ...base,
+      splits: [
+        { amount: -600, categoryId: food.id },
+        { amount: -400, categoryId: home.id },
+      ],
+    });
+    expect(ok.splits.map((s) => s.amount)).toEqual([-600, -400]);
+    // changing the amount without re-splitting must fail; with matching splits it passes
+    await expectCode(repo.transactions.update(ok.id, { amount: -1200 }), "validation");
+    const moved = await repo.transactions.update(ok.id, {
+      amount: -1200,
+      splits: [
+        { amount: -700, categoryId: food.id },
+        { amount: -500, categoryId: home.id },
+      ],
+    });
+    expect(moved.splits.reduce((s, x) => s + x.amount, 0)).toBe(-1200);
+  });
+});

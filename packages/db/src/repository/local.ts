@@ -3,6 +3,7 @@ import {
   accountSchema,
   type Category,
   categorySchema,
+  splitsError,
   type Tag,
   type Transaction,
   type TransactionSplit,
@@ -10,6 +11,7 @@ import {
   transactionSchema,
   transactionSplitSchema,
   transactionTagSchema,
+  transferLegs,
 } from "@wallt/core";
 import { and, asc, desc, eq, gte, inArray, isNull, lte, or, type SQL, sql } from "drizzle-orm";
 import * as t from "../schema";
@@ -24,12 +26,14 @@ import {
   type NewSplit,
   type NewTag,
   type NewTransaction,
+  type NewTransfer,
   type Repository,
   RepositoryError,
   type TagPatch,
   type TransactionDetail,
   type TransactionFilter,
   type TransactionPatch,
+  type TransferPatch,
 } from "./types";
 
 const notFound = (what: string, id: string) =>
@@ -297,10 +301,77 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): R
   }
 
   function checkSplits(amount: number, splits: NewSplit[]) {
-    if (splits.length === 0) return;
-    // Integer minor units: exact arithmetic, no floats.
-    const sum = splits.reduce((s, x) => s + x.amount, 0);
-    if (sum !== amount) throw invalid(`Splits add up to ${sum} but the transaction is ${amount}`);
+    // The rule lives in core (integer minor units, exact) so the editor and imports share it.
+    const problem = splitsError(amount, splits);
+    if (problem) throw invalid(problem);
+  }
+
+  /** Both legs of a transfer, source first. */
+  async function transferPair(anyLeg: Transaction): Promise<[Transaction, Transaction]> {
+    if (anyLeg.kind !== "transfer" || !anyLeg.transferPeerId) {
+      throw invalid("Not a transfer");
+    }
+    const peer = await activeTransaction(anyLeg.transferPeerId);
+    const pair = [anyLeg, peer];
+    pair.sort((a, b) => a.amount - b.amount);
+    return pair as [Transaction, Transaction];
+  }
+
+  function legsOf(amount: number) {
+    try {
+      return transferLegs(amount);
+    } catch (error) {
+      throw invalid(error instanceof Error ? error.message : "Invalid transfer amount");
+    }
+  }
+
+  async function transferAccounts(fromId: string, toId: string) {
+    if (fromId === toId) throw invalid("A transfer needs two different accounts");
+    const from = await activeAccount(fromId).catch(() => {
+      throw invalid(`Account ${fromId} does not exist`);
+    });
+    const to = await activeAccount(toId).catch(() => {
+      throw invalid(`Account ${toId} does not exist`);
+    });
+    if (from.currency !== to.currency) {
+      throw invalid("Transfers between currencies are not supported yet");
+    }
+    return { from, to };
+  }
+
+  function transferRow(
+    base: Pick<Transaction, "bookingDate" | "status" | "notes" | "excludedFromReports">,
+    account: Account,
+    amount: number,
+    peerId: string | null,
+  ) {
+    return validate(
+      transactionSchema,
+      {
+        ...fresh(),
+        accountId: account.id,
+        amount,
+        currency: account.currency,
+        bookingDate: base.bookingDate,
+        valueDate: null,
+        payee: "",
+        descriptionRaw: "",
+        descriptionClean: "",
+        categoryId: null,
+        status: base.status,
+        kind: "transfer",
+        transferPeerId: peerId,
+        notes: base.notes,
+        excludedFromReports: base.excludedFromReports,
+        source: "manual",
+        externalId: null,
+        dedupHash: "",
+        importBatchId: null,
+        debtId: null,
+        categorization: { method: "none", confidence: 0, needsReview: false },
+      },
+      "transaction",
+    );
   }
 
   async function writeSplits(txId: string, splits: NewSplit[]) {
@@ -724,6 +795,7 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): R
             );
           }
           const kind = input.kind ?? (input.amount > 0 ? "income" : "expense");
+          if (kind === "transfer") throw invalid("Use createTransfer for transfers");
           checkSign(kind, input.amount);
           const splits = input.splits ?? [];
           checkSplits(input.amount, splits);
@@ -769,6 +841,9 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): R
       update: (id, patch: TransactionPatch) =>
         atomic(async () => {
           const current = await activeTransaction(id);
+          if (current.kind === "transfer" || patch.kind === "transfer") {
+            throw invalid("Use updateTransfer to edit a transfer");
+          }
           const { splits: newSplits, tagIds, ...fields } = patch;
 
           const merged: Transaction = { ...current, ...fields, ...stamp() };
@@ -806,16 +881,97 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): R
           if (tagIds) await syncTags(id, tagIds);
           return loadDetail(row);
         }),
-      delete: (id) =>
+      createTransfer: (input: NewTransfer) =>
         atomic(async () => {
-          await activeTransaction(id);
-          await tombstoneSplits(id);
-          await tombstoneTagLinks(eq(t.transactionTags.transactionId, id));
-          const now = stamp();
+          const { from, to } = await transferAccounts(input.fromAccountId, input.toAccountId);
+          const legs = legsOf(input.amount);
+          const base = {
+            bookingDate: input.bookingDate,
+            status: input.status ?? "booked",
+            notes: input.notes ?? "",
+            excludedFromReports: input.excludedFromReports ?? false,
+          } as const;
+          const out = transferRow(base, from, legs.from, null);
+          const inn = transferRow(base, to, legs.to, out.id);
+          await db.insert(t.transactions).values(txToRow(out));
+          await db.insert(t.transactions).values(txToRow(inn));
+          const linked = validate(
+            transactionSchema,
+            { ...out, transferPeerId: inn.id, ...stamp() },
+            "transaction",
+          );
+          await db.update(t.transactions).set(txToRow(linked)).where(eq(t.transactions.id, out.id));
+          return [await loadDetail(linked), await loadDetail(inn)] as [
+            TransactionDetail,
+            TransactionDetail,
+          ];
+        }),
+      updateTransfer: (id, patch: TransferPatch) =>
+        atomic(async () => {
+          const [out, inn] = await transferPair(await activeTransaction(id));
+          const { from, to } = await transferAccounts(
+            patch.fromAccountId ?? out.accountId,
+            patch.toAccountId ?? inn.accountId,
+          );
+          const legs = legsOf(patch.amount ?? inn.amount);
+          const shared = {
+            bookingDate: patch.bookingDate ?? out.bookingDate,
+            status: patch.status ?? out.status,
+            notes: patch.notes ?? out.notes,
+            excludedFromReports: patch.excludedFromReports ?? out.excludedFromReports,
+          };
+          const nextOut = validate(
+            transactionSchema,
+            {
+              ...out,
+              ...shared,
+              accountId: from.id,
+              currency: from.currency,
+              amount: legs.from,
+              ...stamp(),
+            },
+            "transaction",
+          );
+          const nextIn = validate(
+            transactionSchema,
+            {
+              ...inn,
+              ...shared,
+              accountId: to.id,
+              currency: to.currency,
+              amount: legs.to,
+              ...stamp(),
+            },
+            "transaction",
+          );
           await db
             .update(t.transactions)
-            .set({ ...now, deletedAt: now.updatedAt })
-            .where(eq(t.transactions.id, id));
+            .set(txToRow(nextOut))
+            .where(eq(t.transactions.id, out.id));
+          await db.update(t.transactions).set(txToRow(nextIn)).where(eq(t.transactions.id, inn.id));
+          return [await loadDetail(nextOut), await loadDetail(nextIn)] as [
+            TransactionDetail,
+            TransactionDetail,
+          ];
+        }),
+      delete: (id) =>
+        atomic(async () => {
+          const current = await activeTransaction(id);
+          // A transfer is two linked rows: deleting one side deletes both so balances stay consistent.
+          const ids = [id];
+          if (current.kind === "transfer" && current.transferPeerId) {
+            const peer = await activeTransaction(current.transferPeerId).catch(() => null);
+            if (peer) ids.push(peer.id);
+          }
+          for (const txId of ids) {
+            await tombstoneSplits(txId);
+            await tombstoneTagLinks(eq(t.transactionTags.transactionId, txId));
+            const now = stamp();
+            await db
+              .update(t.transactions)
+              .set({ ...now, deletedAt: now.updatedAt })
+              .where(eq(t.transactions.id, txId));
+          }
         }),
     };
 

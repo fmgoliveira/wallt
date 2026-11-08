@@ -9,7 +9,6 @@ import {
   MotionView,
   radius,
   Text,
-  toast,
   useBreakpoint,
   usePressScale,
   useTheme,
@@ -19,6 +18,8 @@ import { PanelLeftClose, PanelLeftOpen, Plus } from "lucide-react-native";
 import { type ReactNode, useEffect } from "react";
 import { Image, Platform, Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useEditorStore } from "../transactions/editorStore";
+import { TransactionEditorHost } from "../transactions/TransactionEditor";
 import { NavButton } from "./NavButton";
 import { isActive, phoneItems, wideItems } from "./nav";
 import { hydrateShellStore, useShellStore } from "./store";
@@ -37,9 +38,8 @@ function InterimDataNotice() {
   );
 }
 
-/** Placeholder until the transaction editor exists (P2.6). */
 function addTransaction() {
-  toast.show("Add transaction arrives with P2.6");
+  useEditorStore.getState().openNew();
 }
 
 function useAddShortcut() {
@@ -216,6 +216,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <View className="flex-1">{children}</View>
         {bp === "phone" ? <BottomBar /> : null}
       </View>
+      <TransactionEditorHost />
     </View>
   );
 }
