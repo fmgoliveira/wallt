@@ -88,7 +88,7 @@ function AccountDetail({ id }: { id: string }) {
   }
 
   return (
-    <>
+    <View className="gap-6">
       <View className="flex-row">
         <Button
           label="Accounts"
@@ -184,7 +184,7 @@ function AccountDetail({ id }: { id: string }) {
         />
         <Button label="Cancel" variant="ghost" onPress={() => setConfirmDelete(false)} />
       </Sheet>
-    </>
+    </View>
   );
 }
 
