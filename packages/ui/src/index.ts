@@ -17,6 +17,7 @@ export { Input, type InputProps } from "./components/Input";
 export { ListItem, type ListItemProps } from "./components/ListItem";
 export { MasterDetail, type MasterDetailProps } from "./components/MasterDetail";
 export { Reveal, RevealGroup, type RevealProps, usePressScale } from "./components/motion";
+export { Portal } from "./components/Portal";
 export { Progress, type ProgressProps } from "./components/Progress";
 export {
   AnimatedView,

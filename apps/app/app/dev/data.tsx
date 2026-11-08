@@ -1,5 +1,6 @@
 import { Amount, Button, Card, ListItem, Text } from "@wallt/ui";
 import { Redirect } from "expo-router";
+import { useState } from "react";
 import { View } from "react-native";
 import {
   useAccounts,
@@ -20,6 +21,33 @@ export default function DataSmoke() {
   const createAccount = useCreateAccount();
   const deleteAccount = useDeleteAccount();
   const createTransaction = useCreateTransaction();
+  const [seeding, setSeeding] = useState<string | null>(null);
+
+  /** Bulk-creates demo transactions in one atomic batch (for testing list performance with thousands of rows). */
+  async function seed(count: number) {
+    if (data.status !== "ready") return;
+    const repo = data.repository;
+    const account = (await repo.accounts.list())[0];
+    if (!account) return;
+    const categories = (await repo.categories.list()).filter((c) => c.type === "expense");
+    const started = Date.now();
+    setSeeding("seeding…");
+    await repo.transaction(async (tx) => {
+      for (let i = 0; i < count; i++) {
+        const day = new Date(Date.UTC(2026, 10, 8) - (i % 900) * 86_400_000);
+        await tx.transactions.create({
+          accountId: account.id,
+          amount: -(((i * 7919) % 20_000) + 100),
+          currency: account.currency,
+          bookingDate: day.toISOString().slice(0, 10),
+          payee: `Demo payee ${i % 400}`,
+          categoryId: categories[i % Math.max(categories.length, 1)]?.id ?? null,
+        });
+      }
+    });
+    setSeeding(`seeded ${count} in ${((Date.now() - started) / 1000).toFixed(1)} s`);
+    void transactions.refetch();
+  }
 
   if (!__DEV__) return <Redirect href="/" />;
 
@@ -63,7 +91,24 @@ export default function DataSmoke() {
             })
           }
         />
+        <Button
+          label="Seed 2,000"
+          variant="secondary"
+          disabled={!first}
+          onPress={() => seed(2000)}
+        />
+        <Button
+          label="Seed 20,000"
+          variant="secondary"
+          disabled={!first}
+          onPress={() => seed(20000)}
+        />
       </View>
+      {seeding ? (
+        <Text variant="small" tone="muted">
+          {seeding}
+        </Text>
+      ) : null}
       <Card className="overflow-hidden p-0 tablet:p-0">
         {(accounts.data ?? []).map((a, i) => (
           <ListItem

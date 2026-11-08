@@ -1,4 +1,10 @@
-import { type QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  type QueryClient,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import type {
   AccountPatch,
   CategoryPatch,
@@ -11,6 +17,7 @@ import type {
   TagPatch,
   TransactionFilter,
   TransactionPatch,
+  TransactionSort,
   TransferPatch,
 } from "@wallt/db";
 import { useDataState } from "./RepositoryProvider";
@@ -159,4 +166,44 @@ export const useCreateTransfer = () =>
 export const useUpdateTransfer = () =>
   useRepoMutation("transactions", (r, input: { id: string; patch: TransferPatch }) =>
     r.transactions.updateTransfer(input.id, input.patch),
+  );
+
+export const TRANSACTION_PAGE_SIZE = 100;
+
+/** Transactions in pages of 100, loaded as the list scrolls (the full table can hold tens of thousands of rows). */
+export const useTransactionPages = (filter: TransactionFilter & { sort?: TransactionSort }) => {
+  const data = useDataState();
+  return useInfiniteQuery({
+    queryKey: [...queryKeys.transactions, "pages", filter],
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) => {
+      if (data.status !== "ready") throw new Error("Data source not ready");
+      return data.repository.transactions.list({
+        ...filter,
+        limit: TRANSACTION_PAGE_SIZE,
+        offset: pageParam,
+      });
+    },
+    getNextPageParam: (last, all) =>
+      last.length < TRANSACTION_PAGE_SIZE ? undefined : all.length * TRANSACTION_PAGE_SIZE,
+    enabled: data.status === "ready",
+  });
+};
+
+/** Applies one patch to many transactions atomically (all or none). Transfers must be filtered out by the caller. */
+export const useBulkUpdateTransactions = () =>
+  useRepoMutation("transactions", (r, input: { ids: string[]; patch: TransactionPatch }) =>
+    r.transaction(async (tx) => {
+      for (const id of input.ids) await tx.transactions.update(id, input.patch);
+    }),
+  );
+
+/** Deletes many transactions atomically. Selecting both legs of a transfer is fine. */
+export const useBulkDeleteTransactions = () =>
+  useRepoMutation("transactions", (r, ids: string[]) =>
+    r.transaction(async (tx) => {
+      for (const id of ids) {
+        if (await tx.transactions.get(id)) await tx.transactions.delete(id);
+      }
+    }),
   );
