@@ -1,5 +1,6 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { View } from "react-native";
+import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
 import { useTheme } from "../theme/context";
 import { accentPalette, heroGradient, mixHex } from "../tokens";
 import { cn } from "./primitives";
@@ -16,7 +17,7 @@ export function Backdrop() {
   const a = accentPalette[accent][dark ? "dark" : "light"];
   const b = mixHex(a, dark ? "#22d3ee" : "#f472b6", 0.55);
   const c = mixHex(a, dark ? "#a855f7" : "#38bdf8", 0.5);
-  const alpha = dark ? "66" : "4d";
+  const alpha = dark ? "78" : "55";
 
   return (
     <View
@@ -25,24 +26,36 @@ export function Backdrop() {
       importantForAccessibility="no-hide-descendants"
       className="absolute inset-0 overflow-hidden"
     >
-      <Glow color={a + alpha} className="-top-48 -left-40 h-[560px] w-[560px]" />
-      <Glow color={b + alpha} className="top-[28%] -right-48 h-[520px] w-[520px]" />
-      <Glow color={c + alpha} className="-bottom-56 left-[18%] h-[520px] w-[520px]" />
+      <Glow id="glow-a" color={a + alpha} className="-top-48 -left-40 h-[560px] w-[560px]" />
+      <Glow id="glow-b" color={b + alpha} className="top-[28%] -right-48 h-[520px] w-[520px]" />
+      <Glow id="glow-c" color={c + alpha} className="-bottom-56 left-[18%] h-[520px] w-[520px]" />
     </View>
   );
 }
 
-function Glow({ color, className }: { color: string; className: string }) {
+/**
+ * Soft radial glow. An SVG radial gradient fades to transparent, so it needs no blur filter and looks the
+ * same on web and Android (CSS blur does not exist on native).
+ */
+function Glow({ color, className, id }: { color: string; className: string; id: string }) {
   return (
-    <View className={cn("absolute rounded-full web:blur-3xl", className)}>
-      <LinearGradient
-        colors={[color, `${color.slice(0, 7)}00`]}
-        start={{ x: 0.2, y: 0.1 }}
-        end={{ x: 0.85, y: 0.95 }}
-        style={{ flex: 1, borderRadius: 9999 }}
-      />
+    <View className={cn("absolute", className)}>
+      <Svg width="100%" height="100%">
+        <Defs>
+          <RadialGradient id={id} cx="50%" cy="50%" r="50%">
+            <Stop offset="0%" stopColor={color.slice(0, 7)} stopOpacity={alphaOf(color)} />
+            <Stop offset="55%" stopColor={color.slice(0, 7)} stopOpacity={alphaOf(color) * 0.35} />
+            <Stop offset="100%" stopColor={color.slice(0, 7)} stopOpacity={0} />
+          </RadialGradient>
+        </Defs>
+        <Rect width="100%" height="100%" fill={`url(#${id})`} />
+      </Svg>
     </View>
   );
+}
+
+function alphaOf(hex8: string): number {
+  return Number.parseInt(hex8.slice(7, 9), 16) / 255;
 }
 
 /** Rounded-square logo mark with the hero gradient. */

@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { View } from "react-native";
 import {
   ReduceMotion,
   useAnimatedStyle,
@@ -7,6 +8,7 @@ import {
   withRepeat,
   withTiming,
 } from "react-native-reanimated";
+import { useTheme } from "../theme/context";
 import { motion } from "../tokens";
 import { AnimatedView, cn } from "./primitives";
 
@@ -16,6 +18,7 @@ export interface SkeletonProps {
 
 /** Placeholder block. Pulses; static when the OS asks for reduced motion. Size it with `className`. */
 export function Skeleton({ className }: SkeletonProps) {
+  const { colors } = useTheme();
   const reduce = useReducedMotion();
   const opacity = useSharedValue(1);
 
@@ -34,11 +37,12 @@ export function Skeleton({ className }: SkeletonProps) {
   const style = useAnimatedStyle(() => ({ opacity: opacity.value }));
 
   return (
-    <AnimatedView
-      style={style}
+    <View
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      className={cn("h-4 rounded-sm bg-border", className)}
-    />
+      className={cn("h-4 overflow-hidden rounded-sm", className)}
+    >
+      <AnimatedView style={[{ flex: 1, backgroundColor: colors.border }, style]} />
+    </View>
   );
 }
