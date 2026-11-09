@@ -1,4 +1,5 @@
 import {
+  addDays,
   addMonths,
   daysInMonth,
   fromLocalDate,
@@ -221,16 +222,33 @@ export function DatePicker({
           ))}
         </View>
         <MonthGrid month={month} selected={value} today={today} onPick={pick} />
-        <View className="flex-row justify-between pt-1">
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => pick(today)}
-            className="min-h-touch justify-center px-1 web:cursor-pointer web:outline-none web:hover:opacity-70"
-          >
-            <Text weight="medium" tone="muted">
-              Today
-            </Text>
-          </Pressable>
+        <View className="flex-row items-center gap-2 pt-1">
+          {[
+            { label: "Today", date: today },
+            { label: "Yesterday", date: addDays(today, -1) },
+          ].map((q) => (
+            <Pressable
+              key={q.label}
+              accessibilityRole="button"
+              accessibilityState={{ selected: value === q.date }}
+              onPress={() => pick(q.date)}
+              className="min-h-[36px] items-center justify-center px-3.5 web:cursor-pointer web:outline-none web:hover:opacity-80"
+              style={{
+                borderRadius: radius.full,
+                backgroundColor: value === q.date ? colors.text : "transparent",
+                boxShadow: value === q.date ? undefined : `0 0 0 1px ${colors.border}`,
+              }}
+            >
+              <Text
+                variant="small"
+                weight="medium"
+                style={{ color: value === q.date ? colors.bg : colors.muted }}
+              >
+                {q.label}
+              </Text>
+            </Pressable>
+          ))}
+          <View className="flex-1" />
           {clearable && value ? (
             <Pressable
               accessibilityRole="button"

@@ -1,6 +1,5 @@
 import {
   type Account,
-  addDays,
   type Category,
   currencyExponent,
   fromLocalDate,
@@ -21,6 +20,7 @@ import {
   Select,
   Sheet,
   Skeleton,
+  Switch,
   Tabs,
   Text,
   toast,
@@ -64,14 +64,6 @@ const allKinds = [
 const moneyKinds = [
   { value: "expense", label: "Expense" },
   { value: "income", label: "Income" },
-] as const;
-const statuses = [
-  { value: "booked", label: "Booked" },
-  { value: "pending", label: "Pending" },
-] as const;
-const reports = [
-  { value: "in", label: "Counted" },
-  { value: "out", label: "Excluded" },
 ] as const;
 
 const stepTitle: Record<StepId, string> = {
@@ -854,22 +846,12 @@ function EditorForm({
             />
           </View>
 
-          <View className="gap-2">
-            <DatePicker
-              label="Date"
-              value={date}
-              onChange={setDate}
-              error={submitted ? errors.date : undefined}
-            />
-            <View className="flex-row gap-2">
-              <ToggleChip label="Today" selected={date === today} onPress={() => setDate(today)} />
-              <ToggleChip
-                label="Yesterday"
-                selected={date === addDays(today, -1)}
-                onPress={() => setDate(addDays(today, -1))}
-              />
-            </View>
-          </View>
+          <DatePicker
+            label="Date"
+            value={date}
+            onChange={setDate}
+            error={submitted ? errors.date : undefined}
+          />
 
           {transfer ? null : (
             <Input
@@ -917,17 +899,18 @@ function EditorForm({
             </View>
           )}
 
-          <View className="gap-1.5">
-            <Text variant="small" tone="muted" weight="medium">
-              Status
-            </Text>
-            <Tabs items={statuses} value={status} onChange={setStatus} />
-          </View>
-          <View className="gap-1.5">
-            <Text variant="small" tone="muted" weight="medium">
-              In reports
-            </Text>
-            <Tabs items={reports} value={counted} onChange={setCounted} />
+          <View className="gap-1">
+            <Switch
+              label="Pending"
+              description="Not yet booked by the bank"
+              value={status === "pending"}
+              onValueChange={(on) => setStatus(on ? "pending" : "booked")}
+            />
+            <Switch
+              label="Include in reports"
+              value={counted === "in"}
+              onValueChange={(on) => setCounted(on ? "in" : "out")}
+            />
           </View>
         </AnimatedView>
       ) : null}
