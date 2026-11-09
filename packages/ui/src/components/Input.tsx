@@ -12,7 +12,16 @@ export interface InputProps extends Omit<TextInputProps, "style"> {
   className?: string | undefined;
 }
 
-export function Input({ label, helper, error, className, onFocus, onBlur, ...rest }: InputProps) {
+export function Input({
+  label,
+  helper,
+  error,
+  className,
+  onFocus,
+  onBlur,
+  multiline,
+  ...rest
+}: InputProps) {
   const { scheme, colors } = useTheme();
   const height = useControlHeight();
   const [focused, setFocused] = useState(false);
@@ -39,10 +48,14 @@ export function Input({ label, helper, error, className, onFocus, onBlur, ...res
           setFocused(false);
           onBlur?.(e);
         }}
-        className="web:outline-none web:transition-shadow web:duration-150"
+        multiline={multiline}
+        className="web:outline-none web:transition-shadow web:duration-150 web:resize-none"
         style={{
-          minHeight: height,
+          minHeight: multiline ? height * 2 : height,
           paddingHorizontal: 12,
+          // Multiline fields have no built-in vertical centring: pad the text away from the edges.
+          paddingVertical: multiline ? 10 : 0,
+          textAlignVertical: multiline ? "top" : "center",
           borderRadius: radius.md,
           // Dark inputs sit on `bg` (inset look); light inputs on `surface`.
           backgroundColor: scheme === "dark" ? colors.bg : colors.surface,
