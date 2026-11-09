@@ -49,6 +49,11 @@ export function getDeviceId(): string {
   return runtime.deviceId;
 }
 
+/** Device-local key/value storage (`sync_meta`: never synced, never leaves the device), once the database is open. */
+export function getDeviceMeta(): Pick<SyncStore, "getMeta" | "setMeta"> | null {
+  return runtime?.store ?? null;
+}
+
 export function registerSyncRuntime(next: SyncRuntime) {
   runtime = next;
 }

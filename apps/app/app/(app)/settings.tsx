@@ -1,6 +1,7 @@
 import { Card, IconTile, ListItem, useTheme } from "@wallt/ui";
 import { useRouter } from "expo-router";
 import { ChevronRight, Tags } from "lucide-react-native";
+import { NotificationSetting } from "../../src/notifications/NotificationSettings";
 import { LockSetting, PrivacySetting } from "../../src/security/SecuritySettings";
 import { Page } from "../../src/shell/Page";
 import { SyncSetting } from "../../src/sync/SyncSettings";
@@ -11,6 +12,7 @@ export default function SettingsScreen() {
   return (
     <Page title="Settings" subtitle="Security, categories; theme, currency and backups later">
       <SyncSetting />
+      <NotificationSetting />
       <PrivacySetting />
       <LockSetting />
       <Card className="p-0 tablet:p-0">

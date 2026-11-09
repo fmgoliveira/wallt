@@ -7,6 +7,7 @@ export * from "./fx";
 export * from "./goals";
 export * from "./lock";
 export * from "./money";
+export * from "./notifications";
 export * from "./recurrence";
 export * from "./recurrence-detect";
 export * from "./reports";

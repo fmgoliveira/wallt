@@ -18,6 +18,7 @@ import { PanelLeftClose, PanelLeftOpen, Plus } from "lucide-react-native";
 import { type ReactNode, useEffect } from "react";
 import { Image, Platform, Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { NotificationsRunner } from "../notifications/NotificationsRunner";
 import { useSyncUi } from "../sync/runtime";
 import { SyncStatus } from "../sync/SyncStatus";
 import { useEditorStore } from "../transactions/editorStore";
@@ -231,6 +232,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </View>
         ) : null}
       </View>
+      <NotificationsRunner />
       <TransactionEditorHost />
     </View>
   );
