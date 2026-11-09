@@ -17,6 +17,7 @@ import {
   Skeleton,
   Text,
   useBreakpoint,
+  usePrivacyStore,
   useTheme,
 } from "@wallt/ui";
 import { useRouter } from "expo-router";
@@ -66,6 +67,7 @@ function NetWorth({ range }: { range: { from: string; to: string } }) {
   const router = useRouter();
   const accounts = useAccountsWithBalances();
   const flow = useCashflow(range);
+  const hidden = usePrivacyStore((s) => s.hidden);
 
   if (accounts.isPending) {
     return (
@@ -115,7 +117,7 @@ function NetWorth({ range }: { range: { from: string; to: string } }) {
             <Chip
               key={f.currency}
               onHero
-              label={`${net >= 0 ? "+" : ""}${formatAmount({ amount: net, currency: f.currency })} this month`}
+              label={`${hidden ? "••••" : `${net >= 0 ? "+" : ""}${formatAmount({ amount: net, currency: f.currency })}`} this month`}
             />
           );
         })}
