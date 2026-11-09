@@ -1,4 +1,12 @@
-import type { Account, Category, Tag, Transaction, TransactionSplit } from "@wallt/core";
+import type {
+  Account,
+  Budget,
+  BudgetEntry,
+  Category,
+  Tag,
+  Transaction,
+  TransactionSplit,
+} from "@wallt/core";
 
 /**
  * Data-access interface (ADR 0002): fully async, no SQL, no sync calls. Android implements it on local SQLite
@@ -84,6 +92,23 @@ export interface TagsRepository {
   create(input: NewTag): Promise<Tag>;
   update(id: string, patch: TagPatch): Promise<Tag>;
   /** Soft delete the tag and its links to transactions. */
+  delete(id: string): Promise<void>;
+}
+
+/* ----------------------------------------------------------------- budgets */
+
+export type NewBudget = Pick<Budget, "name" | "period" | "start" | "amount" | "currency"> &
+  Partial<Pick<Budget, "end" | "rollover" | "scope">>;
+export type BudgetPatch = Partial<Omit<Budget, Stamped>>;
+
+export interface BudgetsRepository {
+  /** Active budgets, oldest first. */
+  list(): Promise<Budget[]>;
+  get(id: string): Promise<Budget | null>;
+  /** Scope ids must exist (categories, tags, accounts); a custom period needs an end date. */
+  create(input: NewBudget): Promise<Budget>;
+  update(id: string, patch: BudgetPatch): Promise<Budget>;
+  /** Soft delete (tombstone). */
   delete(id: string): Promise<void>;
 }
 
@@ -187,6 +212,9 @@ export interface CategorySpend {
   total: number;
 }
 
+/** One expense, or one split of a split expense, in its own currency: the input of budget math. */
+export type SpendEntry = BudgetEntry & { currency: string };
+
 export interface TransactionsRepository {
   /** Newest booking date first (then newest created). `limit` defaults to 100. */
   list(
@@ -204,6 +232,11 @@ export interface TransactionsRepository {
   cashflow(range: DateRange): Promise<Cashflow[]>;
   /** Expense totals per category for a period (largest spending first). Computed in SQL, never stored. */
   spendingByCategory(range: DateRange): Promise<CategorySpend[]>;
+  /**
+   * Expenses in a period as flat entries for budgets: a split transaction yields one entry per split (each with the
+   * transaction's account and tags); transfers, income and rows excluded from reports are left out.
+   */
+  spendEntries(range: DateRange): Promise<SpendEntry[]>;
   createTransfer(input: NewTransfer): Promise<[TransactionDetail, TransactionDetail]>;
   /** Edits both legs together; `id` may be either leg. */
   updateTransfer(id: string, patch: TransferPatch): Promise<[TransactionDetail, TransactionDetail]>;
@@ -221,6 +254,7 @@ export interface Repository {
   categories: CategoriesRepository;
   tags: TagsRepository;
   transactions: TransactionsRepository;
+  budgets: BudgetsRepository;
   /**
    * Runs `fn` atomically: everything commits together or not at all. Re-entrant (nested calls join the
    * outer transaction). Use it for batches: writes outside a transaction cost 50-150 ms each on web.

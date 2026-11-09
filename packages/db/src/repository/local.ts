@@ -1,6 +1,8 @@
 import {
   type Account,
   accountSchema,
+  type Budget,
+  budgetSchema,
   type Category,
   categorySchema,
   splitsError,
@@ -21,10 +23,12 @@ import type { Stamper } from "./stamper";
 import {
   type AccountPatch,
   type AccountWithBalance,
+  type BudgetPatch,
   type CategoryPatch,
   type CategorySpend,
   type DateRange,
   type NewAccount,
+  type NewBudget,
   type NewCategory,
   type NewSplit,
   type NewTag,
@@ -32,6 +36,7 @@ import {
   type NewTransfer,
   type Repository,
   RepositoryError,
+  type SpendEntry,
   type TagPatch,
   type TransactionDetail,
   type TransactionFilter,
@@ -91,6 +96,13 @@ function txToRow(tx: Transaction): TxRow {
     needsReview: categorization.needsReview,
   };
 }
+
+type BudgetRow = typeof t.budgets.$inferSelect;
+
+const budgetFromRow = (row: BudgetRow): Budget =>
+  ({ ...row, scope: JSON.parse(row.scope) }) as Budget;
+const budgetToRow = (b: Budget): BudgetRow => ({ ...b, scope: JSON.stringify(b.scope) });
+const NO_SCOPE = { categoryIds: [], tagIds: [], accountIds: [] };
 
 const escapeLike = (s: string) => s.replace(/[\\%_]/g, (c) => `\\${c}`);
 
@@ -215,6 +227,34 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
       .where(and(eq(t.tags.id, id), isNull(t.tags.deletedAt)));
     if (!row) throw notFound("Tag", id);
     return row as Tag;
+  }
+
+  async function activeBudget(id: string): Promise<Budget> {
+    const [row] = await db
+      .select()
+      .from(t.budgets)
+      .where(and(eq(t.budgets.id, id), isNull(t.budgets.deletedAt)));
+    if (!row) throw notFound("Budget", id);
+    return budgetFromRow(row);
+  }
+
+  /** A budget scope may only name things that exist, so a budget never silently covers nothing. */
+  async function requireScope(scope: Budget["scope"]) {
+    await requireCategories(scope.categoryIds);
+    for (const id of new Set(scope.tagIds)) {
+      try {
+        await activeTag(id);
+      } catch {
+        throw invalid(`Tag ${id} does not exist`);
+      }
+    }
+    for (const id of new Set(scope.accountIds)) {
+      try {
+        await activeAccount(id);
+      } catch {
+        throw invalid(`Account ${id} does not exist`);
+      }
+    }
   }
 
   async function activeTransaction(id: string): Promise<Transaction> {
@@ -788,6 +828,65 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
         }),
     };
 
+    const budgets: Repository["budgets"] = {
+      list: () =>
+        run(async () =>
+          (
+            await db
+              .select()
+              .from(t.budgets)
+              .where(isNull(t.budgets.deletedAt))
+              .orderBy(asc(t.budgets.createdAt), asc(t.budgets.id))
+          ).map(budgetFromRow),
+        ),
+      get: (id) =>
+        run(async () => {
+          const [row] = await db
+            .select()
+            .from(t.budgets)
+            .where(and(eq(t.budgets.id, id), isNull(t.budgets.deletedAt)));
+          return row ? budgetFromRow(row) : null;
+        }),
+      create: (input: NewBudget) =>
+        atomic(async () => {
+          const row = validate(
+            budgetSchema,
+            {
+              ...fresh(),
+              name: input.name,
+              period: input.period,
+              start: input.start,
+              end: input.end ?? null,
+              amount: input.amount,
+              currency: input.currency,
+              rollover: input.rollover ?? false,
+              scope: input.scope ?? NO_SCOPE,
+            },
+            "budget",
+          );
+          await requireScope(row.scope);
+          await db.insert(t.budgets).values(budgetToRow(row));
+          return row;
+        }),
+      update: (id, patch: BudgetPatch) =>
+        atomic(async () => {
+          const current = await activeBudget(id);
+          const row = validate(budgetSchema, { ...current, ...patch, ...stamp() }, "budget");
+          await requireScope(row.scope);
+          await db.update(t.budgets).set(budgetToRow(row)).where(eq(t.budgets.id, id));
+          return row;
+        }),
+      delete: (id) =>
+        atomic(async () => {
+          await activeBudget(id);
+          const now = stamp();
+          await db
+            .update(t.budgets)
+            .set({ ...now, deletedAt: now.updatedAt })
+            .where(eq(t.budgets.id, id));
+        }),
+    };
+
     const transactions: Repository["transactions"] = {
       list: (filter = {}) =>
         run(async () => {
@@ -982,6 +1081,61 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
           }
           return [...merged.values()].sort((a, b) => a.total - b.total);
         }),
+      spendEntries: (range) =>
+        run(async () => {
+          const plain = await db
+            .select({
+              id: t.transactions.id,
+              date: t.transactions.bookingDate,
+              amount: t.transactions.amount,
+              currency: t.transactions.currency,
+              categoryId: t.transactions.categoryId,
+              accountId: t.transactions.accountId,
+            })
+            .from(t.transactions)
+            .where(
+              and(
+                reportable(range),
+                eq(t.transactions.kind, "expense"),
+                sql`not exists (select 1 from transaction_splits s where s.transaction_id = ${t.transactions.id} and s.deleted_at is null)`,
+              ),
+            );
+          const split = await db
+            .select({
+              id: t.transactions.id,
+              date: t.transactions.bookingDate,
+              amount: t.transactionSplits.amount,
+              currency: t.transactions.currency,
+              categoryId: t.transactionSplits.categoryId,
+              accountId: t.transactions.accountId,
+            })
+            .from(t.transactionSplits)
+            .innerJoin(t.transactions, eq(t.transactionSplits.transactionId, t.transactions.id))
+            .where(
+              and(
+                reportable(range),
+                eq(t.transactions.kind, "expense"),
+                isNull(t.transactionSplits.deletedAt),
+              ),
+            );
+          const links = await db
+            .select({
+              transactionId: t.transactionTags.transactionId,
+              tagId: t.transactionTags.tagId,
+            })
+            .from(t.transactionTags)
+            .innerJoin(t.transactions, eq(t.transactionTags.transactionId, t.transactions.id))
+            .where(and(reportable(range), isNull(t.transactionTags.deletedAt)));
+          const tagsOf = new Map<string, string[]>();
+          for (const l of links) {
+            const list = tagsOf.get(l.transactionId);
+            if (list) list.push(l.tagId);
+            else tagsOf.set(l.transactionId, [l.tagId]);
+          }
+          return [...plain, ...split].map(
+            ({ id, ...e }): SpendEntry => ({ ...e, tagIds: tagsOf.get(id) ?? [] }),
+          );
+        }),
       createTransfer: (input: NewTransfer) =>
         atomic(async () => {
           const { from, to } = await transferAccounts(input.fromAccountId, input.toAccountId);
@@ -1081,6 +1235,7 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
       categories,
       tags,
       transactions,
+      budgets,
       transaction: (fn) =>
         inTx ? fn(self) : exclusive(() => exec.transaction(() => fn(build(true)))),
     };

@@ -946,3 +946,132 @@ describe("dashboard aggregates", () => {
     expect((await repo.transactions.cashflow(range))[0]?.expense).toBe(-2400);
   });
 });
+
+describe("budgets", () => {
+  const input = {
+    name: "Groceries",
+    period: "month" as const,
+    start: "2026-11-01",
+    amount: 30_000,
+    currency: "EUR",
+  };
+
+  it("creates with defaults, lists, updates and soft deletes", async () => {
+    const b = await repo.budgets.create(input);
+    expect(b).toMatchObject({
+      end: null,
+      rollover: false,
+      scope: { categoryIds: [], tagIds: [], accountIds: [] },
+    });
+    expect(idSchema.safeParse(b.id).success).toBe(true);
+    const upd = await repo.budgets.update(b.id, { amount: 40_000, rollover: true });
+    expect(upd).toMatchObject({ amount: 40_000, rollover: true });
+    expect((await repo.budgets.get(b.id))?.amount).toBe(40_000);
+    expect(await repo.budgets.list()).toHaveLength(1);
+    await repo.budgets.delete(b.id);
+    expect(await repo.budgets.list()).toEqual([]);
+    expect(await repo.budgets.get(b.id)).toBeNull();
+    await expectCode(repo.budgets.delete(b.id), "not_found");
+    await expectCode(repo.budgets.update(b.id, { amount: 1 }), "not_found");
+  });
+
+  it("round-trips the scope and queues the change for sync", async () => {
+    const acc = await account();
+    const cat = await repo.categories.create({ name: "Food", type: "expense" });
+    const tag = await repo.tags.create({ name: "trip" });
+    const scope = { categoryIds: [cat.id], tagIds: [tag.id], accountIds: [acc.id] };
+    const b = await repo.budgets.create({ ...input, scope });
+    expect((await repo.budgets.get(b.id))?.scope).toEqual(scope);
+    const queued = raw.prepare("select row_id from outbox where table_name = 'budgets'").all();
+    expect(queued).toEqual([{ row_id: b.id }]);
+  });
+
+  it("validates input and scope references", async () => {
+    await expectCode(repo.budgets.create({ ...input, amount: -1 }), "validation");
+    await expectCode(repo.budgets.create({ ...input, name: " " }), "validation");
+    await expectCode(repo.budgets.create({ ...input, period: "custom" }), "validation");
+    await expectCode(repo.budgets.create({ ...input, end: "2026-10-01" }), "validation");
+    const missing = idSchema.parse("01900000-0000-7000-8000-000000000000");
+    await expectCode(
+      repo.budgets.create({
+        ...input,
+        scope: { categoryIds: [missing], tagIds: [], accountIds: [] },
+      }),
+      "validation",
+    );
+    await expectCode(
+      repo.budgets.create({
+        ...input,
+        scope: { categoryIds: [], tagIds: [missing], accountIds: [] },
+      }),
+      "validation",
+    );
+    await expectCode(
+      repo.budgets.create({
+        ...input,
+        scope: { categoryIds: [], tagIds: [], accountIds: [missing] },
+      }),
+      "validation",
+    );
+  });
+});
+
+describe("spendEntries", () => {
+  const range = { from: "2026-11-01", to: "2026-11-30" };
+
+  it("returns expenses as flat entries: splits expanded, transfers/income/excluded/other months left out", async () => {
+    const a = await account();
+    const b = await account({ name: "Savings", openingBalance: 0 });
+    const food = await repo.categories.create({ name: "Food", type: "expense" });
+    const home = await repo.categories.create({ name: "Home", type: "expense" });
+    const tag = await repo.tags.create({ name: "trip" });
+    const base = { accountId: a.id, currency: "EUR", bookingDate: "2026-11-10" };
+    const plain = await repo.transactions.create({
+      ...base,
+      amount: -1000,
+      categoryId: food.id,
+      tagIds: [tag.id],
+    });
+    await repo.transactions.create({
+      ...base,
+      amount: -900,
+      splits: [
+        { amount: -600, categoryId: food.id },
+        { amount: -300, categoryId: home.id },
+      ],
+      tagIds: [tag.id],
+    });
+    await repo.transactions.create({ ...base, amount: 5000 });
+    await repo.transactions.create({ ...base, amount: -777, excludedFromReports: true });
+    await repo.transactions.create({ ...base, amount: -555, bookingDate: "2026-10-31" });
+    await repo.transactions.createTransfer({
+      fromAccountId: a.id,
+      toAccountId: b.id,
+      amount: 400,
+      bookingDate: "2026-11-10",
+    });
+    const deleted = await repo.transactions.create({ ...base, amount: -123 });
+    await repo.transactions.delete(deleted.id);
+
+    const entries = await repo.transactions.spendEntries(range);
+    expect(entries).toHaveLength(3);
+    const key = (e: { amount: number }) => e.amount;
+    expect(entries.map(key).sort((x, y) => x - y)).toEqual([-1000, -600, -300]);
+    const one = entries.find((e) => e.amount === -1000);
+    expect(one).toEqual({
+      date: "2026-11-10",
+      amount: -1000,
+      currency: "EUR",
+      categoryId: food.id,
+      accountId: a.id,
+      tagIds: [tag.id],
+    });
+    expect(plain.id).toBeTruthy();
+    // split entries inherit the transaction's tags and account
+    for (const e of entries.filter((x) => x.amount !== -1000)) {
+      expect(e.tagIds).toEqual([tag.id]);
+      expect(e.accountId).toBe(a.id);
+    }
+    expect(entries.reduce((s, e) => s + e.amount, 0)).toBe(-1900);
+  });
+});

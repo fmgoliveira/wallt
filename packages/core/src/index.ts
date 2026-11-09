@@ -1,6 +1,7 @@
 export const APP_NAME = "Wallt";
 
 export * from "./balances";
+export * from "./budgets";
 export * from "./dates";
 export * from "./lock";
 export * from "./money";

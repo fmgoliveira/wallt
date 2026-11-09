@@ -73,6 +73,11 @@ export function diffDays(a: CalendarDate, b: CalendarDate): number {
   return Math.round((ms(b) - ms(a)) / DAY_MS);
 }
 
+/** Day of week of a calendar date: 0 = Monday ... 6 = Sunday (ISO). */
+export function weekday(value: CalendarDate): number {
+  return (((Math.floor(ms(value) / DAY_MS) + 3) % 7) + 7) % 7;
+}
+
 export function startOfMonth(value: CalendarDate): CalendarDate {
   const { year, month } = parseDate(value);
   return `${pad(year, 4)}-${pad(month)}-01`;
