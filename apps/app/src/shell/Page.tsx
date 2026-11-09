@@ -50,7 +50,7 @@ export function Page({ title, subtitle, actions, fill, children }: PageProps) {
       </Head>
       {fill ? (
         <View
-          className="mx-auto w-full max-w-[1200px] flex-1 gap-4 px-4 pt-6 pb-3 tablet:px-6 desktop:px-8 desktop:pt-8 desktop:pb-6"
+          className="mx-auto w-full max-w-[1200px] flex-1 gap-4 px-4 pt-6 tablet:px-6 desktop:px-8 tablet:pb-4 desktop:pt-8 desktop:pb-6"
           style={{ paddingTop: insets.top + 24 }}
         >
           {header}
