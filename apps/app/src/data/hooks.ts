@@ -5,11 +5,20 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import {
+  type Budget,
+  type BudgetStatus,
+  budgetStatus,
+  entriesNeededFrom,
+  expandCategoryIds,
+} from "@wallt/core";
 import type {
   AccountPatch,
+  BudgetPatch,
   CategoryPatch,
   DateRange,
   NewAccount,
+  NewBudget,
   NewCategory,
   NewTag,
   NewTransaction,
@@ -29,6 +38,7 @@ export const queryKeys = {
   categories: ["categories"] as const,
   tags: ["tags"] as const,
   transactions: ["transactions"] as const,
+  budgets: ["budgets"] as const,
 };
 
 type Root = keyof typeof queryKeys;
@@ -38,10 +48,11 @@ type Root = keyof typeof queryKeys;
  * deleting an account/category/tag changes how transactions are shown.
  */
 const invalidates: Record<Root, Root[]> = {
-  accounts: ["accounts", "transactions"],
-  categories: ["categories", "transactions"],
-  tags: ["tags", "transactions"],
-  transactions: ["transactions", "accounts", "categories"],
+  accounts: ["accounts", "transactions", "budgets"],
+  categories: ["categories", "transactions", "budgets"],
+  tags: ["tags", "transactions", "budgets"],
+  transactions: ["transactions", "accounts", "categories", "budgets"],
+  budgets: ["budgets"],
 };
 
 function invalidate(client: QueryClient, root: Root) {
@@ -217,4 +228,50 @@ export const useCashflow = (range: DateRange) =>
 export const useSpendingByCategory = (range: DateRange) =>
   useRepoQuery([...queryKeys.transactions, "spending", range], (r) =>
     r.transactions.spendingByCategory(range),
+  );
+
+/* ---------------------------------------------------------------- budgets */
+
+export const useBudgets = () =>
+  useRepoQuery([...queryKeys.budgets, "list"], (r) => r.budgets.list());
+
+export const useCreateBudget = () =>
+  useRepoMutation("budgets", (r, input: NewBudget) => r.budgets.create(input));
+export const useUpdateBudget = () =>
+  useRepoMutation("budgets", (r, input: { id: string; patch: BudgetPatch }) =>
+    r.budgets.update(input.id, input.patch),
+  );
+export const useDeleteBudget = () =>
+  useRepoMutation("budgets", (r, id: string) => r.budgets.delete(id));
+
+export interface BudgetWithStatus {
+  budget: Budget;
+  /** Null only for a custom budget without an end date (cannot exist through the repository). */
+  status: BudgetStatus | null;
+}
+
+/**
+ * Every budget with where it stands on `today`. One entries query covers all budgets: it starts at the earliest
+ * date any budget needs (the budget's start when it rolls over, else its current period).
+ */
+export const useBudgetStatuses = (today: string) =>
+  useRepoQuery(
+    [...queryKeys.budgets, "statuses", today],
+    async (r): Promise<BudgetWithStatus[]> => {
+      const budgets = await r.budgets.list();
+      if (budgets.length === 0) return [];
+      const categories = await r.categories.list({ includeArchived: true });
+      const froms = budgets.map((b) => entriesNeededFrom(b, today)).filter((d): d is string => !!d);
+      const from = [today, ...froms].sort()[0] ?? today;
+      const entries = await r.transactions.spendEntries({ from, to: "9999-12-31" });
+      return budgets.map((budget) => ({
+        budget,
+        status: budgetStatus(
+          budget,
+          entries.filter((e) => e.currency === budget.currency),
+          today,
+          expandCategoryIds(budget.scope.categoryIds, categories),
+        ),
+      }));
+    },
   );

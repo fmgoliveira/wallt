@@ -24,10 +24,12 @@ import { useRouter } from "expo-router";
 import { ArrowLeftRight, CircleCheck, PiggyBank, Receipt } from "lucide-react-native";
 import { type ReactNode, useMemo } from "react";
 import { Pressable, View } from "react-native";
+import { BudgetCard } from "../budgets/BudgetCard";
 import { categoryTint } from "../categories/color";
 import { categoryIcon } from "../categories/icons";
 import {
   useAccountsWithBalances,
+  useBudgetStatuses,
   useCashflow,
   useCategories,
   useSpendingByCategory,
@@ -348,21 +350,52 @@ function ReviewSlot() {
   );
 }
 
-/** Slot for the budgets snapshot (P4). */
+/** Budgets snapshot: the three budgets closest to (or over) their limit. */
 function BudgetsSlot() {
+  const router = useRouter();
   const { colors } = useTheme();
+  const budgets = useBudgetStatuses(fromLocalDate(new Date()));
+  const items = (budgets.data ?? [])
+    .filter((b) => b.status?.state === "active")
+    .sort((x, y) => (y.status?.percent ?? 0) - (x.status?.percent ?? 0))
+    .slice(0, 3);
+  if (budgets.isPending) return <Skeleton className="h-24 w-full" />;
+  if (items.length === 0) {
+    return (
+      <Card className="flex-row items-center gap-3">
+        <IconTile>
+          <PiggyBank size={18} color={colors.muted} strokeWidth={1.6} />
+        </IconTile>
+        <View className="flex-1">
+          <Text weight="medium">Budgets</Text>
+          <Text variant="small" tone="muted">
+            Set a spending limit to follow your progress here.
+          </Text>
+        </View>
+        <Button label="Add" variant="secondary" onPress={() => router.push("/budgets")} />
+      </Card>
+    );
+  }
   return (
-    <Card className="flex-row items-center gap-3">
-      <IconTile>
-        <PiggyBank size={18} color={colors.muted} strokeWidth={1.6} />
-      </IconTile>
-      <View className="flex-1">
-        <Text weight="medium">Budgets</Text>
-        <Text variant="small" tone="muted">
-          Your budget progress will show here once budgets exist.
-        </Text>
-      </View>
-    </Card>
+    <SectionCard
+      title="Budgets"
+      action={
+        <Pressable
+          accessibilityRole="link"
+          onPress={() => router.push("/budgets")}
+          hitSlop={8}
+          className="py-1 web:cursor-pointer web:outline-none web:hover:opacity-70 active:opacity-60"
+        >
+          <Text variant="small" weight="medium" tone="muted">
+            See all
+          </Text>
+        </Pressable>
+      }
+    >
+      {items.map((item) => (
+        <BudgetCard key={item.budget.id} item={item} compact />
+      ))}
+    </SectionCard>
   );
 }
 
