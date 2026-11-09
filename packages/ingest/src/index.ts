@@ -4,5 +4,7 @@ export * from "./header";
 export * from "./import-date";
 export * from "./mapping";
 export * from "./markup";
+export * from "./pipeline";
+export * from "./sha256";
 export * from "./statement";
 export * from "./tabularize";

@@ -1384,7 +1384,7 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
               categorization: {
                 method: categorised ? "user" : "none",
                 confidence: categorised ? 1 : 0,
-                needsReview: false,
+                needsReview: input.needsReview ?? false,
               },
             },
             "transaction",
@@ -1611,6 +1611,77 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
             TransactionDetail,
             TransactionDetail,
           ];
+        }),
+      linkTransfer: (aId, bId) =>
+        atomic(async () => {
+          if (aId === bId) throw invalid("A transfer needs two different transactions");
+          const a = await activeTransaction(aId);
+          const b = await activeTransaction(bId);
+          if (a.kind === "transfer" || b.kind === "transfer")
+            throw invalid("Already part of a transfer");
+          if (a.accountId === b.accountId) throw invalid("A transfer needs two different accounts");
+          if (a.currency !== b.currency || a.amount === 0 || a.amount !== -b.amount) {
+            throw invalid("The two transactions are not opposite amounts in the same currency");
+          }
+          const link = async (x: Transaction, peer: Transaction) => {
+            await tombstoneSplits(x.id);
+            await tombstoneTagLinks(eq(t.transactionTags.transactionId, x.id));
+            const row = validate(
+              transactionSchema,
+              { ...x, kind: "transfer", transferPeerId: peer.id, categoryId: null, ...stamp() },
+              "transaction",
+            );
+            await db.update(t.transactions).set(txToRow(row)).where(eq(t.transactions.id, x.id));
+            return row;
+          };
+          const legs = [await link(a, b), await link(b, a)].sort((x, y) => x.amount - y.amount);
+          return [
+            await loadDetail(legs[0] as Transaction),
+            await loadDetail(legs[1] as Transaction),
+          ] as [TransactionDetail, TransactionDetail];
+        }),
+      deleteImportBatch: (batchId) =>
+        atomic(async () => {
+          const rows = (
+            await db
+              .select()
+              .from(t.transactions)
+              .where(
+                and(eq(t.transactions.importBatchId, batchId), isNull(t.transactions.deletedAt)),
+              )
+              .orderBy(asc(t.transactions.id))
+          ).map(txFromRow);
+          const inBatch = new Set(rows.map((r) => r.id));
+          for (const r of rows) {
+            if (r.kind === "transfer" && r.transferPeerId && !inBatch.has(r.transferPeerId)) {
+              const peer = await activeTransaction(r.transferPeerId).catch(() => null);
+              if (peer) {
+                // the other account's row stays, as a plain income/expense again
+                const restored = validate(
+                  transactionSchema,
+                  {
+                    ...peer,
+                    kind: peer.amount > 0 ? "income" : "expense",
+                    transferPeerId: null,
+                    ...stamp(),
+                  },
+                  "transaction",
+                );
+                await db
+                  .update(t.transactions)
+                  .set(txToRow(restored))
+                  .where(eq(t.transactions.id, peer.id));
+              }
+            }
+            await tombstoneSplits(r.id);
+            await tombstoneTagLinks(eq(t.transactionTags.transactionId, r.id));
+            const now = stamp();
+            await db
+              .update(t.transactions)
+              .set({ ...now, deletedAt: now.updatedAt })
+              .where(eq(t.transactions.id, r.id));
+          }
+          return rows.length;
         }),
       delete: (id) =>
         atomic(async () => {

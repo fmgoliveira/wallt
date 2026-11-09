@@ -219,6 +219,8 @@ export type NewTransaction = Pick<
       | "debtId"
     >
   > & {
+    /** Imports flag ambiguous rows (possible duplicates) for the review queue. */
+    needsReview?: boolean;
     splits?: NewSplit[];
     tagIds?: string[];
   };
@@ -338,6 +340,17 @@ export interface TransactionsRepository {
    */
   dailyTotals(to?: string): Promise<DailyTotal[]>;
   createTransfer(input: NewTransfer): Promise<[TransactionDetail, TransactionDetail]>;
+  /**
+   * Turns two existing transactions (opposite amounts, same currency, different accounts) into the two legs of
+   * a transfer: category, splits and tags are dropped, as for any transfer. Returns `[negative leg, positive leg]`.
+   */
+  linkTransfer(aId: string, bId: string): Promise<[TransactionDetail, TransactionDetail]>;
+  /**
+   * Undo an import: soft-deletes every transaction stamped with `batchId`. A batch row that was linked to a
+   * transaction outside the batch as a transfer is unlinked from it first, so the other account keeps its row.
+   * Returns the number of transactions removed.
+   */
+  deleteImportBatch(batchId: string): Promise<number>;
   /** Edits both legs together; `id` may be either leg. */
   updateTransfer(id: string, patch: TransferPatch): Promise<[TransactionDetail, TransactionDetail]>;
   /**
