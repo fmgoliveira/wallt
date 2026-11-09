@@ -23,3 +23,18 @@ export function colorForScheme(hex: string | null, scheme: ColorScheme): string 
   const name = paletteName(hex);
   return name ? categoryPalette[name][scheme] : hex;
 }
+
+/** Stable palette colour for something that has none stored: the same seed always gives the same colour. */
+export function fallbackColorName(seed: string): CategoryColorName {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+  return paletteNames[hash % paletteNames.length] ?? "sky";
+}
+
+/**
+ * Colour to draw for an account/category: the one the user picked, else a stable default derived from `seed`
+ * (nothing is written to the database, and the user can still choose their own).
+ */
+export function displayColor(hex: string | null, seed: string, scheme: ColorScheme): string {
+  return colorForScheme(hex, scheme) ?? categoryPalette[fallbackColorName(seed)][scheme];
+}

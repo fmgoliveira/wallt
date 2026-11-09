@@ -20,6 +20,7 @@ import { View } from "react-native";
 import { AccountForm } from "../../../src/accounts/AccountForm";
 import { accountTypeIcon, accountTypeLabel } from "../../../src/accounts/meta";
 import { ActionRow } from "../../../src/components/ActionRow";
+import { displayColor } from "../../../src/components/colors";
 import { DataGate } from "../../../src/data/DataGate";
 import {
   useAccountWithBalance,
@@ -33,7 +34,7 @@ import { useEditorStore } from "../../../src/transactions/editorStore";
 
 function AccountDetail({ id }: { id: string }) {
   const router = useRouter();
-  const { colors } = useTheme();
+  const { scheme, colors } = useTheme();
   const query = useAccountWithBalance(id);
   const recent = useTransactions({ accountIds: [id], limit: 10 });
   const update = useUpdateAccount();
@@ -103,7 +104,11 @@ function AccountDetail({ id }: { id: string }) {
       <HeroCard>
         <View className="flex-row items-center gap-3">
           <IconTile>
-            <Icon size={18} color={colors.muted} strokeWidth={1.6} />
+            <Icon
+              size={18}
+              color={displayColor(account.color, account.id, scheme)}
+              strokeWidth={1.6}
+            />
           </IconTile>
           <View className="flex-1">
             <Text tone="onHero" weight="medium">

@@ -1,9 +1,8 @@
-import { Amount, Card, Chip, IconTile, ListItem, Text, useTheme } from "@wallt/ui";
+import { Amount, Card, Chip, IconTile, ListItem, Text } from "@wallt/ui";
 import { ArrowLeftRight } from "lucide-react-native";
 import { useMemo } from "react";
 import { FlatList, View } from "react-native";
 import { categoryIcon } from "../categories/icons";
-import { colorForScheme } from "../components/colors";
 import { dayLabel, type TxRow } from "./rows";
 
 type Item = { kind: "day"; key: string; date: string } | { kind: "tx"; key: string; row: TxRow };
@@ -18,7 +17,6 @@ export function TransactionList({
   onOpen: (row: TxRow) => void;
   onEndReached: () => void;
 }) {
-  const { scheme, colors } = useTheme();
   const items = useMemo(() => {
     const out: Item[] = [];
     let day = "";
@@ -51,13 +49,18 @@ export function TransactionList({
           }
           const { row } = item;
           const Icon = row.transfer ? ArrowLeftRight : categoryIcon(row.categoryIcon);
-          const tint = colorForScheme(row.categoryColor, scheme) ?? colors.muted;
+          const tint = row.categoryTint;
           const prev = items[index - 1];
           return (
             <ListItem
               divider={prev?.kind === "tx"}
               title={row.title}
-              subtitle={`${row.transfer ? "Transfer" : (row.categoryName ?? "Uncategorised")} · ${row.accountName}`}
+              subtitle={`${row.accountName} · ${row.transfer ? "Transfer" : (row.categoryName ?? "Uncategorised")}`}
+              subtitleLeading={
+                <View
+                  style={{ width: 6, height: 6, borderRadius: 2, backgroundColor: row.accountTint }}
+                />
+              }
               leading={
                 <IconTile>
                   <Icon size={18} color={tint} strokeWidth={1.6} />

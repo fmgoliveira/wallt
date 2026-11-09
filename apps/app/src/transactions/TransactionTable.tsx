@@ -1,7 +1,6 @@
 import { Amount, Card, Text, useTheme } from "@wallt/ui";
 import { ArrowDown, ArrowUp, Check } from "lucide-react-native";
 import { FlatList, Pressable, View, type ViewStyle } from "react-native";
-import { colorForScheme } from "../components/colors";
 import type { TxQuery } from "./filters";
 import type { TxRow } from "./rows";
 
@@ -118,7 +117,7 @@ export function TransactionTable({
   onContextMenu: (row: TxRow, x: number, y: number) => void;
   onEndReached: () => void;
 }) {
-  const { scheme, colors } = useTheme();
+  const { colors } = useTheme();
   const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.id));
   const fixed = (width: number): ViewStyle => ({ width, flexShrink: 0 });
 
@@ -154,7 +153,6 @@ export function TransactionTable({
         onEndReachedThreshold={1.5}
         renderItem={({ item: row }) => {
           const isSelected = selected.has(row.id);
-          const tint = colorForScheme(row.categoryColor, scheme);
           return (
             <Pressable
               role="row"
@@ -196,13 +194,13 @@ export function TransactionTable({
                 ) : null}
               </View>
               <View className="flex-row items-center gap-2 pr-3" style={fixed(COL.category)}>
-                {row.categoryName && !row.transfer ? (
+                {!row.transfer ? (
                   <View
                     style={{
                       width: 8,
                       height: 8,
                       borderRadius: 3,
-                      backgroundColor: tint ?? colors.subtle,
+                      backgroundColor: row.categoryName ? row.categoryTint : colors.subtle,
                     }}
                   />
                 ) : null}
@@ -210,9 +208,14 @@ export function TransactionTable({
                   {row.transfer ? "Transfer" : (row.categoryName ?? "Uncategorised")}
                 </Text>
               </View>
-              <Text tone="muted" numberOfLines={1} style={fixed(COL.account)}>
-                {row.accountName}
-              </Text>
+              <View className="flex-row items-center gap-2 pr-3" style={fixed(COL.account)}>
+                <View
+                  style={{ width: 8, height: 8, borderRadius: 3, backgroundColor: row.accountTint }}
+                />
+                <Text tone="muted" numberOfLines={1} className="shrink">
+                  {row.accountName}
+                </Text>
+              </View>
               <View className="items-end pr-4" style={fixed(COL.amount)}>
                 <Amount
                   value={row.tx.amount}

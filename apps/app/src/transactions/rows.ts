@@ -1,5 +1,8 @@
 import type { Transaction } from "@wallt/core";
+import { useTheme } from "@wallt/ui";
 import { useMemo } from "react";
+import { categoryTint } from "../categories/color";
+import { displayColor } from "../components/colors";
 import { useAccounts, useCategories } from "../data/hooks";
 
 export interface TxRow {
@@ -9,7 +12,9 @@ export interface TxRow {
   accountName: string;
   /** Null when uncategorised (and for transfers). */
   categoryName: string | null;
-  categoryColor: string | null;
+  /** Resolved display colours (own, inherited or stable default), ready to draw. */
+  categoryTint: string;
+  accountTint: string;
   categoryIcon: string | null;
   transfer: boolean;
 }
@@ -18,8 +23,9 @@ export interface TxRow {
 export function useTxRows(txs: readonly Transaction[]): TxRow[] {
   const accounts = useAccounts({ includeArchived: true }).data;
   const categories = useCategories({ includeArchived: true }).data;
+  const { scheme } = useTheme();
   return useMemo(() => {
-    const acc = new Map((accounts ?? []).map((a) => [a.id, a.name]));
+    const acc = new Map((accounts ?? []).map((a) => [a.id, a]));
     const cat = new Map((categories ?? []).map((c) => [c.id, c]));
     return txs.map((tx) => {
       const c = tx.categoryId ? cat.get(tx.categoryId) : undefined;
@@ -30,14 +36,15 @@ export function useTxRows(txs: readonly Transaction[]): TxRow[] {
         title: transfer
           ? "Transfer"
           : tx.payee || tx.descriptionClean || tx.descriptionRaw || c?.name || "Transaction",
-        accountName: acc.get(tx.accountId) ?? "",
+        accountName: acc.get(tx.accountId)?.name ?? "",
+        accountTint: displayColor(acc.get(tx.accountId)?.color ?? null, tx.accountId, scheme),
         categoryName: c?.name ?? null,
-        categoryColor: c?.color ?? null,
+        categoryTint: categoryTint(c, categories ?? [], scheme),
         categoryIcon: c?.icon ?? null,
         transfer,
       };
     });
-  }, [txs, accounts, categories]);
+  }, [txs, accounts, categories, scheme]);
 }
 
 /** Day header text, e.g. "Mon, 4 Nov". `YYYY-MM-DD` is read as a calendar date, never shifted by time zone. */
