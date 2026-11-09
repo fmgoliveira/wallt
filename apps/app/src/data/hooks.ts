@@ -8,6 +8,7 @@ import {
 import type {
   AccountPatch,
   CategoryPatch,
+  DateRange,
   NewAccount,
   NewCategory,
   NewTag,
@@ -206,4 +207,14 @@ export const useBulkDeleteTransactions = () =>
         if (await tx.transactions.get(id)) await tx.transactions.delete(id);
       }
     }),
+  );
+
+export const useCashflow = (range: DateRange) =>
+  useRepoQuery([...queryKeys.transactions, "cashflow", range], (r) =>
+    r.transactions.cashflow(range),
+  );
+
+export const useSpendingByCategory = (range: DateRange) =>
+  useRepoQuery([...queryKeys.transactions, "spending", range], (r) =>
+    r.transactions.spendingByCategory(range),
   );
