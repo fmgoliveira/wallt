@@ -7,6 +7,7 @@ import { createApp } from "../app";
 import type { BackupService } from "../backup/service";
 import { openDatabase, runMigrations } from "../database";
 import type { FxService } from "../fx/service";
+import type { MlService } from "../ml/service";
 import { deriveKeys } from "./crypto";
 import { createAuthService } from "./service";
 import { generateTotp } from "./totp";
@@ -37,6 +38,8 @@ export async function harness(
     backup?: (db: ReturnType<typeof openDatabase>, dir: string) => BackupService | null;
     /** Builds the FX service for /fx (receives the harness db). */
     fx?: (db: ReturnType<typeof openDatabase>) => FxService;
+    /** Builds the ML service for /ml (receives the harness db). */
+    ml?: (db: ReturnType<typeof openDatabase>) => MlService;
   } = { setupToken: SETUP },
 ) {
   const dir = mkdtempSync(join(tmpdir(), "wallt-auth-"));
@@ -61,6 +64,7 @@ export async function harness(
     clock: now,
     ...(opts.backup ? { backup: opts.backup(db, dir) } : {}),
     ...(opts.fx ? { fx: opts.fx(db) } : {}),
+    ...(opts.ml ? { ml: opts.ml(db) } : {}),
   });
   let n = 0;
   // Every call comes from a fresh "client IP" (via a trusted proxy) unless a test pins one.

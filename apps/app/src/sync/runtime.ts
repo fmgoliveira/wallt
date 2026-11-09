@@ -9,6 +9,7 @@ import {
   type SyncState,
 } from "@wallt/sync";
 import { create } from "zustand";
+import { refreshModel } from "./ml";
 
 /** What the device registers once its database is open (see `repositoryFromDatabase`). */
 export interface SyncRuntime {
@@ -44,6 +45,7 @@ let unsubscribe: (() => void) | null = null;
 let onPulled: (() => void) | null = null;
 let onFxChanged: (() => void) | null = null;
 let lastFxAttempt = 0;
+let lastModelAttempt = 0;
 const FX_REFRESH_MS = 60 * 60 * 1000;
 
 export function getDeviceId(): string {
@@ -81,6 +83,17 @@ export async function refreshFxRates(session: SyncSession, force = false) {
     store: runtime.fx,
   });
   if (result.ok && result.fetched > 0) onFxChanged?.();
+}
+
+/** Downloads a newer category model (at most hourly unless forced). Failures are silent: the old model keeps working. */
+export async function refreshCategoryModel(session: SyncSession, force = false): Promise<boolean> {
+  if (!runtime || (!force && Date.now() - lastModelAttempt < FX_REFRESH_MS)) return false;
+  lastModelAttempt = Date.now();
+  return refreshModel({
+    baseUrl: session.baseUrl,
+    getAccessToken: session.getAccessToken,
+    meta: runtime.store,
+  });
 }
 
 /** Local write happened (called by the mutation cache). No-op while signed out. */
@@ -131,6 +144,7 @@ export async function configureSyncSession(session: SyncSession | null) {
           onPulled?.();
         });
       void refreshFxRates(session);
+      void refreshCategoryModel(session);
     }
   });
   engine = next;

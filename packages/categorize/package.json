@@ -9,6 +9,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests"
   },
+  "dependencies": {
+    "@wallt/core": "workspace:*"
+  },
   "devDependencies": {
     "@wallt/config": "workspace:*",
     "typescript": "7.0.2",

@@ -22,10 +22,14 @@ import type {
   NewBudget,
   NewCategory,
   NewImportProfile,
+  NewPayeeAlias,
+  NewRule,
   NewTag,
   NewTransaction,
   NewTransfer,
+  PayeeAliasPatch,
   Repository,
+  RulePatch,
   TagPatch,
   TransactionFilter,
   TransactionPatch,
@@ -45,6 +49,8 @@ export const queryKeys = {
   goals: ["goals"] as const,
   debts: ["debts"] as const,
   importProfiles: ["importProfiles"] as const,
+  rules: ["rules"] as const,
+  payeeAliases: ["payeeAliases"] as const,
   fx: ["fx"] as const,
 };
 
@@ -65,6 +71,8 @@ const invalidates: Record<Root, Root[]> = {
   fx: ["fx"],
   debts: ["debts", "transactions", "accounts", "categories", "budgets", "goals"],
   importProfiles: ["importProfiles"],
+  rules: ["rules", "transactions", "accounts", "categories", "budgets"],
+  payeeAliases: ["payeeAliases", "transactions"],
 };
 
 function invalidate(client: QueryClient, root: Root) {
@@ -300,3 +308,27 @@ export const useUpdateImportProfile = () =>
   );
 export const useDeleteImportProfile = () =>
   useRepoMutation("importProfiles", (r, id: string) => r.importProfiles.delete(id));
+
+/* ------------------------------------------------------------ categorization */
+
+export const useRules = () => useRepoQuery([...queryKeys.rules, "list"], (r) => r.rules.list());
+export const useCreateRule = () =>
+  useRepoMutation("rules", (r, input: NewRule) => r.rules.create(input));
+export const useUpdateRule = () =>
+  useRepoMutation("rules", (r, input: { id: string; patch: RulePatch }) =>
+    r.rules.update(input.id, input.patch),
+  );
+export const useDeleteRule = () => useRepoMutation("rules", (r, id: string) => r.rules.delete(id));
+export const useReorderRules = () =>
+  useRepoMutation("rules", (r, ids: string[]) => r.rules.reorder(ids));
+
+export const usePayeeAliases = () =>
+  useRepoQuery([...queryKeys.payeeAliases, "list"], (r) => r.payeeAliases.list());
+export const useCreatePayeeAlias = () =>
+  useRepoMutation("payeeAliases", (r, input: NewPayeeAlias) => r.payeeAliases.create(input));
+export const useUpdatePayeeAlias = () =>
+  useRepoMutation("payeeAliases", (r, input: { id: string; patch: PayeeAliasPatch }) =>
+    r.payeeAliases.update(input.id, input.patch),
+  );
+export const useDeletePayeeAlias = () =>
+  useRepoMutation("payeeAliases", (r, id: string) => r.payeeAliases.delete(id));

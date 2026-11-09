@@ -187,6 +187,9 @@ importers:
       '@tanstack/react-query':
         specifier: 5.106.1
         version: 5.106.1(@types/react@19.3.0)(react@19.3.0)
+      '@wallt/categorize':
+        specifier: workspace:*
+        version: link:../../packages/categorize
       '@wallt/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -302,6 +305,9 @@ importers:
       '@hono/node-server':
         specifier: 2.1.6
         version: 2.1.6(hono@4.13.16)
+      '@wallt/categorize':
+        specifier: workspace:*
+        version: link:../../packages/categorize
       '@wallt/sync':
         specifier: workspace:*
         version: link:../../packages/sync
@@ -353,6 +359,10 @@ importers:
         version: 5.1.0(@types/node@26.6.6)(@vitest/coverage-v8@5.1.0)(vite@8.3.6(@types/node@26.6.6)(esbuild@0.28.2)(jiti@1.21.7)(terser@5.51.2)(tsx@4.23.15))
 
   packages/categorize:
+    dependencies:
+      '@wallt/core':
+        specifier: workspace:*
+        version: link:../core
     devDependencies:
       '@wallt/config':
         specifier: workspace:*
@@ -400,6 +410,9 @@ importers:
       '@types/node':
         specifier: 26.6.6
         version: 26.6.6
+      '@wallt/categorize':
+        specifier: workspace:*
+        version: link:../categorize
       '@wallt/config':
         specifier: workspace:*
         version: link:../config

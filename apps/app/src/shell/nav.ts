@@ -112,10 +112,14 @@ export function isActive(item: NavItem, pathname: string): boolean {
   if (item.href === "/") return pathname === "/";
   if (
     item.key === "settings" &&
-    (pathname.startsWith("/categories") || pathname.startsWith("/import-formats"))
+    (pathname.startsWith("/categories") ||
+      pathname.startsWith("/import-formats") ||
+      pathname.startsWith("/rules") ||
+      pathname.startsWith("/payee-names"))
   )
     return true;
   if (item.key === "more")
     return moreItems.some((m) => isActive(m, pathname)) || pathname === "/more";
+  if (item.key === "transactions" && pathname.startsWith("/review")) return true;
   return pathname === item.href || pathname.startsWith(`${item.href}/`);
 }
