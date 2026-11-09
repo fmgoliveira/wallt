@@ -5,6 +5,9 @@ import {
   budgetSchema,
   type Category,
   categorySchema,
+  isValidRRule,
+  type RecurringRule,
+  recurringRuleSchema,
   splitsError,
   type Tag,
   type Transaction,
@@ -30,10 +33,12 @@ import {
   type NewAccount,
   type NewBudget,
   type NewCategory,
+  type NewRecurringRule,
   type NewSplit,
   type NewTag,
   type NewTransaction,
   type NewTransfer,
+  type RecurringRulePatch,
   type Repository,
   RepositoryError,
   type SpendEntry,
@@ -102,6 +107,14 @@ type BudgetRow = typeof t.budgets.$inferSelect;
 const budgetFromRow = (row: BudgetRow): Budget =>
   ({ ...row, scope: JSON.parse(row.scope) }) as Budget;
 const budgetToRow = (b: Budget): BudgetRow => ({ ...b, scope: JSON.stringify(b.scope) });
+type RecurringRow = typeof t.recurringRules.$inferSelect;
+
+const ruleFromRow = (row: RecurringRow): RecurringRule =>
+  ({ ...row, template: JSON.parse(row.template) }) as RecurringRule;
+const ruleToRow = (r: RecurringRule): RecurringRow => ({
+  ...r,
+  template: JSON.stringify(r.template),
+});
 const NO_SCOPE = { categoryIds: [], tagIds: [], accountIds: [] };
 
 const escapeLike = (s: string) => s.replace(/[\\%_]/g, (c) => `\\${c}`);
@@ -255,6 +268,30 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
         throw invalid(`Account ${id} does not exist`);
       }
     }
+  }
+
+  async function activeRule(id: string): Promise<RecurringRule> {
+    const [row] = await db
+      .select()
+      .from(t.recurringRules)
+      .where(and(eq(t.recurringRules.id, id), isNull(t.recurringRules.deletedAt)));
+    if (!row) throw notFound("Recurring rule", id);
+    return ruleFromRow(row);
+  }
+
+  /** The template must point at a real account (same currency) and category, and the RRULE must be supported. */
+  async function checkRule(rule: RecurringRule) {
+    if (!isValidRRule(rule.rrule)) throw invalid(`Unsupported recurrence rule: ${rule.rrule}`);
+    const account = await activeAccount(rule.template.accountId).catch(() => {
+      throw invalid(`Account ${rule.template.accountId} does not exist`);
+    });
+    if (account.currency !== rule.template.currency) {
+      throw invalid(
+        `Template currency ${rule.template.currency} differs from account ${account.currency}`,
+      );
+    }
+    if (rule.template.amount === 0) throw invalid("A recurring amount must not be zero");
+    await requireCategories([rule.template.categoryId]);
   }
 
   async function activeTransaction(id: string): Promise<Transaction> {
@@ -887,6 +924,68 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
         }),
     };
 
+    const recurring: Repository["recurring"] = {
+      list: (options) =>
+        run(async () => {
+          const conds = [isNull(t.recurringRules.deletedAt)];
+          if (!options?.includeInactive) conds.push(eq(t.recurringRules.active, true));
+          return (
+            await db
+              .select()
+              .from(t.recurringRules)
+              .where(and(...conds))
+              .orderBy(asc(t.recurringRules.nextDate), asc(t.recurringRules.id))
+          ).map(ruleFromRow);
+        }),
+      get: (id) =>
+        run(async () => {
+          const [row] = await db
+            .select()
+            .from(t.recurringRules)
+            .where(and(eq(t.recurringRules.id, id), isNull(t.recurringRules.deletedAt)));
+          return row ? ruleFromRow(row) : null;
+        }),
+      create: (input: NewRecurringRule) =>
+        atomic(async () => {
+          const row = validate(
+            recurringRuleSchema,
+            {
+              ...fresh(),
+              template: input.template,
+              rrule: input.rrule,
+              nextDate: input.nextDate,
+              autoDetected: input.autoDetected ?? false,
+              active: input.active ?? true,
+            },
+            "recurring rule",
+          );
+          await checkRule(row);
+          await db.insert(t.recurringRules).values(ruleToRow(row));
+          return row;
+        }),
+      update: (id, patch: RecurringRulePatch) =>
+        atomic(async () => {
+          const current = await activeRule(id);
+          const row = validate(
+            recurringRuleSchema,
+            { ...current, ...patch, ...stamp() },
+            "recurring rule",
+          );
+          await checkRule(row);
+          await db.update(t.recurringRules).set(ruleToRow(row)).where(eq(t.recurringRules.id, id));
+          return row;
+        }),
+      delete: (id) =>
+        atomic(async () => {
+          await activeRule(id);
+          const now = stamp();
+          await db
+            .update(t.recurringRules)
+            .set({ ...now, deletedAt: now.updatedAt })
+            .where(eq(t.recurringRules.id, id));
+        }),
+    };
+
     const transactions: Repository["transactions"] = {
       list: (filter = {}) =>
         run(async () => {
@@ -1236,6 +1335,7 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
       tags,
       transactions,
       budgets,
+      recurring,
       transaction: (fn) =>
         inTx ? fn(self) : exclusive(() => exec.transaction(() => fn(build(true)))),
     };
