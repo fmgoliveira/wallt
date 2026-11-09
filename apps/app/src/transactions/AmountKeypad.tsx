@@ -1,4 +1,4 @@
-import { Text, useTheme } from "@wallt/ui";
+import { MotionView, Text, usePressScale, useTheme } from "@wallt/ui";
 import { Delete } from "lucide-react-native";
 import { Pressable, View } from "react-native";
 
@@ -28,21 +28,24 @@ function Key({
   onPress: () => void;
   children?: React.ReactNode;
 }) {
-  const { colors } = useTheme();
+  const press = usePressScale();
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={hint ?? label}
-      onPress={onPress}
-      className="h-14 flex-1 items-center justify-center rounded-lg active:opacity-60 web:cursor-pointer web:outline-none web:transition-colors web:duration-100 web:hover:bg-text/5"
-      style={{ backgroundColor: undefined, borderColor: colors.border }}
-    >
-      {children ?? (
-        <Text variant="heading" tabular>
-          {label}
-        </Text>
-      )}
-    </Pressable>
+    <MotionView style={[{ flex: 1 }, press.style]}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={hint ?? label}
+        onPress={onPress}
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
+        className="h-14 items-center justify-center rounded-lg active:bg-text/5 web:cursor-pointer web:outline-none web:transition-colors web:duration-100 web:hover:bg-text/5"
+      >
+        {children ?? (
+          <Text variant="heading" tabular>
+            {label}
+          </Text>
+        )}
+      </Pressable>
+    </MotionView>
   );
 }
 

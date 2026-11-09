@@ -12,22 +12,26 @@ import type { TransactionDetail } from "@wallt/db";
 import {
   Amount,
   AmountInput,
+  AnimatedView,
   Button,
   DatePicker,
   IconTile,
   Input,
+  MotionView,
   Select,
   Sheet,
   Skeleton,
   Tabs,
   Text,
   toast,
+  usePressScale,
   useTheme,
 } from "@wallt/ui";
 import { useRouter } from "expo-router";
 import { ArrowLeftRight, Check, Plus, X } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Pressable, View } from "react-native";
+import { Easing, FadeInLeft, FadeInRight } from "react-native-reanimated";
 import { accountTypeIcon, accountTypeLabel } from "../accounts/meta";
 import { categoryTint } from "../categories/color";
 import { categoryIcon } from "../categories/icons";
@@ -220,30 +224,35 @@ function AccountCard({
   const { scheme, colors } = useTheme();
   const Icon = accountTypeIcon[account.type];
   const tint = displayColor(account.color, account.id, scheme);
+  const press = usePressScale();
   return (
-    <Pressable
-      accessibilityRole="radio"
-      accessibilityState={{ checked: selected }}
-      onPress={onPress}
-      className="min-h-[60px] flex-row items-center gap-3 rounded-lg px-3 py-2 web:cursor-pointer web:outline-none web:transition-shadow web:duration-150 web:hover:bg-text/5"
-      style={{
-        backgroundColor: selected ? colors.elevated : undefined,
-        boxShadow: selected ? `0 0 0 1.5px ${tint}` : `0 0 0 1px ${colors.border}`,
-      }}
-    >
-      <IconTile>
-        <Icon size={18} color={tint} strokeWidth={1.6} />
-      </IconTile>
-      <View className="flex-1">
-        <Text weight="medium" numberOfLines={1}>
-          {account.name}
-        </Text>
-        <Text variant="small" tone="muted">
-          {`${accountTypeLabel(account.type)} · ${account.currency}`}
-        </Text>
-      </View>
-      {selected ? <Check size={18} color={tint} strokeWidth={2} /> : null}
-    </Pressable>
+    <MotionView style={press.style}>
+      <Pressable
+        accessibilityRole="radio"
+        accessibilityState={{ checked: selected }}
+        onPress={onPress}
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
+        className="min-h-[60px] flex-row items-center gap-3 rounded-lg px-3 py-2 web:cursor-pointer web:outline-none web:transition-shadow web:duration-150 web:hover:bg-text/5"
+        style={{
+          backgroundColor: selected ? colors.elevated : undefined,
+          boxShadow: selected ? `0 0 0 1.5px ${tint}` : `0 0 0 1px ${colors.border}`,
+        }}
+      >
+        <IconTile>
+          <Icon size={18} color={tint} strokeWidth={1.6} />
+        </IconTile>
+        <View className="flex-1">
+          <Text weight="medium" numberOfLines={1}>
+            {account.name}
+          </Text>
+          <Text variant="small" tone="muted">
+            {`${accountTypeLabel(account.type)} · ${account.currency}`}
+          </Text>
+        </View>
+        {selected ? <Check size={18} color={tint} strokeWidth={2} /> : null}
+      </Pressable>
+    </MotionView>
   );
 }
 
@@ -261,30 +270,35 @@ function CategoryTile({
   onPress: () => void;
 }) {
   const { colors } = useTheme();
+  const press = usePressScale();
   return (
-    <Pressable
-      accessibilityRole="radio"
-      accessibilityState={{ checked: selected }}
-      accessibilityLabel={label}
-      onPress={onPress}
-      className="w-[31.5%] items-center gap-1.5 rounded-lg px-1 py-3 web:cursor-pointer web:outline-none web:transition-shadow web:duration-150 web:hover:bg-text/5"
-      style={{
-        backgroundColor: selected ? colors.elevated : undefined,
-        boxShadow: selected ? `0 0 0 1.5px ${tint}` : `0 0 0 1px ${colors.border}`,
-      }}
-    >
-      <IconTile>
-        <Icon size={18} color={tint} strokeWidth={1.6} />
-      </IconTile>
-      <Text
-        variant="small"
-        weight={selected ? "medium" : "regular"}
-        numberOfLines={2}
-        className="text-center"
+    <MotionView style={[{ width: "31.5%" }, press.style]}>
+      <Pressable
+        accessibilityRole="radio"
+        accessibilityState={{ checked: selected }}
+        accessibilityLabel={label}
+        onPress={onPress}
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
+        className="items-center gap-1.5 rounded-lg px-1 py-3 web:cursor-pointer web:outline-none web:transition-shadow web:duration-150 web:hover:bg-text/5"
+        style={{
+          backgroundColor: selected ? colors.elevated : undefined,
+          boxShadow: selected ? `0 0 0 1.5px ${tint}` : `0 0 0 1px ${colors.border}`,
+        }}
       >
-        {label}
-      </Text>
-    </Pressable>
+        <IconTile>
+          <Icon size={18} color={tint} strokeWidth={1.6} />
+        </IconTile>
+        <Text
+          variant="small"
+          weight={selected ? "medium" : "regular"}
+          numberOfLines={2}
+          className="text-center"
+        >
+          {label}
+        </Text>
+      </Pressable>
+    </MotionView>
   );
 }
 
@@ -357,6 +371,15 @@ function EditorForm({
     : ["amount", "account", "category", "details"];
   const index = Math.max(0, steps.indexOf(step));
   const last = index === steps.length - 1;
+  // Steps slide in from the side you are heading to (forward from the right, back from the left).
+  const previous = useRef(index);
+  const forward = index >= previous.current;
+  useEffect(() => {
+    previous.current = index;
+  }, [index]);
+  const stepEnter = (forward ? FadeInRight : FadeInLeft)
+    .duration(240)
+    .easing(Easing.out(Easing.cubic));
   const remaining = splitsRemaining(
     amount,
     splits.map((s) => ({ amount: s.amount ?? 0 })),
@@ -526,7 +549,7 @@ function EditorForm({
       <StepPills steps={steps} current={step} reachable={canJump} onGo={setStep} />
 
       {step === "amount" ? (
-        <View className="gap-3">
+        <AnimatedView key="amount" entering={stepEnter} className="gap-3">
           {wasTransfer ? null : (
             <Tabs
               items={editing ? moneyKinds : allKinds}
@@ -539,6 +562,7 @@ function EditorForm({
               value={amount * (transfer ? 1 : sign)}
               currency={currency}
               size="display"
+              ticker
               tone={transfer ? "text" : "auto"}
               className="text-[48px] leading-[56px]"
             />
@@ -552,11 +576,16 @@ function EditorForm({
             ) : null}
           </View>
           <AmountKeypad value={amount} onChange={setAmount} hundreds={exponent > 0} />
-        </View>
+        </AnimatedView>
       ) : null}
 
       {step === "account" ? (
-        <View className="gap-3" accessibilityRole="radiogroup">
+        <AnimatedView
+          key="account"
+          entering={stepEnter}
+          className="gap-3"
+          accessibilityRole="radiogroup"
+        >
           <Text variant="small" tone="muted" weight="medium">
             {transfer ? "From" : "Which account?"}
           </Text>
@@ -600,11 +629,11 @@ function EditorForm({
               ) : null}
             </>
           ) : null}
-        </View>
+        </AnimatedView>
       ) : null}
 
       {step === "category" ? (
-        <View className="gap-3">
+        <AnimatedView key="category" entering={stepEnter} className="gap-3">
           {splitMode ? (
             <View className="gap-3">
               {splits.map((row, i) => (
@@ -757,11 +786,11 @@ function EditorForm({
               </Pressable>
             </>
           )}
-        </View>
+        </AnimatedView>
       ) : null}
 
       {step === "details" ? (
-        <View className="gap-4">
+        <AnimatedView key="details" entering={stepEnter} className="gap-4">
           <View
             className="flex-row items-center gap-3 rounded-lg p-3"
             style={{ boxShadow: `0 0 0 1px ${colors.border}` }}
@@ -876,7 +905,7 @@ function EditorForm({
             </Text>
             <Tabs items={reports} value={counted} onChange={setCounted} />
           </View>
-        </View>
+        </AnimatedView>
       ) : null}
 
       <View className="gap-2 pt-1">
