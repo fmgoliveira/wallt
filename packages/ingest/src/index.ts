@@ -7,6 +7,7 @@ export * from "./import-date";
 export * from "./mapping";
 export * from "./markup";
 export * from "./pipeline";
+export * from "./profile";
 export * from "./sha256";
 export * from "./statement";
 export * from "./tabularize";
