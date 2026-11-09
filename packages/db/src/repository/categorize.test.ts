@@ -147,3 +147,56 @@ describe("transactions created with a categorization", () => {
     expect(plain.categorization.method).toBe("user");
   });
 });
+
+describe("categorizationStats", () => {
+  it("counts non-transfer transactions per method and the review queue", async () => {
+    const { repo, groceries } = await setup();
+    const a = await repo.accounts.create({
+      name: "A",
+      type: "cash",
+      currency: "EUR",
+      openingBalance: 0,
+    });
+    const b = await repo.accounts.create({
+      name: "B",
+      type: "cash",
+      currency: "EUR",
+      openingBalance: 0,
+    });
+    const base = { accountId: a.id, currency: "EUR", bookingDate: "2026-02-01" };
+    await repo.transactions.create({ ...base, amount: -100, categoryId: groceries }); // user
+    await repo.transactions.create({
+      ...base,
+      amount: -200,
+      categoryId: groceries,
+      categorization: { method: "rule", confidence: 1, needsReview: false },
+    });
+    await repo.transactions.create({
+      ...base,
+      amount: -300,
+      categoryId: groceries,
+      categorization: { method: "ml", confidence: 0.6, needsReview: true },
+    });
+    await repo.transactions.create({ ...base, amount: -400, needsReview: true }); // none
+    const late = await repo.transactions.create({
+      ...base,
+      bookingDate: "2026-06-01",
+      amount: -500,
+    });
+    await repo.transactions.createTransfer({
+      fromAccountId: a.id,
+      toAccountId: b.id,
+      amount: 1000,
+      bookingDate: "2026-02-01",
+    });
+
+    expect(await repo.transactions.categorizationStats()).toEqual({
+      total: 5,
+      methods: { user: 1, rule: 1, payee_memory: 0, ml: 1, none: 2 },
+      needsReview: 2,
+    });
+    expect((await repo.transactions.categorizationStats({ from: "2026-05-01" })).total).toBe(1);
+    await repo.transactions.delete(late.id);
+    expect((await repo.transactions.categorizationStats()).total).toBe(4);
+  });
+});

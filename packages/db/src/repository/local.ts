@@ -38,6 +38,7 @@ import {
   type AccountPatch,
   type AccountWithBalance,
   type BudgetPatch,
+  type CategorizationStats,
   type CategoryPatch,
   type CategorySpend,
   type DateRange,
@@ -1721,6 +1722,36 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
             income: Number(r.income),
             expense: Number(r.expense),
           }));
+        }),
+      categorizationStats: (range) =>
+        run(async () => {
+          const conds = [
+            isNull(t.transactions.deletedAt),
+            sql`${t.transactions.kind} != 'transfer'`,
+          ];
+          if (range?.from) conds.push(gte(t.transactions.bookingDate, range.from));
+          if (range?.to) conds.push(lte(t.transactions.bookingDate, range.to));
+          const rows = await db
+            .select({
+              method: t.transactions.categorizationMethod,
+              n: sql<number>`count(*)`,
+              review: sql<number>`coalesce(sum(${t.transactions.needsReview}), 0)`,
+            })
+            .from(t.transactions)
+            .where(and(...conds))
+            .groupBy(t.transactions.categorizationMethod);
+          const out: CategorizationStats = {
+            total: 0,
+            methods: { user: 0, rule: 0, payee_memory: 0, ml: 0, none: 0 },
+            needsReview: 0,
+          };
+          for (const r of rows) {
+            const n = Number(r.n);
+            out.total += n;
+            out.needsReview += Number(r.review);
+            if (r.method in out.methods) out.methods[r.method as keyof typeof out.methods] += n;
+          }
+          return out;
         }),
       spendingByCategory: (range) =>
         run(async () => {

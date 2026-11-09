@@ -280,6 +280,13 @@ export interface DateRange {
   to: string;
 }
 
+/** Transactions per way their category was chosen (`none` = uncategorised), and how many are flagged for review. */
+export interface CategorizationStats {
+  total: number;
+  methods: Record<"user" | "rule" | "payee_memory" | "ml" | "none", number>;
+  needsReview: number;
+}
+
 /** Money in and out over a period, per currency. `expense` is negative (sign convention). Transfers and rows excluded from reports are left out. */
 export interface Cashflow {
   currency: string;
@@ -327,6 +334,11 @@ export interface TransactionsRepository {
    */
   /** Income and expense totals for a period, one row per currency. Computed in SQL, never stored. */
   cashflow(range: DateRange): Promise<Cashflow[]>;
+  /**
+   * How the category of non-transfer transactions was decided, over `range` (all time when omitted): counts per
+   * `categorization.method` plus how many still wait in the review queue. Feeds the Settings metrics.
+   */
+  categorizationStats(range?: Partial<DateRange>): Promise<CategorizationStats>;
   /** Expense totals per category for a period (largest spending first). Computed in SQL, never stored. */
   spendingByCategory(range: DateRange): Promise<CategorySpend[]>;
   /**

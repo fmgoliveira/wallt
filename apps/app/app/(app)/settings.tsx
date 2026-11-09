@@ -2,6 +2,7 @@ import { Card, IconTile, ListItem, useTheme } from "@wallt/ui";
 import { useRouter } from "expo-router";
 import { ChevronRight, FileSpreadsheet, ListFilter, Tags, UserRound } from "lucide-react-native";
 import { NotificationSetting } from "../../src/notifications/NotificationSettings";
+import { CategorizationSettings } from "../../src/review/CategorizationSettings";
 import { LockSetting, PrivacySetting } from "../../src/security/SecuritySettings";
 import { Page } from "../../src/shell/Page";
 import { SyncSetting } from "../../src/sync/SyncSettings";
@@ -18,6 +19,7 @@ export default function SettingsScreen() {
       <NotificationSetting />
       <PrivacySetting />
       <LockSetting />
+      <CategorizationSettings />
       <Card className="p-0 tablet:p-0">
         <ListItem
           title="Categories"
