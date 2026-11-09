@@ -1,3 +1,4 @@
+export * from "./auth";
 export * from "./conflict";
 export * from "./engine";
 export * from "./hlc";

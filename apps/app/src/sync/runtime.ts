@@ -20,6 +20,7 @@ export interface SyncRuntime {
 
 /** A signed-in server session. There is no sign-in UI yet (ADR 0007, open point), so nothing sets this today. */
 export interface SyncSession {
+  email: string;
   baseUrl: string;
   userId: string;
   getAccessToken: () => Promise<string | null>;
@@ -36,6 +37,11 @@ let runtime: SyncRuntime | null = null;
 let engine: SyncEngine | null = null;
 let unsubscribe: (() => void) | null = null;
 let onPulled: (() => void) | null = null;
+
+export function getDeviceId(): string {
+  if (!runtime) throw new Error("Database is not open yet");
+  return runtime.deviceId;
+}
 
 export function registerSyncRuntime(next: SyncRuntime) {
   runtime = next;
