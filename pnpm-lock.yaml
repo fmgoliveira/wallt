@@ -416,6 +416,9 @@ importers:
         specifier: https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz
         version: https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz
     devDependencies:
+      '@types/node':
+        specifier: 26.6.6
+        version: 26.6.6
       '@wallt/config':
         specifier: workspace:*
         version: link:../config

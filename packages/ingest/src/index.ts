@@ -1,5 +1,7 @@
 export * from "./amount";
+export * from "./analyze";
 export * from "./decode";
+export * from "./fixtures";
 export * from "./header";
 export * from "./import-date";
 export * from "./mapping";
