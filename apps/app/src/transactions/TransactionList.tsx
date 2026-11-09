@@ -1,4 +1,4 @@
-import { Amount, Card, Chip, IconTile, ListItem, Text } from "@wallt/ui";
+import { Amount, Card, Chip, IconTile, ListItem, Text, useBreakpoint } from "@wallt/ui";
 import { ArrowLeftRight } from "lucide-react-native";
 import { useMemo } from "react";
 import { FlatList, View } from "react-native";
@@ -19,6 +19,7 @@ export function TransactionList({
   onEndReached: () => void;
 }) {
   const insets = useSafeAreaInsets();
+  const phone = useBreakpoint() === "phone";
   const items = useMemo(() => {
     const out: Item[] = [];
     let day = "";
@@ -33,10 +34,13 @@ export function TransactionList({
   }, [rows]);
 
   return (
-    <Card className="flex-1 overflow-hidden p-0 tablet:p-0">
+    // Sized to its rows (shrinks and scrolls only when the list is longer than the screen), so the card ends
+    // right after the last row. On phones the margin keeps it clear of the floating tab bar.
+    <Card
+      className="shrink grow-0 overflow-hidden p-0 tablet:p-0"
+      style={{ marginBottom: phone ? insets.bottom + 84 : 0 }}
+    >
       <FlatList
-        // Room for the floating tab bar so the last rows can scroll clear of it.
-        contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
         data={items}
         keyExtractor={(i) => i.key}
         onEndReached={onEndReached}
