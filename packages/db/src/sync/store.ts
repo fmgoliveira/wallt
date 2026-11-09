@@ -16,6 +16,8 @@ import type { RawSqlExecutor } from "../repository/executor";
 import { syncColumns, upsertParams, upsertSql } from "./tables";
 
 const CURSOR_KEY = "pull_cursor";
+/** Owner of rows written before any sign-in (ADR 0005). */
+const LOCAL_USER_ID = "local";
 
 /** Local sync operations on the device database. Beyond the engine's port: `enroll` (first sign-in). */
 export interface SyncStore extends SyncStorePort {
@@ -192,6 +194,18 @@ export function createSyncStore(exec: RawSqlExecutor, exclusive: Exclusive): Syn
 
     enroll: (userId) =>
       atomic(async () => {
+        // Never merge another account's data into this one: only placeholder (`local`) rows may be re-stamped.
+        for (const table of SYNC_TABLES) {
+          const foreign = await exec.all<{ n: number }>(
+            `SELECT COUNT(*) AS n FROM ${q(table)} WHERE user_id NOT IN (?, ?)`,
+            [LOCAL_USER_ID, userId],
+          );
+          if (Number(foreign[0]?.n ?? 0) > 0) {
+            throw new Error(
+              "This device holds data of another account; it cannot sign in as a different user.",
+            );
+          }
+        }
         let touched = 0;
         for (const table of SYNC_TABLES) {
           // outbox triggers stay active here: re-stamping an UPDATE queues every row for the first push

@@ -290,3 +290,15 @@ describe("validateSyncRow", () => {
     }
   });
 });
+
+describe("enroll guard", () => {
+  it("refuses to take over rows that belong to another account", async () => {
+    const { repo, raw } = await createTestRepository();
+    await repo.accounts.create({ name: "A", ...eur });
+    await repo.sync.enroll("user-1");
+    await expect(repo.sync.enroll("user-2")).rejects.toThrow(/another account/);
+    expect(raw.prepare("SELECT DISTINCT user_id FROM accounts").all()).toEqual([
+      { user_id: "user-1" },
+    ]);
+  });
+});

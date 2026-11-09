@@ -2,6 +2,7 @@ import { MutationCache, QueryClient, QueryClientProvider } from "@tanstack/react
 import type { Repository } from "@wallt/db";
 import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from "react";
 import { notifyLocalWrite, setOnRemoteChanges } from "../sync/runtime";
+import { restoreSession } from "../sync/session";
 import { openRepository } from "./database";
 
 type State =
@@ -58,7 +59,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
     // a sync that pulled rows: cached queries are stale
     setOnRemoteChanges(() => void queryClient.invalidateQueries());
     openRepository().then(
-      (repository) => alive && setState({ status: "ready", repository }),
+      (repository) => {
+        if (!alive) return;
+        setState({ status: "ready", repository });
+        void restoreSession().catch(() => undefined);
+      },
       (cause: unknown) =>
         alive &&
         setState({

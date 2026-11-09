@@ -3,12 +3,14 @@ import { useRouter } from "expo-router";
 import { ChevronRight, Tags } from "lucide-react-native";
 import { LockSetting, PrivacySetting } from "../../src/security/SecuritySettings";
 import { Page } from "../../src/shell/Page";
+import { SyncSetting } from "../../src/sync/SyncSettings";
 
 export default function SettingsScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   return (
     <Page title="Settings" subtitle="Security, categories; theme, currency and backups later">
+      <SyncSetting />
       <PrivacySetting />
       <LockSetting />
       <Card className="p-0 tablet:p-0">
