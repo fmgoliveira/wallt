@@ -114,7 +114,8 @@ export function isActive(item: NavItem, pathname: string): boolean {
     item.key === "settings" &&
     (pathname.startsWith("/categories") ||
       pathname.startsWith("/import-formats") ||
-      pathname.startsWith("/rules"))
+      pathname.startsWith("/rules") ||
+      pathname.startsWith("/payee-names"))
   )
     return true;
   if (item.key === "more")
