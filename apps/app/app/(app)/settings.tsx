@@ -1,13 +1,16 @@
 import { Card, IconTile, ListItem, useTheme } from "@wallt/ui";
 import { useRouter } from "expo-router";
 import { ChevronRight, Tags } from "lucide-react-native";
+import { LockSetting, PrivacySetting } from "../../src/security/SecuritySettings";
 import { Page } from "../../src/shell/Page";
 
 export default function SettingsScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   return (
-    <Page title="Settings" subtitle="Categories now; theme, currency, backups and devices later">
+    <Page title="Settings" subtitle="Security, categories; theme, currency and backups later">
+      <PrivacySetting />
+      <LockSetting />
       <Card className="p-0 tablet:p-0">
         <ListItem
           title="Categories"
