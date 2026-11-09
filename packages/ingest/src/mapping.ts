@@ -48,6 +48,8 @@ export interface ParsedRow {
   reference: string | null;
   category: string | null;
   balance: number | null;
+  /** The bank's own transaction id (OFX FITID, CAMT reference); null for file imports without one. */
+  externalId: string | null;
 }
 
 export interface ParseError {
@@ -300,6 +302,7 @@ export function parseRows(rows: Rows, mapping: ImportMapping, currency = "EUR"):
       reference: cell(row, c.reference) || null,
       category: cell(row, c.category) || null,
       balance: parseCellAmount(cell(row, c.balance), currency, mapping.amountLocale),
+      externalId: null,
     });
   }
   return { rows: out, errors, skipped };
