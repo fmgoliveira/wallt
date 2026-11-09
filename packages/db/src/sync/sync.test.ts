@@ -302,3 +302,86 @@ describe("enroll guard", () => {
     ]);
   });
 });
+
+describe("dedupeSystemCategories", () => {
+  async function duplicated() {
+    const { repo, raw, stamper } = await createTestRepository();
+    // two devices each seeded "Home" + "Rent" (same system keys, different ids)
+    const homeA = await repo.categories.create({
+      name: "Home",
+      type: "expense",
+      systemKey: "home",
+    });
+    const homeB = await repo.categories.create({
+      name: "Home",
+      type: "expense",
+      systemKey: "home",
+    });
+    const rentA = await repo.categories.create({
+      name: "Rent",
+      type: "expense",
+      parentId: homeA.id,
+      systemKey: "rent",
+    });
+    const rentB = await repo.categories.create({
+      name: "Rent",
+      type: "expense",
+      parentId: homeB.id,
+      systemKey: "rent",
+    });
+    return { repo, raw, stamper, homeA, homeB, rentA, rentB };
+  }
+  const stampOf = (s: { now(): string; hlc(): string }) => () => ({ now: s.now(), hlc: s.hlc() });
+
+  it("keeps the earliest copy, moves references and tombstones the rest", async () => {
+    const { repo, raw, stamper, homeA, homeB, rentA, rentB } = await duplicated();
+    const acc = await repo.accounts.create({ name: "A", ...eur });
+    await repo.transactions.create({
+      accountId: acc.id,
+      amount: -500,
+      currency: "EUR",
+      bookingDate: "2026-11-01",
+      categoryId: rentB.id,
+    });
+    const budget = await repo.budgets.create({
+      name: "Home",
+      period: "month",
+      start: "2026-11-01",
+      amount: 10000,
+      currency: "EUR",
+      rollover: false,
+      scope: { categoryIds: [homeA.id, homeB.id], tagIds: [], accountIds: [] },
+    });
+    raw.exec("DELETE FROM outbox");
+
+    expect(await repo.sync.dedupeSystemCategories(stampOf(stamper))).toBe(2);
+
+    const live = (await repo.categories.list({ includeArchived: true })).map((c) => c.id).sort();
+    expect(live).toEqual([homeA.id, rentA.id].sort());
+    expect((await repo.categories.get(rentA.id))?.parentId).toBe(homeA.id);
+    const [tx] = await repo.transactions.list({});
+    expect(tx?.categoryId).toBe(rentA.id);
+    const b = (await repo.budgets.list()).find((x) => x.id === budget.id);
+    expect(b?.scope.categoryIds).toEqual([homeA.id]);
+    // everything touched is queued, so the merge reaches the server
+    const queued = outbox(raw).map((o) => o.row_id);
+    expect(queued).toEqual(expect.arrayContaining([homeB.id, rentB.id, tx?.id, budget.id]));
+  });
+
+  it("is idempotent, and re-points late references to an already merged copy", async () => {
+    const { repo, raw, stamper, rentA, rentB } = await duplicated();
+    const acc = await repo.accounts.create({ name: "A", ...eur });
+    await repo.sync.dedupeSystemCategories(stampOf(stamper));
+    expect(await repo.sync.dedupeSystemCategories(stampOf(stamper))).toBe(0);
+    // an offline device pushes a transaction that still names the merged-away copy
+    const tx = await repo.transactions.create({
+      accountId: acc.id,
+      amount: -100,
+      currency: "EUR",
+      bookingDate: "2026-11-02",
+    });
+    raw.prepare("UPDATE transactions SET category_id = ? WHERE id = ?").run(rentB.id, tx.id);
+    expect(await repo.sync.dedupeSystemCategories(stampOf(stamper))).toBe(0);
+    expect((await repo.transactions.get(tx.id))?.categoryId).toBe(rentA.id);
+  });
+});

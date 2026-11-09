@@ -85,7 +85,11 @@ export async function repositoryFromDatabase(db: SQLiteDatabase): Promise<Reposi
     hlc: stamper.hlc(),
   });
   const repository = createLocalRepository(exec, stamper);
+  const stamp = () => ({ now: stamper.now(), hlc: stamper.hlc() });
+  // Heals copies already created by several devices seeding before this fix.
+  await repository.sync.dedupeSystemCategories(stamp);
   registerSyncRuntime({
+    dedupeCategories: () => repository.sync.dedupeSystemCategories(stamp),
     store: repository.sync,
     clock: stamper.clock,
     fx: repository.fx,
