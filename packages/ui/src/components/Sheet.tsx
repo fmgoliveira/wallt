@@ -105,7 +105,12 @@ export function Sheet({ visible, onClose, title, children }: SheetProps) {
           <GlassSurface
             level="sheet"
             rounded="xl"
-            style={desktop ? undefined : { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }}
+            // shrink + min-h-0 let the ScrollView below take the leftover height instead of overflowing the cap
+            style={{
+              flexShrink: 1,
+              minHeight: 0,
+              ...(desktop ? {} : { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }),
+            }}
           >
             {desktop ? null : (
               <View className="items-center pt-2">
@@ -118,6 +123,7 @@ export function Sheet({ visible, onClose, title, children }: SheetProps) {
               </View>
             ) : null}
             <ScrollView
+              style={{ flexShrink: 1, minHeight: 0 }}
               contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
               contentContainerClassName="px-5 pt-2 gap-3"
               keyboardShouldPersistTaps="handled"
