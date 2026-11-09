@@ -5,6 +5,7 @@ import { amountParts } from "../format";
 import { usePrivacyStore } from "../privacy/store";
 import { useTheme } from "../theme/context";
 import { motion, onHero, withAlpha } from "../tokens";
+import { MaskedValue } from "./MaskedValue";
 import { Text, type TextVariant } from "./primitives";
 
 export type AmountTone = "auto" | "text" | "onHero" | "muted";
@@ -91,18 +92,7 @@ export function Amount({
     tone === "onHero" ? onHero.subtle : income ? withAlpha(colors.positive, 0.6) : colors.subtle;
 
   if (hidden ?? privacy) {
-    return (
-      <Text
-        variant={size}
-        tabular
-        weight="semibold"
-        accessibilityLabel="Hidden amount"
-        className={className}
-        style={{ color: main }}
-      >
-        ••••
-      </Text>
-    );
+    return <MaskedValue size={size} color={main} className={className} />;
   }
 
   const symbol = parts.symbol;

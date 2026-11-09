@@ -15,8 +15,7 @@ const periodLabel = { month: "Monthly", week: "Weekly", custom: "Custom" } as co
 /** Money for a caption string, honouring privacy mode. */
 export function useMoneyText() {
   const hidden = usePrivacyStore((s) => s.hidden);
-  return (amount: number, currency: string) =>
-    hidden ? "••••" : formatAmount({ amount, currency });
+  return (amount: number, currency: string) => (hidden ? "—" : formatAmount({ amount, currency }));
 }
 
 /** One budget: name, progress bar, what is left and the daily safe-to-spend figure. */

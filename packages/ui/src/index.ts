@@ -24,6 +24,7 @@ export { Gradient, type GradientProps } from "./components/Gradient";
 export { HeroCard, type HeroCardProps } from "./components/HeroCard";
 export { Input, type InputProps } from "./components/Input";
 export { ListItem, type ListItemProps } from "./components/ListItem";
+export { MaskedValue, type MaskedValueProps } from "./components/MaskedValue";
 export { MasterDetail, type MasterDetailProps } from "./components/MasterDetail";
 export { Reveal, RevealGroup, type RevealProps, usePressScale } from "./components/motion";
 export { Portal } from "./components/Portal";
