@@ -39,6 +39,7 @@ export const queryKeys = {
   tags: ["tags"] as const,
   transactions: ["transactions"] as const,
   budgets: ["budgets"] as const,
+  recurring: ["recurring"] as const,
 };
 
 type Root = keyof typeof queryKeys;
@@ -53,6 +54,7 @@ const invalidates: Record<Root, Root[]> = {
   tags: ["tags", "transactions", "budgets"],
   transactions: ["transactions", "accounts", "categories", "budgets"],
   budgets: ["budgets"],
+  recurring: ["recurring", "transactions", "accounts", "categories", "budgets"],
 };
 
 function invalidate(client: QueryClient, root: Root) {
@@ -62,7 +64,7 @@ function invalidate(client: QueryClient, root: Root) {
 }
 
 /** A query that waits for the data source and talks to the `Repository` only. */
-function useRepoQuery<T>(key: readonly unknown[], fn: (repo: Repository) => Promise<T>) {
+export function useRepoQuery<T>(key: readonly unknown[], fn: (repo: Repository) => Promise<T>) {
   const data = useDataState();
   return useQuery({
     queryKey: key,
@@ -74,7 +76,7 @@ function useRepoQuery<T>(key: readonly unknown[], fn: (repo: Repository) => Prom
   });
 }
 
-function useRepoMutation<TInput, TOutput>(
+export function useRepoMutation<TInput, TOutput>(
   root: Root,
   fn: (repo: Repository, input: TInput) => Promise<TOutput>,
 ) {

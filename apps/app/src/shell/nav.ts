@@ -5,6 +5,7 @@ import {
   Ellipsis,
   LayoutDashboard,
   PiggyBank,
+  Repeat,
   Settings,
   Wallet,
 } from "lucide-react-native";
@@ -43,6 +44,12 @@ export const budgets: NavItem = {
   href: "/budgets",
   icon: PiggyBank,
 };
+export const recurring: NavItem = {
+  key: "recurring",
+  label: "Recurring",
+  href: "/recurring",
+  icon: Repeat,
+};
 export const reports: NavItem = {
   key: "reports",
   label: "Reports",
@@ -69,12 +76,13 @@ export const wideItems: readonly NavItem[] = [
   transactions,
   accounts,
   budgets,
+  recurring,
   reports,
   settings,
 ];
 
 /** Routes reached through "More" on phones. */
-export const moreItems: readonly NavItem[] = [budgets, reports, settings];
+export const moreItems: readonly NavItem[] = [budgets, recurring, reports, settings];
 
 export function isActive(item: NavItem, pathname: string): boolean {
   if (item.href === "/") return pathname === "/";

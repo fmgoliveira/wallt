@@ -3,6 +3,7 @@ import type {
   Budget,
   BudgetEntry,
   Category,
+  RecurringRule,
   Tag,
   Transaction,
   TransactionSplit,
@@ -109,6 +110,23 @@ export interface BudgetsRepository {
   create(input: NewBudget): Promise<Budget>;
   update(id: string, patch: BudgetPatch): Promise<Budget>;
   /** Soft delete (tombstone). */
+  delete(id: string): Promise<void>;
+}
+
+/* --------------------------------------------------------------- recurring */
+
+export type NewRecurringRule = Pick<RecurringRule, "template" | "rrule" | "nextDate"> &
+  Partial<Pick<RecurringRule, "autoDetected" | "active">>;
+export type RecurringRulePatch = Partial<Omit<RecurringRule, Stamped>>;
+
+export interface RecurringRepository {
+  /** Active rules by next due date; paused ones only with `includeInactive`. */
+  list(options?: { includeInactive?: boolean }): Promise<RecurringRule[]>;
+  get(id: string): Promise<RecurringRule | null>;
+  /** The RRULE must parse (see `parseRRule`); the template's account and category must exist and match its currency. */
+  create(input: NewRecurringRule): Promise<RecurringRule>;
+  update(id: string, patch: RecurringRulePatch): Promise<RecurringRule>;
+  /** Soft delete (tombstone). Transactions already posted from the rule stay. */
   delete(id: string): Promise<void>;
 }
 
@@ -255,6 +273,7 @@ export interface Repository {
   tags: TagsRepository;
   transactions: TransactionsRepository;
   budgets: BudgetsRepository;
+  recurring: RecurringRepository;
   /**
    * Runs `fn` atomically: everything commits together or not at all. Re-entrant (nested calls join the
    * outer transaction). Use it for batches: writes outside a transaction cost 50-150 ms each on web.

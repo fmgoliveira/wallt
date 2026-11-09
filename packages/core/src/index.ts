@@ -5,6 +5,8 @@ export * from "./budgets";
 export * from "./dates";
 export * from "./lock";
 export * from "./money";
+export * from "./recurrence";
+export * from "./recurrence-detect";
 export * from "./schemas";
 export * from "./schemas-extra";
 export * from "./splits";

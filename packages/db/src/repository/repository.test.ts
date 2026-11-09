@@ -1075,3 +1075,69 @@ describe("spendEntries", () => {
     expect(entries.reduce((s, e) => s + e.amount, 0)).toBe(-1900);
   });
 });
+
+describe("recurring rules", () => {
+  const tpl = (accountId: string, over: Record<string, unknown> = {}) => ({
+    payee: "Netflix",
+    amount: -1299,
+    currency: "EUR",
+    accountId,
+    categoryId: null,
+    ...over,
+  });
+  const rule = (accountId: string, over: Record<string, unknown> = {}) => ({
+    template: tpl(accountId),
+    rrule: "FREQ=MONTHLY;BYMONTHDAY=5",
+    nextDate: "2026-12-05",
+    ...over,
+  });
+
+  it("creates, lists by next date, pauses, updates and soft deletes", async () => {
+    const a = await account();
+    const late = await repo.recurring.create(rule(a.id, { nextDate: "2027-01-01" }));
+    const soon = await repo.recurring.create(
+      rule(a.id, { nextDate: "2026-11-20", autoDetected: true }),
+    );
+    expect(soon).toMatchObject({ active: true, autoDetected: true });
+    expect(late.autoDetected).toBe(false);
+    expect((await repo.recurring.list()).map((r) => r.id)).toEqual([soon.id, late.id]);
+
+    await repo.recurring.update(late.id, { active: false });
+    expect((await repo.recurring.list()).map((r) => r.id)).toEqual([soon.id]);
+    expect(await repo.recurring.list({ includeInactive: true })).toHaveLength(2);
+
+    const moved = await repo.recurring.update(soon.id, { nextDate: "2026-12-20" });
+    expect(moved.nextDate).toBe("2026-12-20");
+    expect((await repo.recurring.get(soon.id))?.template).toEqual(tpl(a.id));
+    expect(
+      raw.prepare("select count(*) as n from outbox where table_name = 'recurring_rules'").get(),
+    ).toEqual({ n: 2 });
+
+    await repo.recurring.delete(soon.id);
+    expect(await repo.recurring.get(soon.id)).toBeNull();
+    await expectCode(repo.recurring.delete(soon.id), "not_found");
+    await expectCode(repo.recurring.update(soon.id, { active: false }), "not_found");
+  });
+
+  it("rejects unsupported rules and bad templates", async () => {
+    const a = await account();
+    const usd = await account({ name: "USD", currency: "USD" });
+    const missing = idSchema.parse("01900000-0000-7000-8000-000000000000");
+    await expectCode(
+      repo.recurring.create(rule(a.id, { rrule: "FREQ=MONTHLY;COUNT=3" })),
+      "validation",
+    );
+    await expectCode(repo.recurring.create(rule(a.id, { rrule: "" })), "validation");
+    await expectCode(repo.recurring.create(rule(a.id, { nextDate: "nope" })), "validation");
+    await expectCode(repo.recurring.create(rule(missing)), "validation");
+    await expectCode(repo.recurring.create(rule(usd.id)), "validation"); // EUR template on a USD account
+    await expectCode(
+      repo.recurring.create(rule(a.id, { template: tpl(a.id, { amount: 0 }) })),
+      "validation",
+    );
+    await expectCode(
+      repo.recurring.create(rule(a.id, { template: tpl(a.id, { categoryId: missing }) })),
+      "validation",
+    );
+  });
+});
