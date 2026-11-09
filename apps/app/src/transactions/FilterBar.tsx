@@ -1,8 +1,10 @@
-import { AmountInput, Button, Input, Select, Sheet, Text, useTheme } from "@wallt/ui";
+import { AmountInput, Button, DatePicker, Input, Select, Sheet, Text, useTheme } from "@wallt/ui";
 import { SlidersHorizontal } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { View } from "react-native";
+import { categoryTint } from "../categories/color";
 import { categoryOptions } from "../categories/options";
+import { displayColor } from "../components/colors";
 import { ToggleChip } from "../components/ToggleChip";
 import { useAccounts, useCategories, useTags } from "../data/hooks";
 import { activeFilterCount, type PeriodKey, periodOptions, type TxQuery } from "./filters";
@@ -24,6 +26,7 @@ function FilterSheet({
   clear: () => void;
   onClose: () => void;
 }) {
+  const { scheme } = useTheme();
   const accounts = useAccounts({ includeArchived: true }).data ?? [];
   const categories = useCategories({ includeArchived: true }).data ?? [];
   const tags = useTags().data ?? [];
@@ -44,21 +47,21 @@ function FilterSheet({
       />
       {query.period === "custom" ? (
         <View className="flex-row gap-3">
-          <Input
+          <DatePicker
             className="flex-1"
             label="From"
             value={query.from}
-            onChangeText={(v) => set({ from: v })}
-            placeholder="YYYY-MM-DD"
-            autoCapitalize="none"
+            onChange={(v) => set({ from: v })}
+            placeholder="Any date"
+            clearable
           />
-          <Input
+          <DatePicker
             className="flex-1"
             label="To"
             value={query.to}
-            onChangeText={(v) => set({ to: v })}
-            placeholder="YYYY-MM-DD"
-            autoCapitalize="none"
+            onChange={(v) => set({ to: v })}
+            placeholder="Any date"
+            clearable
           />
         </View>
       ) : null}
@@ -72,6 +75,7 @@ function FilterSheet({
             <ToggleChip
               key={a.id}
               label={a.name}
+              color={displayColor(a.color, a.id, scheme)}
               selected={query.accounts.includes(a.id)}
               onPress={() => set({ accounts: toggle(query.accounts, a.id) })}
             />
@@ -88,6 +92,11 @@ function FilterSheet({
             <ToggleChip
               key={c.value}
               label={c.label}
+              color={categoryTint(
+                categories.find((x) => x.id === c.value),
+                categories,
+                scheme,
+              )}
               selected={query.categories.includes(c.value)}
               onPress={() => set({ categories: toggle(query.categories, c.value) })}
             />

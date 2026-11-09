@@ -18,6 +18,7 @@ import { useState } from "react";
 import { View } from "react-native";
 import { AccountForm } from "../../../src/accounts/AccountForm";
 import { accountTypeIcon, accountTypeLabel } from "../../../src/accounts/meta";
+import { displayColor } from "../../../src/components/colors";
 import { ListHeader } from "../../../src/components/ReorderToggle";
 import { DataGate } from "../../../src/data/DataGate";
 import { useAccountsWithBalances, useReorderAccounts } from "../../../src/data/hooks";
@@ -26,7 +27,7 @@ import { placeholderIcon } from "../../../src/shell/placeholder";
 
 function AccountsContent({ onAdd }: { onAdd: () => void }) {
   const router = useRouter();
-  const { colors } = useTheme();
+  const { scheme, colors } = useTheme();
   const active = useAccountsWithBalances();
   const all = useAccountsWithBalances({ includeArchived: true });
   const reorder = useReorderAccounts();
@@ -95,7 +96,11 @@ function AccountsContent({ onAdd }: { onAdd: () => void }) {
                       subtitle={`${accountTypeLabel(a.type)} · ${a.currency}`}
                       leading={
                         <IconTile>
-                          <Icon size={18} color={colors.muted} strokeWidth={1.6} />
+                          <Icon
+                            size={18}
+                            color={displayColor(a.color, a.id, scheme)}
+                            strokeWidth={1.6}
+                          />
                         </IconTile>
                       }
                       trailing={

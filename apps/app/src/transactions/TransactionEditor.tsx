@@ -2,6 +2,7 @@ import {
   type Account,
   addDays,
   type Category,
+  currencyExponent,
   fromLocalDate,
   isValidDate,
   splitsRemaining,
@@ -12,6 +13,8 @@ import {
   Amount,
   AmountInput,
   Button,
+  DatePicker,
+  IconTile,
   Input,
   Select,
   Sheet,
@@ -22,10 +25,15 @@ import {
   useTheme,
 } from "@wallt/ui";
 import { useRouter } from "expo-router";
-import { Plus, X } from "lucide-react-native";
-import { useState } from "react";
+import { ArrowLeftRight, Check, Plus, X } from "lucide-react-native";
+import { useEffect, useState } from "react";
 import { Pressable, View } from "react-native";
+import { accountTypeIcon, accountTypeLabel } from "../accounts/meta";
+import { categoryTint } from "../categories/color";
+import { categoryIcon } from "../categories/icons";
 import { categoryOptions } from "../categories/options";
+import { displayColor } from "../components/colors";
+import { ToggleChip } from "../components/ToggleChip";
 import {
   useAccounts,
   useCategories,
@@ -38,9 +46,11 @@ import {
   useUpdateTransaction,
   useUpdateTransfer,
 } from "../data/hooks";
+import { AmountKeypad, backspace, pressDigits } from "./AmountKeypad";
 import { useEditorStore } from "./editorStore";
 
 type Kind = "expense" | "income" | "transfer";
+type StepId = "amount" | "account" | "category" | "details";
 
 const allKinds = [
   { value: "expense", label: "Expense" },
@@ -60,13 +70,20 @@ const reports = [
   { value: "out", label: "Excluded" },
 ] as const;
 
+const stepTitle: Record<StepId, string> = {
+  amount: "Amount",
+  account: "Account",
+  category: "Category",
+  details: "Details",
+};
+
 interface SplitRow {
   key: number;
   categoryId: string | null;
   amount: number | null;
 }
 
-/** Global add/edit sheet. Mounted once in the shell; opened through `useEditorStore`. */
+/** Global add/edit flow. Mounted once in the shell; opened through `useEditorStore`. */
 export function TransactionEditorHost() {
   const open = useEditorStore((s) => s.open);
   if (!open) return null;
@@ -93,8 +110,8 @@ function EditorLoader() {
   if (loading) {
     return (
       <Sheet visible onClose={close} title="Transaction">
-        <Skeleton className="h-11 w-full" />
-        <Skeleton className="h-11 w-full" />
+        <Skeleton className="h-16 w-full" />
+        <Skeleton className="h-44 w-full" />
       </Sheet>
     );
   }
@@ -138,31 +155,132 @@ function EditorLoader() {
   );
 }
 
-function TagChip({
+function StepPills({
+  steps,
+  current,
+  reachable,
+  onGo,
+}: {
+  steps: StepId[];
+  current: StepId;
+  reachable: boolean;
+  onGo: (s: StepId) => void;
+}) {
+  const { colors } = useTheme();
+  return (
+    <View className="flex-row gap-1.5" accessibilityRole="tablist">
+      {steps.map((s, i) => {
+        const active = s === current;
+        const enabled = i === 0 || reachable;
+        return (
+          <Pressable
+            key={s}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: active, disabled: !enabled }}
+            accessibilityLabel={`Step ${i + 1}: ${stepTitle[s]}`}
+            disabled={!enabled}
+            onPress={() => onGo(s)}
+            className="flex-1 web:cursor-pointer web:outline-none"
+          >
+            <View
+              style={{
+                height: 4,
+                borderRadius: 2,
+                backgroundColor: active
+                  ? colors.text
+                  : enabled
+                    ? colors.borderStrong
+                    : colors.border,
+              }}
+            />
+            <Text
+              variant="small"
+              tone={active ? "default" : "muted"}
+              weight={active ? "medium" : "regular"}
+              className="pt-1.5"
+            >
+              {stepTitle[s]}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+function AccountCard({
+  account,
+  selected,
+  onPress,
+}: {
+  account: Account;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  const { scheme, colors } = useTheme();
+  const Icon = accountTypeIcon[account.type];
+  const tint = displayColor(account.color, account.id, scheme);
+  return (
+    <Pressable
+      accessibilityRole="radio"
+      accessibilityState={{ checked: selected }}
+      onPress={onPress}
+      className="min-h-[60px] flex-row items-center gap-3 rounded-lg px-3 py-2 web:cursor-pointer web:outline-none web:transition-shadow web:duration-150 web:hover:bg-text/5"
+      style={{
+        backgroundColor: selected ? colors.elevated : undefined,
+        boxShadow: selected ? `0 0 0 1.5px ${tint}` : `0 0 0 1px ${colors.border}`,
+      }}
+    >
+      <IconTile>
+        <Icon size={18} color={tint} strokeWidth={1.6} />
+      </IconTile>
+      <View className="flex-1">
+        <Text weight="medium" numberOfLines={1}>
+          {account.name}
+        </Text>
+        <Text variant="small" tone="muted">
+          {`${accountTypeLabel(account.type)} · ${account.currency}`}
+        </Text>
+      </View>
+      {selected ? <Check size={18} color={tint} strokeWidth={2} /> : null}
+    </Pressable>
+  );
+}
+
+function CategoryTile({
   label,
+  icon: Icon,
+  tint,
   selected,
   onPress,
 }: {
   label: string;
+  icon: ReturnType<typeof categoryIcon>;
+  tint: string;
   selected: boolean;
   onPress: () => void;
 }) {
   const { colors } = useTheme();
   return (
     <Pressable
-      accessibilityRole="checkbox"
+      accessibilityRole="radio"
       accessibilityState={{ checked: selected }}
+      accessibilityLabel={label}
       onPress={onPress}
-      className="min-h-[36px] justify-center rounded-md px-3 web:cursor-pointer web:outline-none"
+      className="w-[31.5%] items-center gap-1.5 rounded-lg px-1 py-3 web:cursor-pointer web:outline-none web:transition-shadow web:duration-150 web:hover:bg-text/5"
       style={{
         backgroundColor: selected ? colors.elevated : undefined,
-        boxShadow: selected ? `0 0 0 1.5px ${colors.text}` : `0 0 0 1px ${colors.borderStrong}`,
+        boxShadow: selected ? `0 0 0 1.5px ${tint}` : `0 0 0 1px ${colors.border}`,
       }}
     >
+      <IconTile>
+        <Icon size={18} color={tint} strokeWidth={1.6} />
+      </IconTile>
       <Text
         variant="small"
         weight={selected ? "medium" : "regular"}
-        tone={selected ? "default" : "muted"}
+        numberOfLines={2}
+        className="text-center"
       >
         {label}
       </Text>
@@ -187,7 +305,7 @@ function EditorForm({
   defaultAccountId: string;
   onClose: () => void;
 }) {
-  const { colors } = useTheme();
+  const { scheme, colors } = useTheme();
   const remember = useEditorStore((s) => s.remember);
   const createTx = useCreateTransaction();
   const updateTx = useUpdateTransaction();
@@ -204,8 +322,9 @@ function EditorForm({
   const first = legs?.[0] ?? existing;
   const today = fromLocalDate(new Date());
 
+  const [step, setStep] = useState<StepId>("amount");
   const [kind, setKind] = useState<Kind>(existing?.kind ?? "expense");
-  const [amount, setAmount] = useState<number | null>(existing ? Math.abs(existing.amount) : null);
+  const [amount, setAmount] = useState<number>(existing ? Math.abs(existing.amount) : 0);
   const [accountId, setAccountId] = useState<string>(first?.accountId ?? defaultAccountId);
   const [toAccountId, setToAccountId] = useState<string | null>(legs?.[1]?.accountId ?? null);
   const [date, setDate] = useState(existing?.bookingDate ?? today);
@@ -225,14 +344,6 @@ function EditorForm({
     existing?.excludedFromReports ? "out" : "in",
   );
   const [status, setStatus] = useState<"booked" | "pending">(existing?.status ?? "booked");
-  const [more, setMore] = useState(
-    !!existing &&
-      (existing.notes !== "" ||
-        existing.tagIds.length > 0 ||
-        existing.splits.length > 0 ||
-        existing.excludedFromReports ||
-        existing.status === "pending"),
-  );
   const [newTag, setNewTag] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -241,16 +352,20 @@ function EditorForm({
   const currency = account?.currency ?? "EUR";
   const transfer = kind === "transfer";
   const sign = kind === "expense" ? -1 : 1;
-  const total = amount ?? 0;
+  const steps: StepId[] = transfer
+    ? ["amount", "account", "details"]
+    : ["amount", "account", "category", "details"];
+  const index = Math.max(0, steps.indexOf(step));
+  const last = index === steps.length - 1;
   const remaining = splitsRemaining(
-    total,
+    amount,
     splits.map((s) => ({ amount: s.amount ?? 0 })),
   );
   const toOptions = accounts.filter((a) => a.id !== accountId && a.currency === currency);
 
   const errors = {
-    amount: amount === null || amount <= 0 ? "Enter an amount above zero" : undefined,
-    date: isValidDate(date) ? undefined : "Use the format YYYY-MM-DD",
+    amount: amount <= 0 ? "Enter an amount above zero" : undefined,
+    date: isValidDate(date) ? undefined : "Pick a date",
     to: transfer && !toAccountId ? "Choose the destination account" : undefined,
     splits:
       !transfer && splitMode
@@ -269,6 +384,24 @@ function EditorForm({
     updateTx.isPending ||
     createTransfer.isPending ||
     updateTransfer.isPending;
+  const exponent = currencyExponent(currency);
+
+  // Physical keyboard on the amount step (web): digits, backspace, enter.
+  useEffect(() => {
+    if (step !== "amount" || typeof document === "undefined") return;
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (/^\d$/.test(e.key)) setAmount((v) => pressDigits(v, e.key));
+      else if (e.key === "Backspace") setAmount((v) => backspace(v));
+      else if (e.key === "Enter" && amount > 0) setStep(steps[1] ?? "account");
+      else return;
+      e.preventDefault();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [step, amount, steps]);
 
   function changeKind(next: Kind) {
     setKind(next);
@@ -276,7 +409,6 @@ function EditorForm({
     const fits = (id: string | null) => !id || categories.find((c) => c.id === id)?.type === next;
     if (!fits(categoryId)) setCategoryId(null);
     setSplits((rows) => rows.map((r) => (fits(r.categoryId) ? r : { ...r, categoryId: null })));
-    if (next === "transfer") setToAccountId((cur) => cur ?? null);
   }
 
   function changeAccount(id: string) {
@@ -286,10 +418,15 @@ function EditorForm({
     if (to && next && (to.id === id || to.currency !== next.currency)) setToAccountId(null);
   }
 
+  function go(delta: 1 | -1) {
+    const next = steps[index + delta];
+    if (next) setStep(next);
+  }
+
   function startSplit() {
     setSplitMode(true);
     setSplits([
-      { key: 0, categoryId, amount: amount },
+      { key: 0, categoryId, amount },
       { key: 1, categoryId: null, amount: null },
     ]);
   }
@@ -309,7 +446,13 @@ function EditorForm({
 
   async function save() {
     setSubmitted(true);
-    if (invalid || amount === null || !account) return;
+    if (invalid || !account) {
+      // Jump to the step that has the problem.
+      if (errors.amount) setStep("amount");
+      else if (errors.to) setStep("account");
+      else if (errors.splits) setStep("category");
+      return;
+    }
     const shared = {
       bookingDate: date,
       notes: notes.trim(),
@@ -365,99 +508,324 @@ function EditorForm({
     { value: "none", label: "No category" },
     ...categoryOptions(categories, catType, keep),
   ];
-  const accountOptions = accounts.map((a) => ({
-    value: a.id,
-    label: a.name,
-    description: a.currency,
-  }));
+  const roots = categories.filter(
+    (c) => c.type === catType && c.parentId === null && (!c.archived || c.id === categoryId),
+  );
+  const selected = categories.find((c) => c.id === categoryId);
+  const activeRoot = selected?.parentId ? selected.parentId : selected?.id;
+  const children = categories.filter(
+    (c) => c.parentId === activeRoot && (!c.archived || c.id === categoryId),
+  );
+  const toAccount = accounts.find((a) => a.id === toAccountId);
+  const canJump = amount > 0;
+
+  const title = editing ? (wasTransfer ? "Edit transfer" : "Edit transaction") : "New transaction";
 
   return (
-    <Sheet
-      visible
-      onClose={onClose}
-      title={editing ? (wasTransfer ? "Edit transfer" : "Edit transaction") : "New transaction"}
-    >
-      {wasTransfer ? null : (
-        <Tabs
-          items={editing ? moneyKinds : allKinds}
-          value={kind}
-          onChange={(v) => changeKind(v)}
-        />
-      )}
+    <Sheet visible onClose={onClose} title={title}>
+      <StepPills steps={steps} current={step} reachable={canJump} onGo={setStep} />
 
-      <AmountInput
-        label="Amount"
-        value={amount}
-        onChangeValue={setAmount}
-        currency={currency}
-        placeholder="0,00"
-        autoFocus={!editing}
-        error={submitted ? errors.amount : undefined}
-      />
-
-      <Select
-        label={transfer ? "From" : "Account"}
-        options={accountOptions}
-        value={accountId}
-        onChange={changeAccount}
-      />
-      {transfer ? (
-        <View className="gap-1.5">
-          <Select
-            label="To"
-            placeholder="Choose account"
-            options={toOptions.map((a) => ({
-              value: a.id,
-              label: a.name,
-              description: a.currency,
-            }))}
-            value={toAccountId}
-            onChange={setToAccountId}
-            error={submitted ? errors.to : undefined}
-          />
-          {toOptions.length === 0 ? (
-            <Text variant="small" tone="muted">
-              You need another {currency} account to transfer to.
+      {step === "amount" ? (
+        <View className="gap-3">
+          {wasTransfer ? null : (
+            <Tabs
+              items={editing ? moneyKinds : allKinds}
+              value={kind}
+              onChange={(v) => changeKind(v)}
+            />
+          )}
+          <View className="items-center py-4">
+            <Amount
+              value={amount * (transfer ? 1 : sign)}
+              currency={currency}
+              size="display"
+              tone={transfer ? "text" : "auto"}
+              className="text-[48px] leading-[56px]"
+            />
+            <Text variant="small" tone="muted" className="pt-1">
+              {account ? `${account.name} · ${currency}` : currency}
             </Text>
+            {submitted && errors.amount ? (
+              <Text variant="small" tone="negative" className="pt-1">
+                {errors.amount}
+              </Text>
+            ) : null}
+          </View>
+          <AmountKeypad value={amount} onChange={setAmount} hundreds={exponent > 0} />
+        </View>
+      ) : null}
+
+      {step === "account" ? (
+        <View className="gap-3" accessibilityRole="radiogroup">
+          <Text variant="small" tone="muted" weight="medium">
+            {transfer ? "From" : "Which account?"}
+          </Text>
+          {accounts.map((a) => (
+            <AccountCard
+              key={a.id}
+              account={a}
+              selected={a.id === accountId}
+              onPress={() => {
+                changeAccount(a.id);
+                if (!transfer) go(1);
+              }}
+            />
+          ))}
+          {transfer ? (
+            <>
+              <Text variant="small" tone="muted" weight="medium" className="pt-2">
+                To
+              </Text>
+              {toOptions.length === 0 ? (
+                <Text variant="small" tone="muted">
+                  You need another {currency} account to transfer to.
+                </Text>
+              ) : (
+                toOptions.map((a) => (
+                  <AccountCard
+                    key={a.id}
+                    account={a}
+                    selected={a.id === toAccountId}
+                    onPress={() => {
+                      setToAccountId(a.id);
+                      go(1);
+                    }}
+                  />
+                ))
+              )}
+              {submitted && errors.to ? (
+                <Text variant="small" tone="negative">
+                  {errors.to}
+                </Text>
+              ) : null}
+            </>
           ) : null}
         </View>
       ) : null}
 
-      {transfer || splitMode ? null : (
-        <Select
-          label="Category"
-          options={pickList(categoryId)}
-          value={categoryId ?? "none"}
-          onChange={(v) => setCategoryId(v === "none" ? null : v)}
-        />
-      )}
-
-      <View className="gap-1.5">
-        <Input
-          label="Date"
-          value={date}
-          onChangeText={setDate}
-          placeholder="YYYY-MM-DD"
-          autoCapitalize="none"
-          autoCorrect={false}
-          error={submitted ? errors.date : undefined}
-        />
-        <View className="flex-row gap-2">
-          <TagChip label="Today" selected={date === today} onPress={() => setDate(today)} />
-          <TagChip
-            label="Yesterday"
-            selected={date === addDays(today, -1)}
-            onPress={() => setDate(addDays(today, -1))}
-          />
+      {step === "category" ? (
+        <View className="gap-3">
+          {splitMode ? (
+            <View className="gap-3">
+              {splits.map((row, i) => (
+                <View key={row.key} className="flex-row items-end gap-2">
+                  <View className="flex-1">
+                    <Select
+                      label={`Split ${i + 1}`}
+                      options={pickList(row.categoryId)}
+                      value={row.categoryId ?? "none"}
+                      onChange={(v) =>
+                        setSplits((rs) =>
+                          rs.map((r) =>
+                            r.key === row.key ? { ...r, categoryId: v === "none" ? null : v } : r,
+                          ),
+                        )
+                      }
+                    />
+                  </View>
+                  <View className="w-[120px]">
+                    <AmountInput
+                      label="Amount"
+                      value={row.amount}
+                      onChangeValue={(v) =>
+                        setSplits((rs) =>
+                          rs.map((r) => (r.key === row.key ? { ...r, amount: v } : r)),
+                        )
+                      }
+                      currency={currency}
+                      placeholder="0,00"
+                    />
+                  </View>
+                  {splits.length > 2 ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Remove split ${i + 1}`}
+                      onPress={() => setSplits((rs) => rs.filter((r) => r.key !== row.key))}
+                      className="h-11 w-11 items-center justify-center"
+                    >
+                      <X size={16} color={colors.muted} strokeWidth={1.8} />
+                    </Pressable>
+                  ) : null}
+                </View>
+              ))}
+              <View className="flex-row items-center justify-between">
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() =>
+                    setSplits((rs) => [
+                      ...rs,
+                      {
+                        key: Math.max(...rs.map((r) => r.key)) + 1,
+                        categoryId: null,
+                        amount: null,
+                      },
+                    ])
+                  }
+                  className="flex-row items-center gap-1.5 py-2 web:cursor-pointer web:outline-none web:hover:opacity-70"
+                >
+                  <Plus size={14} color={colors.muted} strokeWidth={1.8} />
+                  <Text variant="small" weight="medium" tone="muted">
+                    Add split
+                  </Text>
+                </Pressable>
+                <View className="flex-row items-center gap-1.5">
+                  <Text variant="small" tone="muted">
+                    Left to allocate
+                  </Text>
+                  <Amount value={remaining} currency={currency} size="small" tone="muted" />
+                </View>
+              </View>
+              {submitted && errors.splits ? (
+                <Text variant="small" tone="negative">
+                  {errors.splits}
+                </Text>
+              ) : null}
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setSplitMode(false)}
+                className="self-start py-2 web:cursor-pointer web:outline-none web:hover:opacity-70"
+              >
+                <Text variant="small" weight="medium" tone="muted">
+                  Remove split
+                </Text>
+              </Pressable>
+            </View>
+          ) : (
+            <>
+              <View className="flex-row flex-wrap gap-[2.5%]" accessibilityRole="radiogroup">
+                <CategoryTile
+                  label="None"
+                  icon={categoryIcon(null)}
+                  tint={colors.subtle}
+                  selected={categoryId === null}
+                  onPress={() => {
+                    setCategoryId(null);
+                    go(1);
+                  }}
+                />
+                {roots.map((c) => (
+                  <CategoryTile
+                    key={c.id}
+                    label={c.name}
+                    icon={categoryIcon(c.icon)}
+                    tint={categoryTint(c, categories, scheme)}
+                    selected={activeRoot === c.id}
+                    onPress={() => {
+                      setCategoryId(c.id);
+                      if (!categories.some((x) => x.parentId === c.id && !x.archived)) go(1);
+                    }}
+                  />
+                ))}
+              </View>
+              {children.length > 0 ? (
+                <View className="gap-2">
+                  <Text variant="small" tone="muted" weight="medium">
+                    Subcategory
+                  </Text>
+                  <View className="flex-row flex-wrap gap-2">
+                    {children.map((c) => (
+                      <ToggleChip
+                        key={c.id}
+                        label={c.name}
+                        color={categoryTint(c, categories, scheme)}
+                        selected={categoryId === c.id}
+                        onPress={() => {
+                          setCategoryId(c.id);
+                          go(1);
+                        }}
+                      />
+                    ))}
+                    <ToggleChip
+                      label={`Just ${selected?.parentId ? categories.find((x) => x.id === selected.parentId)?.name : selected?.name}`}
+                      selected={categoryId === activeRoot}
+                      onPress={() => {
+                        if (activeRoot) setCategoryId(activeRoot);
+                        go(1);
+                      }}
+                    />
+                  </View>
+                </View>
+              ) : null}
+              <Pressable
+                accessibilityRole="button"
+                onPress={startSplit}
+                className="self-start py-2 web:cursor-pointer web:outline-none web:hover:opacity-70"
+              >
+                <Text variant="small" weight="medium" tone="muted">
+                  Split across categories
+                </Text>
+              </Pressable>
+            </>
+          )}
         </View>
-      </View>
+      ) : null}
 
-      {transfer ? null : (
-        <Input label="Payee" value={payee} onChangeText={setPayee} placeholder="Who was it with?" />
-      )}
+      {step === "details" ? (
+        <View className="gap-4">
+          <View
+            className="flex-row items-center gap-3 rounded-lg p-3"
+            style={{ boxShadow: `0 0 0 1px ${colors.border}` }}
+          >
+            <IconTile>
+              {transfer ? (
+                <ArrowLeftRight size={18} color={colors.muted} strokeWidth={1.6} />
+              ) : (
+                (() => {
+                  const Icon = categoryIcon(selected?.icon ?? null);
+                  return (
+                    <Icon
+                      size={18}
+                      color={selected ? categoryTint(selected, categories, scheme) : colors.muted}
+                      strokeWidth={1.6}
+                    />
+                  );
+                })()
+              )}
+            </IconTile>
+            <View className="flex-1">
+              <Text weight="medium" numberOfLines={1}>
+                {transfer
+                  ? `${account?.name ?? ""} → ${toAccount?.name ?? "…"}`
+                  : splitMode
+                    ? "Split"
+                    : (selected?.name ?? "No category")}
+              </Text>
+              <Text variant="small" tone="muted" numberOfLines={1}>
+                {transfer ? "Transfer" : (account?.name ?? "")}
+              </Text>
+            </View>
+            <Amount
+              value={amount * (transfer ? 1 : sign)}
+              currency={currency}
+              tone={transfer ? "text" : "auto"}
+            />
+          </View>
 
-      {more ? (
-        <>
+          <View className="gap-2">
+            <DatePicker
+              label="Date"
+              value={date}
+              onChange={setDate}
+              error={submitted ? errors.date : undefined}
+            />
+            <View className="flex-row gap-2">
+              <ToggleChip label="Today" selected={date === today} onPress={() => setDate(today)} />
+              <ToggleChip
+                label="Yesterday"
+                selected={date === addDays(today, -1)}
+                onPress={() => setDate(addDays(today, -1))}
+              />
+            </View>
+          </View>
+
+          {transfer ? null : (
+            <Input
+              label="Payee"
+              value={payee}
+              onChangeText={setPayee}
+              placeholder="Who was it with?"
+            />
+          )}
           <Input
             label="Notes"
             value={notes}
@@ -473,7 +841,7 @@ function EditorForm({
               </Text>
               <View className="flex-row flex-wrap gap-2">
                 {tags.map((t) => (
-                  <TagChip
+                  <ToggleChip
                     key={t.id}
                     label={t.name}
                     selected={tagIds.includes(t.id)}
@@ -496,107 +864,6 @@ function EditorForm({
             </View>
           )}
 
-          {transfer ? null : (
-            <View className="gap-2">
-              <View className="flex-row items-center justify-between">
-                <Text variant="small" tone="muted" weight="medium">
-                  Split across categories
-                </Text>
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => (splitMode ? setSplitMode(false) : startSplit())}
-                  hitSlop={8}
-                  className="px-1 py-2 web:cursor-pointer web:outline-none web:hover:opacity-70"
-                >
-                  <Text variant="small" weight="medium" tone="muted">
-                    {splitMode ? "Remove split" : "Split"}
-                  </Text>
-                </Pressable>
-              </View>
-              {splitMode ? (
-                <View className="gap-3">
-                  {splits.map((row, i) => (
-                    <View key={row.key} className="gap-2">
-                      <View className="flex-row items-end gap-2">
-                        <View className="flex-1">
-                          <Select
-                            label={`Split ${i + 1}`}
-                            options={pickList(row.categoryId)}
-                            value={row.categoryId ?? "none"}
-                            onChange={(v) =>
-                              setSplits((rs) =>
-                                rs.map((r) =>
-                                  r.key === row.key
-                                    ? { ...r, categoryId: v === "none" ? null : v }
-                                    : r,
-                                ),
-                              )
-                            }
-                          />
-                        </View>
-                        <View className="w-[120px]">
-                          <AmountInput
-                            label="Amount"
-                            value={row.amount}
-                            onChangeValue={(v) =>
-                              setSplits((rs) =>
-                                rs.map((r) => (r.key === row.key ? { ...r, amount: v } : r)),
-                              )
-                            }
-                            currency={currency}
-                            placeholder="0,00"
-                          />
-                        </View>
-                        {splits.length > 2 ? (
-                          <Pressable
-                            accessibilityRole="button"
-                            accessibilityLabel={`Remove split ${i + 1}`}
-                            onPress={() => setSplits((rs) => rs.filter((r) => r.key !== row.key))}
-                            className="h-11 w-11 items-center justify-center"
-                          >
-                            <X size={16} color={colors.muted} strokeWidth={1.8} />
-                          </Pressable>
-                        ) : null}
-                      </View>
-                    </View>
-                  ))}
-                  <View className="flex-row items-center justify-between">
-                    <Pressable
-                      accessibilityRole="button"
-                      onPress={() =>
-                        setSplits((rs) => [
-                          ...rs,
-                          {
-                            key: Math.max(...rs.map((r) => r.key)) + 1,
-                            categoryId: null,
-                            amount: null,
-                          },
-                        ])
-                      }
-                      className="flex-row items-center gap-1.5 py-2 web:cursor-pointer web:outline-none web:hover:opacity-70"
-                    >
-                      <Plus size={14} color={colors.muted} strokeWidth={1.8} />
-                      <Text variant="small" weight="medium" tone="muted">
-                        Add split
-                      </Text>
-                    </Pressable>
-                    <View className="flex-row items-center gap-1.5">
-                      <Text variant="small" tone="muted">
-                        Left to allocate
-                      </Text>
-                      <Amount value={remaining} currency={currency} size="small" tone="muted" />
-                    </View>
-                  </View>
-                  {submitted && errors.splits ? (
-                    <Text variant="small" tone="negative">
-                      {errors.splits}
-                    </Text>
-                  ) : null}
-                </View>
-              ) : null}
-            </View>
-          )}
-
           <View className="gap-1.5">
             <Text variant="small" tone="muted" weight="medium">
               Status
@@ -609,24 +876,33 @@ function EditorForm({
             </Text>
             <Tabs items={reports} value={counted} onChange={setCounted} />
           </View>
-        </>
-      ) : (
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => setMore(true)}
-          className="self-start py-2 web:cursor-pointer web:outline-none web:hover:opacity-70"
-        >
-          <Text variant="small" weight="medium" tone="muted">
-            More options
-          </Text>
-        </Pressable>
-      )}
-
-      <Button label={editing ? "Save changes" : "Add transaction"} loading={busy} onPress={save} />
-      {editing ? (
-        <Button label="Delete" variant="ghost" onPress={() => setConfirmDelete(true)} />
+        </View>
       ) : null}
-      <Button label="Cancel" variant="ghost" onPress={onClose} />
+
+      <View className="gap-2 pt-1">
+        {last ? (
+          <Button
+            label={editing ? "Save changes" : "Add transaction"}
+            loading={busy}
+            onPress={save}
+          />
+        ) : (
+          <Button label="Next" disabled={amount <= 0} onPress={() => go(1)} />
+        )}
+        <View className="flex-row items-center justify-between">
+          {index === 0 ? (
+            <Button label="Cancel" variant="ghost" onPress={onClose} />
+          ) : (
+            <Button label="Back" variant="ghost" onPress={() => go(-1)} />
+          )}
+          {!last && canJump && !invalid ? (
+            <Button label="Save now" variant="ghost" loading={busy} onPress={save} />
+          ) : null}
+          {last && editing ? (
+            <Button label="Delete" variant="ghost" onPress={() => setConfirmDelete(true)} />
+          ) : null}
+        </View>
+      </View>
 
       <Sheet
         visible={confirmDelete}

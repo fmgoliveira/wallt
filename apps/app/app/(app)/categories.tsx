@@ -16,8 +16,8 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import { View } from "react-native";
 import { CategoryForm } from "../../src/categories/CategoryForm";
+import { categoryTint } from "../../src/categories/color";
 import { categoryIcon } from "../../src/categories/icons";
-import { colorForScheme } from "../../src/components/colors";
 import { ListHeader } from "../../src/components/ReorderToggle";
 import { DataGate } from "../../src/data/DataGate";
 import { useCategories, useCategoryUsage, useReorderCategories } from "../../src/data/hooks";
@@ -33,6 +33,7 @@ type FormState = { category?: Category; parentId?: string | null } | null;
 
 function CategoryRow({
   category,
+  tint,
   uses,
   child,
   divider,
@@ -40,6 +41,7 @@ function CategoryRow({
   onOpen,
 }: {
   category: Category;
+  tint: string;
   uses: number;
   child: boolean;
   divider: boolean;
@@ -47,9 +49,8 @@ function CategoryRow({
   handle: ReactNode;
   onOpen: () => void;
 }) {
-  const { scheme, colors } = useTheme();
+  const { colors } = useTheme();
   const Icon = categoryIcon(category.icon);
-  const tint = colorForScheme(category.color, scheme) ?? colors.muted;
   return (
     <View className={child ? "pl-6" : undefined} style={{ opacity: category.archived ? 0.6 : 1 }}>
       <ListItem
@@ -84,6 +85,7 @@ function CategoriesContent({
   form: FormState;
   setForm: (f: FormState) => void;
 }) {
+  const { scheme } = useTheme();
   const query = useCategories({ includeArchived: true });
   const usage = useCategoryUsage();
   const reorder = useReorderCategories();
@@ -97,6 +99,7 @@ function CategoriesContent({
   const row = (c: Category, child: boolean, divider: boolean, handle: ReactNode) => (
     <CategoryRow
       category={c}
+      tint={categoryTint(c, query.data ?? [], scheme)}
       uses={uses[c.id] ?? 0}
       child={child}
       divider={divider}

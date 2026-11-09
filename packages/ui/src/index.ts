@@ -9,6 +9,7 @@ export {
   useControlHeight,
 } from "./components/Button";
 export { Card, type CardProps } from "./components/Card";
+export { DatePicker, type DatePickerProps, formatCalendarDate } from "./components/DatePicker";
 export { EmptyState, type EmptyStateProps } from "./components/EmptyState";
 export { GlassSurface, type GlassSurfaceProps } from "./components/GlassSurface";
 export { Gradient, type GradientProps } from "./components/Gradient";
