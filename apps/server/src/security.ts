@@ -4,13 +4,15 @@ import { secureHeaders } from "hono/secure-headers";
 /**
  * Security headers for every response. CSP: same-origin only; the Expo export's fixed inline
  * script(s) are allowed by hash (computed at startup), styles allow inline because react-native-web
- * injects a <style> tag. No COOP/COEP (web uses the remote repository, ADR 0002).
+ * injects a <style> tag. The web app runs SQLite in WASM on OPFS (ADR 0002/0005), which needs a cross-origin
+ * isolated page: COOP same-origin + COEP credentialless, plus 'wasm-unsafe-eval' and same-origin/blob workers.
  */
 export function securityHeaders(inlineScriptHashes: readonly string[]): MiddlewareHandler {
   return secureHeaders({
     contentSecurityPolicy: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", ...inlineScriptHashes],
+      scriptSrc: ["'self'", ...inlineScriptHashes, "'wasm-unsafe-eval'"],
+      workerSrc: ["'self'", "blob:"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "blob:"],
       fontSrc: ["'self'", "data:"],
@@ -25,7 +27,7 @@ export function securityHeaders(inlineScriptHashes: readonly string[]): Middlewa
     xFrameOptions: "DENY",
     referrerPolicy: "no-referrer",
     permissionsPolicy: { camera: [], microphone: [], geolocation: [], payment: [] },
-    crossOriginOpenerPolicy: false,
-    crossOriginEmbedderPolicy: false,
+    crossOriginOpenerPolicy: "same-origin",
+    crossOriginEmbedderPolicy: "credentialless",
   });
 }

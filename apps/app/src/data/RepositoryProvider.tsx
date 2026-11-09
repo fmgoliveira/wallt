@@ -1,7 +1,7 @@
 import { MutationCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Repository } from "@wallt/db";
 import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from "react";
-import { notifyLocalWrite, setOnRemoteChanges } from "../sync/runtime";
+import { notifyLocalWrite, setOnFxChanges, setOnRemoteChanges } from "../sync/runtime";
 import { restoreSession } from "../sync/session";
 import { openRepository } from "./database";
 
@@ -58,6 +58,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     let alive = true;
     // a sync that pulled rows: cached queries are stale
     setOnRemoteChanges(() => void queryClient.invalidateQueries());
+    setOnFxChanges(() => void queryClient.invalidateQueries({ queryKey: ["fx"] }));
     openRepository().then(
       (repository) => {
         if (!alive) return;
@@ -74,6 +75,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return () => {
       alive = false;
       setOnRemoteChanges(null);
+      setOnFxChanges(null);
     };
   }, [queryClient]);
 

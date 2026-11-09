@@ -9,6 +9,14 @@ export {
   useControlHeight,
 } from "./components/Button";
 export { Card, type CardProps } from "./components/Card";
+export {
+  type BarGroup,
+  DonutChart,
+  type DonutSlice,
+  PairedBarChart,
+  SeriesChart,
+  type SeriesPoint,
+} from "./components/charts";
 export { DatePicker, type DatePickerProps, formatCalendarDate } from "./components/DatePicker";
 export { EmptyState, type EmptyStateProps } from "./components/EmptyState";
 export { GlassSurface, type GlassSurfaceProps } from "./components/GlassSurface";

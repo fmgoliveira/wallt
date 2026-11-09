@@ -144,6 +144,25 @@ export function convert(m: Money, to: string, rate: string): Money {
 }
 
 /**
+ * Convert between two currencies through a common base (EUR): `fromPerBase` and `toPerBase` are decimal-string
+ * rates, units of each currency per 1 base unit. Same rounding as `convert`; one division, so no double rounding.
+ */
+export function convertCross(m: Money, to: string, fromPerBase: string, toPerBase: string): Money {
+  const parse = (rate: string) => {
+    if (!/^\d+(\.\d+)?$/.test(rate)) throw new RangeError(`Invalid FX rate: ${rate}`);
+    const [whole = "0", frac = ""] = rate.split(".");
+    const num = BigInt(whole + frac);
+    if (num === 0n) throw new RangeError("FX rate must be positive");
+    return { num, scale: 10n ** BigInt(frac.length) };
+  };
+  const f = parse(fromPerBase);
+  const t = parse(toPerBase);
+  const n = BigInt(m.amount) * t.num * f.scale * 10n ** BigInt(currencyExponent(to));
+  const d = f.num * t.scale * 10n ** BigInt(currencyExponent(m.currency));
+  return money(toSafeNumber(divRound(n, d)) + 0, to);
+}
+
+/**
  * Parse a user/bank amount string into minor units. Handles `1.234,56`, `1,234.56`, `-12,30`,
  * `12,30-`, `(12,30)`, currency symbols and spaces. Pass `locale` to resolve ambiguous input
  * like `1.234`; with `auto` a lone separator followed by exactly 3 digits is a thousands separator

@@ -946,3 +946,491 @@ describe("dashboard aggregates", () => {
     expect((await repo.transactions.cashflow(range))[0]?.expense).toBe(-2400);
   });
 });
+
+describe("budgets", () => {
+  const input = {
+    name: "Groceries",
+    period: "month" as const,
+    start: "2026-11-01",
+    amount: 30_000,
+    currency: "EUR",
+  };
+
+  it("creates with defaults, lists, updates and soft deletes", async () => {
+    const b = await repo.budgets.create(input);
+    expect(b).toMatchObject({
+      end: null,
+      rollover: false,
+      scope: { categoryIds: [], tagIds: [], accountIds: [] },
+    });
+    expect(idSchema.safeParse(b.id).success).toBe(true);
+    const upd = await repo.budgets.update(b.id, { amount: 40_000, rollover: true });
+    expect(upd).toMatchObject({ amount: 40_000, rollover: true });
+    expect((await repo.budgets.get(b.id))?.amount).toBe(40_000);
+    expect(await repo.budgets.list()).toHaveLength(1);
+    await repo.budgets.delete(b.id);
+    expect(await repo.budgets.list()).toEqual([]);
+    expect(await repo.budgets.get(b.id)).toBeNull();
+    await expectCode(repo.budgets.delete(b.id), "not_found");
+    await expectCode(repo.budgets.update(b.id, { amount: 1 }), "not_found");
+  });
+
+  it("round-trips the scope and queues the change for sync", async () => {
+    const acc = await account();
+    const cat = await repo.categories.create({ name: "Food", type: "expense" });
+    const tag = await repo.tags.create({ name: "trip" });
+    const scope = { categoryIds: [cat.id], tagIds: [tag.id], accountIds: [acc.id] };
+    const b = await repo.budgets.create({ ...input, scope });
+    expect((await repo.budgets.get(b.id))?.scope).toEqual(scope);
+    const queued = raw.prepare("select row_id from outbox where table_name = 'budgets'").all();
+    expect(queued).toEqual([{ row_id: b.id }]);
+  });
+
+  it("validates input and scope references", async () => {
+    await expectCode(repo.budgets.create({ ...input, amount: -1 }), "validation");
+    await expectCode(repo.budgets.create({ ...input, name: " " }), "validation");
+    await expectCode(repo.budgets.create({ ...input, period: "custom" }), "validation");
+    await expectCode(repo.budgets.create({ ...input, end: "2026-10-01" }), "validation");
+    const missing = idSchema.parse("01900000-0000-7000-8000-000000000000");
+    await expectCode(
+      repo.budgets.create({
+        ...input,
+        scope: { categoryIds: [missing], tagIds: [], accountIds: [] },
+      }),
+      "validation",
+    );
+    await expectCode(
+      repo.budgets.create({
+        ...input,
+        scope: { categoryIds: [], tagIds: [missing], accountIds: [] },
+      }),
+      "validation",
+    );
+    await expectCode(
+      repo.budgets.create({
+        ...input,
+        scope: { categoryIds: [], tagIds: [], accountIds: [missing] },
+      }),
+      "validation",
+    );
+  });
+});
+
+describe("spendEntries", () => {
+  const range = { from: "2026-11-01", to: "2026-11-30" };
+
+  it("returns expenses as flat entries: splits expanded, transfers/income/excluded/other months left out", async () => {
+    const a = await account();
+    const b = await account({ name: "Savings", openingBalance: 0 });
+    const food = await repo.categories.create({ name: "Food", type: "expense" });
+    const home = await repo.categories.create({ name: "Home", type: "expense" });
+    const tag = await repo.tags.create({ name: "trip" });
+    const base = { accountId: a.id, currency: "EUR", bookingDate: "2026-11-10" };
+    const plain = await repo.transactions.create({
+      ...base,
+      amount: -1000,
+      categoryId: food.id,
+      tagIds: [tag.id],
+    });
+    await repo.transactions.create({
+      ...base,
+      amount: -900,
+      splits: [
+        { amount: -600, categoryId: food.id },
+        { amount: -300, categoryId: home.id },
+      ],
+      tagIds: [tag.id],
+    });
+    await repo.transactions.create({ ...base, amount: 5000 });
+    await repo.transactions.create({ ...base, amount: -777, excludedFromReports: true });
+    await repo.transactions.create({ ...base, amount: -555, bookingDate: "2026-10-31" });
+    await repo.transactions.createTransfer({
+      fromAccountId: a.id,
+      toAccountId: b.id,
+      amount: 400,
+      bookingDate: "2026-11-10",
+    });
+    const deleted = await repo.transactions.create({ ...base, amount: -123 });
+    await repo.transactions.delete(deleted.id);
+
+    const entries = await repo.transactions.spendEntries(range);
+    expect(entries).toHaveLength(3);
+    const key = (e: { amount: number }) => e.amount;
+    expect(entries.map(key).sort((x, y) => x - y)).toEqual([-1000, -600, -300]);
+    const one = entries.find((e) => e.amount === -1000);
+    expect(one).toEqual({
+      date: "2026-11-10",
+      amount: -1000,
+      currency: "EUR",
+      categoryId: food.id,
+      accountId: a.id,
+      tagIds: [tag.id],
+    });
+    expect(plain.id).toBeTruthy();
+    // split entries inherit the transaction's tags and account
+    for (const e of entries.filter((x) => x.amount !== -1000)) {
+      expect(e.tagIds).toEqual([tag.id]);
+      expect(e.accountId).toBe(a.id);
+    }
+    expect(entries.reduce((s, e) => s + e.amount, 0)).toBe(-1900);
+  });
+});
+
+describe("recurring rules", () => {
+  const tpl = (accountId: string, over: Record<string, unknown> = {}) => ({
+    payee: "Netflix",
+    amount: -1299,
+    currency: "EUR",
+    accountId,
+    categoryId: null,
+    ...over,
+  });
+  const rule = (accountId: string, over: Record<string, unknown> = {}) => ({
+    template: tpl(accountId),
+    rrule: "FREQ=MONTHLY;BYMONTHDAY=5",
+    nextDate: "2026-12-05",
+    ...over,
+  });
+
+  it("creates, lists by next date, pauses, updates and soft deletes", async () => {
+    const a = await account();
+    const late = await repo.recurring.create(rule(a.id, { nextDate: "2027-01-01" }));
+    const soon = await repo.recurring.create(
+      rule(a.id, { nextDate: "2026-11-20", autoDetected: true }),
+    );
+    expect(soon).toMatchObject({ active: true, autoDetected: true });
+    expect(late.autoDetected).toBe(false);
+    expect((await repo.recurring.list()).map((r) => r.id)).toEqual([soon.id, late.id]);
+
+    await repo.recurring.update(late.id, { active: false });
+    expect((await repo.recurring.list()).map((r) => r.id)).toEqual([soon.id]);
+    expect(await repo.recurring.list({ includeInactive: true })).toHaveLength(2);
+
+    const moved = await repo.recurring.update(soon.id, { nextDate: "2026-12-20" });
+    expect(moved.nextDate).toBe("2026-12-20");
+    expect((await repo.recurring.get(soon.id))?.template).toEqual(tpl(a.id));
+    expect(
+      raw.prepare("select count(*) as n from outbox where table_name = 'recurring_rules'").get(),
+    ).toEqual({ n: 2 });
+
+    await repo.recurring.delete(soon.id);
+    expect(await repo.recurring.get(soon.id)).toBeNull();
+    await expectCode(repo.recurring.delete(soon.id), "not_found");
+    await expectCode(repo.recurring.update(soon.id, { active: false }), "not_found");
+  });
+
+  it("rejects unsupported rules and bad templates", async () => {
+    const a = await account();
+    const usd = await account({ name: "USD", currency: "USD" });
+    const missing = idSchema.parse("01900000-0000-7000-8000-000000000000");
+    await expectCode(
+      repo.recurring.create(rule(a.id, { rrule: "FREQ=MONTHLY;COUNT=3" })),
+      "validation",
+    );
+    await expectCode(repo.recurring.create(rule(a.id, { rrule: "" })), "validation");
+    await expectCode(repo.recurring.create(rule(a.id, { nextDate: "nope" })), "validation");
+    await expectCode(repo.recurring.create(rule(missing)), "validation");
+    await expectCode(repo.recurring.create(rule(usd.id)), "validation"); // EUR template on a USD account
+    await expectCode(
+      repo.recurring.create(rule(a.id, { template: tpl(a.id, { amount: 0 }) })),
+      "validation",
+    );
+    await expectCode(
+      repo.recurring.create(rule(a.id, { template: tpl(a.id, { categoryId: missing }) })),
+      "validation",
+    );
+  });
+});
+
+describe("goals", () => {
+  it("creates, updates and soft deletes; the linked accounts round-trip", async () => {
+    const a = await account();
+    const g = await repo.goals.create({
+      name: "Holiday",
+      targetAmount: 200_000,
+      currency: "EUR",
+      deadline: "2027-06-01",
+      accountIds: [a.id],
+      color: "#336699",
+    });
+    expect((await repo.goals.get(g.id))?.accountIds).toEqual([a.id]);
+    const upd = await repo.goals.update(g.id, { targetAmount: 250_000, deadline: null });
+    expect(upd).toMatchObject({ targetAmount: 250_000, deadline: null });
+    expect(await repo.goals.list()).toHaveLength(1);
+    expect(
+      raw.prepare("select count(*) as n from outbox where table_name = 'goals'").get(),
+    ).toEqual({ n: 1 });
+    await repo.goals.delete(g.id);
+    expect(await repo.goals.list()).toEqual([]);
+    await expectCode(repo.goals.delete(g.id), "not_found");
+    await expectCode(repo.goals.update(g.id, { name: "x" }), "not_found");
+  });
+
+  it("validates input and linked accounts", async () => {
+    const missing = idSchema.parse("01900000-0000-7000-8000-000000000000");
+    const base = { name: "Car", targetAmount: 1000, currency: "EUR" };
+    await expectCode(repo.goals.create({ ...base, targetAmount: 0 }), "validation");
+    await expectCode(repo.goals.create({ ...base, name: " " }), "validation");
+    await expectCode(repo.goals.create({ ...base, accountIds: [missing] }), "validation");
+    expect(await repo.goals.create(base)).toMatchObject({ accountIds: [], deadline: null });
+  });
+});
+
+describe("debts", () => {
+  const tx = (
+    accountId: string,
+    amount: number,
+    debtId: string | null,
+    over: Record<string, unknown> = {},
+  ) =>
+    repo.transactions.create({
+      accountId,
+      amount,
+      currency: "EUR",
+      bookingDate: "2026-11-10",
+      debtId,
+      ...over,
+    });
+
+  it("derives repaid amounts from linked transactions, by direction", async () => {
+    const a = await account();
+    const lent = await repo.debts.create({
+      person: "Ana",
+      direction: "lent",
+      amount: 10_000,
+      currency: "EUR",
+    });
+    const borrowed = await repo.debts.create({
+      person: "Rui",
+      direction: "borrowed",
+      amount: 5000,
+      currency: "EUR",
+    });
+    await tx(a.id, 3000, lent.id); // Ana pays back 30
+    await tx(a.id, 2000, lent.id);
+    await tx(a.id, -10_000, lent.id); // the loan itself leaving the account: not a repayment
+    await tx(a.id, -1500, borrowed.id);
+    await tx(a.id, 800, borrowed.id); // money in on a borrowed debt: not a repayment
+    const [l, b] = [await repo.debts.get(lent.id), await repo.debts.get(borrowed.id)];
+    expect(l).toMatchObject({ repaid: 5000, repaymentCount: 2 });
+    expect(b).toMatchObject({ repaid: 1500, repaymentCount: 1 });
+    expect((await repo.debts.list()).map((d) => d.person).sort()).toEqual(["Ana", "Rui"]);
+    // deleting a repayment lowers the total: nothing is stored
+    const [first] = await repo.transactions.list({
+      debtId: lent.id,
+      minAmount: 1,
+      sort: { by: "amount", dir: "desc" },
+    });
+    await repo.transactions.delete(first?.id ?? "");
+    expect((await repo.debts.get(lent.id))?.repaid).toBe(2000);
+  });
+
+  it("hides settled debts by default and edits", async () => {
+    const d = await repo.debts.create({
+      person: "Ana",
+      direction: "lent",
+      amount: 100,
+      currency: "EUR",
+    });
+    await repo.debts.update(d.id, { settled: true });
+    expect(await repo.debts.list()).toEqual([]);
+    expect(await repo.debts.list({ includeSettled: true })).toHaveLength(1);
+    await expectCode(
+      repo.debts.create({ person: "", direction: "lent", amount: 1, currency: "EUR" }),
+      "validation",
+    );
+    await expectCode(
+      repo.debts.create({ person: "x", direction: "lent", amount: 0, currency: "EUR" }),
+      "validation",
+    );
+  });
+
+  it("only links transactions to existing debts in the same currency", async () => {
+    const a = await account();
+    const d = await repo.debts.create({
+      person: "Ana",
+      direction: "lent",
+      amount: 100,
+      currency: "USD",
+    });
+    const missing = idSchema.parse("01900000-0000-7000-8000-000000000000");
+    await expectCode(tx(a.id, 100, missing), "validation");
+    await expectCode(tx(a.id, 100, d.id), "validation"); // EUR vs USD
+    const ok = await tx(a.id, 100, null);
+    await expectCode(repo.transactions.update(ok.id, { debtId: d.id }), "validation");
+    await expectCode(
+      repo.debts.get(d.id).then(() => repo.debts.update(missing, { settled: true })),
+      "not_found",
+    );
+  });
+
+  it("deleting a debt unlinks its repayments but keeps them", async () => {
+    const a = await account();
+    const d = await repo.debts.create({
+      person: "Ana",
+      direction: "lent",
+      amount: 10_000,
+      currency: "EUR",
+    });
+    const t1 = await tx(a.id, 3000, d.id);
+    await repo.debts.delete(d.id);
+    expect(await repo.debts.get(d.id)).toBeNull();
+    expect((await repo.transactions.get(t1.id))?.debtId).toBeNull();
+    await expectCode(repo.debts.delete(d.id), "not_found");
+  });
+
+  it("refuses to change the currency once repayments exist", async () => {
+    const a = await account();
+    const d = await repo.debts.create({
+      person: "Ana",
+      direction: "lent",
+      amount: 10_000,
+      currency: "EUR",
+    });
+    expect((await repo.debts.update(d.id, { currency: "USD" })).currency).toBe("USD");
+    await repo.debts.update(d.id, { currency: "EUR" });
+    await tx(a.id, 3000, d.id);
+    await expectCode(repo.debts.update(d.id, { currency: "USD" }), "validation");
+  });
+});
+
+describe("fx rates", () => {
+  const rate = (date: string, quote: string, r: string) => ({ date, base: "EUR", quote, rate: r });
+
+  it("stores rates, updates by key and lists by date range", async () => {
+    expect(await repo.fx.latestDate()).toBeNull();
+    expect(await repo.fx.list()).toEqual([]);
+    await repo.fx.upsert([
+      rate("2026-11-04", "USD", "1.10"),
+      rate("2026-11-05", "USD", "1.09"),
+      rate("2026-11-05", "GBP", "0.87"),
+    ]);
+    expect(await repo.fx.latestDate()).toBe("2026-11-05");
+    await repo.fx.upsert([rate("2026-11-05", "USD", "1.0950"), rate("2026-11-06", "USD", "1.08")]);
+    const all = await repo.fx.list();
+    expect(all).toHaveLength(4);
+    expect(all.find((r) => r.date === "2026-11-05" && r.quote === "USD")?.rate).toBe("1.0950");
+    expect(
+      (await repo.fx.list({ from: "2026-11-05", to: "2026-11-05" })).map((r) => r.quote),
+    ).toEqual(["GBP", "USD"]);
+    expect(await repo.fx.list({ from: "2026-11-06" })).toHaveLength(1);
+    expect(
+      raw.prepare("select count(*) as n from outbox where table_name = 'fx_rates'").get(),
+    ).toEqual({
+      n: 0,
+    });
+  });
+
+  it("handles batches larger than one statement can bind", async () => {
+    const letters = (n: number) =>
+      String.fromCharCode(65 + Math.floor(n / 676), 65 + (Math.floor(n / 26) % 26), 65 + (n % 26));
+    const rows = Array.from({ length: 1000 }, (_, i) => rate("2026-11-05", letters(i), "1.5"));
+    await repo.fx.upsert(rows);
+    expect(await repo.fx.list()).toHaveLength(1000);
+    await repo.fx.upsert([]);
+  });
+});
+
+describe("report entries", () => {
+  const range = { from: "2026-11-01", to: "2026-11-30" };
+
+  it("returns income and expenses with payee and kind, splits expanded, and filters", async () => {
+    const a = await account();
+    const b = await account({ name: "Other", openingBalance: 0 });
+    const food = await repo.categories.create({ name: "Food", type: "expense" });
+    const home = await repo.categories.create({ name: "Home", type: "expense" });
+    const tag = await repo.tags.create({ name: "trip" });
+    const base = { accountId: a.id, currency: "EUR", bookingDate: "2026-11-10" };
+    await repo.transactions.create({
+      ...base,
+      amount: -1000,
+      categoryId: food.id,
+      payee: "Shop",
+      tagIds: [tag.id],
+    });
+    await repo.transactions.create({
+      ...base,
+      amount: -900,
+      payee: "Mix",
+      splits: [
+        { amount: -600, categoryId: food.id },
+        { amount: -300, categoryId: home.id },
+      ],
+    });
+    await repo.transactions.create({ ...base, amount: 5000, payee: "Employer" });
+    await repo.transactions.create({
+      accountId: b.id,
+      currency: "EUR",
+      bookingDate: "2026-11-11",
+      amount: -50,
+    });
+    await repo.transactions.create({ ...base, amount: -777, excludedFromReports: true });
+    await repo.transactions.createTransfer({
+      fromAccountId: a.id,
+      toAccountId: b.id,
+      amount: 400,
+      bookingDate: "2026-11-10",
+    });
+
+    const all = await repo.transactions.reportEntries(range);
+    expect(all).toHaveLength(5);
+    expect(all.filter((e) => e.kind === "income").map((e) => e.payee)).toEqual(["Employer"]);
+    expect(all.reduce((s, e) => s + e.amount, 0)).toBe(-1000 - 900 + 5000 - 50);
+
+    const foodOnly = await repo.transactions.reportEntries(range, { categoryIds: [food.id] });
+    expect(foodOnly.map((e) => e.amount).sort((x, y) => x - y)).toEqual([-1000, -600]);
+    expect(await repo.transactions.reportEntries(range, { tagIds: [tag.id] })).toHaveLength(1);
+    expect(await repo.transactions.reportEntries(range, { accountIds: [b.id] })).toHaveLength(1);
+    expect(
+      await repo.transactions.reportEntries(range, { accountIds: [a.id], categoryIds: [home.id] }),
+    ).toHaveLength(1);
+    expect(await repo.transactions.reportEntries({ from: "2027-01-01", to: "2027-01-31" })).toEqual(
+      [],
+    );
+  });
+});
+
+describe("daily totals", () => {
+  it("sums every non-deleted transaction per account and day, transfers and excluded rows included", async () => {
+    const a = await account();
+    const b = await account({ name: "Other", openingBalance: 0 });
+    const base = { accountId: a.id, currency: "EUR" };
+    await repo.transactions.create({ ...base, bookingDate: "2026-11-01", amount: -100 });
+    await repo.transactions.create({
+      ...base,
+      bookingDate: "2026-11-01",
+      amount: -50,
+      excludedFromReports: true,
+    });
+    await repo.transactions.create({ ...base, bookingDate: "2026-11-03", amount: 300 });
+    const gone = await repo.transactions.create({
+      ...base,
+      bookingDate: "2026-11-03",
+      amount: 9999,
+    });
+    await repo.transactions.delete(gone.id);
+    await repo.transactions.createTransfer({
+      fromAccountId: a.id,
+      toAccountId: b.id,
+      amount: 70,
+      bookingDate: "2026-11-03",
+    });
+
+    const rows = await repo.transactions.dailyTotals();
+    expect(rows).toEqual(
+      [
+        { date: "2026-11-01", accountId: a.id, total: -150 },
+        { date: "2026-11-03", accountId: a.id, total: 300 - 70 },
+        { date: "2026-11-03", accountId: b.id, total: 70 },
+      ].sort((x, y) => x.date.localeCompare(y.date)),
+    );
+    expect(await repo.transactions.dailyTotals("2026-11-02")).toEqual([
+      { date: "2026-11-01", accountId: a.id, total: -150 },
+    ]);
+    // opening balance + all activity = the derived balance
+    const bal = (await repo.accounts.getWithBalance(a.id))?.balance;
+    expect(
+      100_000 + rows.filter((r) => r.accountId === a.id).reduce((s, r) => s + r.total, 0),
+    ).toBe(bal);
+  });
+});

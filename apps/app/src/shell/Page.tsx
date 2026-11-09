@@ -3,6 +3,7 @@ import Head from "expo-router/head";
 import type { ReactNode } from "react";
 import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { NotificationBell } from "../notifications/NotificationBell";
 import { PrivacyToggle } from "../security/PrivacyToggle";
 
 export interface PageProps {
@@ -36,6 +37,7 @@ export function Page({ title, subtitle, actions, fill, children }: PageProps) {
           {subtitle ? <Text tone="muted">{subtitle}</Text> : null}
         </View>
         <View className="flex-row items-center gap-2">
+          <NotificationBell />
           <PrivacyToggle />
           {actions}
         </View>
@@ -59,6 +61,9 @@ export function Page({ title, subtitle, actions, fill, children }: PageProps) {
       ) : (
         <ScrollView
           style={{ paddingTop: insets.top }}
+          contentContainerStyle={
+            bp === "phone" ? { paddingBottom: insets.bottom + 120 } : undefined
+          }
           contentContainerClassName="mx-auto w-full max-w-[1200px] gap-6 px-4 pt-6 pb-32 tablet:px-6 desktop:px-8 desktop:pt-8 desktop:pb-10"
           keyboardShouldPersistTaps="handled"
         >

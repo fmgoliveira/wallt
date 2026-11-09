@@ -1,8 +1,18 @@
 import {
   type Account,
   accountSchema,
+  type Budget,
+  budgetSchema,
   type Category,
   categorySchema,
+  type Debt,
+  debtSchema,
+  type Goal,
+  goalSchema,
+  isValidRRule,
+  type RecurringRule,
+  type ReportEntry,
+  recurringRuleSchema,
   splitsError,
   type Tag,
   type Transaction,
@@ -21,17 +31,27 @@ import type { Stamper } from "./stamper";
 import {
   type AccountPatch,
   type AccountWithBalance,
+  type BudgetPatch,
   type CategoryPatch,
   type CategorySpend,
   type DateRange,
+  type DebtPatch,
+  type DebtWithProgress,
+  type GoalPatch,
   type NewAccount,
+  type NewBudget,
   type NewCategory,
+  type NewDebt,
+  type NewGoal,
+  type NewRecurringRule,
   type NewSplit,
   type NewTag,
   type NewTransaction,
   type NewTransfer,
+  type RecurringRulePatch,
   type Repository,
   RepositoryError,
+  type SpendEntry,
   type TagPatch,
   type TransactionDetail,
   type TransactionFilter,
@@ -91,6 +111,26 @@ function txToRow(tx: Transaction): TxRow {
     needsReview: categorization.needsReview,
   };
 }
+
+type BudgetRow = typeof t.budgets.$inferSelect;
+
+const budgetFromRow = (row: BudgetRow): Budget =>
+  ({ ...row, scope: JSON.parse(row.scope) }) as Budget;
+const budgetToRow = (b: Budget): BudgetRow => ({ ...b, scope: JSON.stringify(b.scope) });
+type RecurringRow = typeof t.recurringRules.$inferSelect;
+
+const ruleFromRow = (row: RecurringRow): RecurringRule =>
+  ({ ...row, template: JSON.parse(row.template) }) as RecurringRule;
+const ruleToRow = (r: RecurringRule): RecurringRow => ({
+  ...r,
+  template: JSON.stringify(r.template),
+});
+type GoalRow = typeof t.goals.$inferSelect;
+
+const goalFromRow = (row: GoalRow): Goal =>
+  ({ ...row, accountIds: JSON.parse(row.accountIds) }) as Goal;
+const goalToRow = (g: Goal): GoalRow => ({ ...g, accountIds: JSON.stringify(g.accountIds) });
+const NO_SCOPE = { categoryIds: [], tagIds: [], accountIds: [] };
 
 const escapeLike = (s: string) => s.replace(/[\\%_]/g, (c) => `\\${c}`);
 
@@ -217,6 +257,130 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
     return row as Tag;
   }
 
+  async function activeBudget(id: string): Promise<Budget> {
+    const [row] = await db
+      .select()
+      .from(t.budgets)
+      .where(and(eq(t.budgets.id, id), isNull(t.budgets.deletedAt)));
+    if (!row) throw notFound("Budget", id);
+    return budgetFromRow(row);
+  }
+
+  /** A budget scope may only name things that exist, so a budget never silently covers nothing. */
+  async function requireScope(scope: Budget["scope"]) {
+    await requireCategories(scope.categoryIds);
+    for (const id of new Set(scope.tagIds)) {
+      try {
+        await activeTag(id);
+      } catch {
+        throw invalid(`Tag ${id} does not exist`);
+      }
+    }
+    for (const id of new Set(scope.accountIds)) {
+      try {
+        await activeAccount(id);
+      } catch {
+        throw invalid(`Account ${id} does not exist`);
+      }
+    }
+  }
+
+  async function activeRule(id: string): Promise<RecurringRule> {
+    const [row] = await db
+      .select()
+      .from(t.recurringRules)
+      .where(and(eq(t.recurringRules.id, id), isNull(t.recurringRules.deletedAt)));
+    if (!row) throw notFound("Recurring rule", id);
+    return ruleFromRow(row);
+  }
+
+  /** The template must point at a real account (same currency) and category, and the RRULE must be supported. */
+  async function checkRule(rule: RecurringRule) {
+    if (!isValidRRule(rule.rrule)) throw invalid(`Unsupported recurrence rule: ${rule.rrule}`);
+    const account = await activeAccount(rule.template.accountId).catch(() => {
+      throw invalid(`Account ${rule.template.accountId} does not exist`);
+    });
+    if (account.currency !== rule.template.currency) {
+      throw invalid(
+        `Template currency ${rule.template.currency} differs from account ${account.currency}`,
+      );
+    }
+    if (rule.template.amount === 0) throw invalid("A recurring amount must not be zero");
+    await requireCategories([rule.template.categoryId]);
+  }
+
+  async function activeGoal(id: string): Promise<Goal> {
+    const [row] = await db
+      .select()
+      .from(t.goals)
+      .where(and(eq(t.goals.id, id), isNull(t.goals.deletedAt)));
+    if (!row) throw notFound("Goal", id);
+    return goalFromRow(row);
+  }
+
+  async function activeDebt(id: string): Promise<Debt> {
+    const [row] = await db
+      .select()
+      .from(t.debts)
+      .where(and(eq(t.debts.id, id), isNull(t.debts.deletedAt)));
+    if (!row) throw notFound("Debt", id);
+    return row as Debt;
+  }
+
+  /** A transaction may only point at a debt that exists and is in the same currency. */
+  async function requireDebt(debtId: string | null | undefined, currency: string) {
+    if (!debtId) return;
+    const debt = await activeDebt(debtId).catch(() => {
+      throw invalid(`Debt ${debtId} does not exist`);
+    });
+    if (debt.currency !== currency) {
+      throw invalid(`Transaction currency ${currency} differs from debt ${debt.currency}`);
+    }
+  }
+
+  /** What has been repaid per debt: money received (lent) or paid (borrowed) on transactions linked to it. */
+  async function repaymentTotals(debtId?: string) {
+    const rows = await db
+      .select({
+        debtId: t.transactions.debtId,
+        received: sql<number>`coalesce(sum(case when ${t.transactions.amount} > 0 then ${t.transactions.amount} else 0 end), 0)`,
+        paid: sql<number>`coalesce(sum(case when ${t.transactions.amount} < 0 then -${t.transactions.amount} else 0 end), 0)`,
+        receivedCount: sql<number>`coalesce(sum(case when ${t.transactions.amount} > 0 then 1 else 0 end), 0)`,
+        paidCount: sql<number>`coalesce(sum(case when ${t.transactions.amount} < 0 then 1 else 0 end), 0)`,
+      })
+      .from(t.transactions)
+      .where(
+        and(
+          isNull(t.transactions.deletedAt),
+          debtId ? eq(t.transactions.debtId, debtId) : sql`${t.transactions.debtId} is not null`,
+        ),
+      )
+      .groupBy(t.transactions.debtId);
+    return new Map(rows.map((r) => [r.debtId as string, r]));
+  }
+
+  function withProgress(
+    debt: Debt,
+    totals: Awaited<ReturnType<typeof repaymentTotals>>,
+  ): DebtWithProgress {
+    const r = totals.get(debt.id);
+    const lent = debt.direction === "lent";
+    return {
+      ...debt,
+      repaid: Number((lent ? r?.received : r?.paid) ?? 0),
+      repaymentCount: Number((lent ? r?.receivedCount : r?.paidCount) ?? 0),
+    };
+  }
+
+  /** A goal may only link accounts that exist. */
+  async function requireAccounts(ids: readonly string[]) {
+    for (const id of new Set(ids)) {
+      await activeAccount(id).catch(() => {
+        throw invalid(`Account ${id} does not exist`);
+      });
+    }
+  }
+
   async function activeTransaction(id: string): Promise<Transaction> {
     const [row] = await db
       .select()
@@ -263,6 +427,7 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
     if (filter.categoryIds?.length) c.push(inArray(t.transactions.categoryId, filter.categoryIds));
     if (filter.kind) c.push(eq(t.transactions.kind, filter.kind));
     if (filter.status) c.push(eq(t.transactions.status, filter.status));
+    if (filter.debtId) c.push(eq(t.transactions.debtId, filter.debtId));
     if (filter.needsReview !== undefined)
       c.push(eq(t.transactions.needsReview, filter.needsReview));
     if (filter.from) c.push(gte(t.transactions.bookingDate, filter.from));
@@ -327,6 +492,71 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
       eq(t.transactions.excludedFromReports, false),
       gte(t.transactions.bookingDate, range.from),
       lte(t.transactions.bookingDate, range.to),
+    );
+  }
+
+  /**
+   * Expenses/income in a period as one row per transaction, or per split for split transactions (each split keeps
+   * the transaction's account, payee, kind and tags). Transfers and rows excluded from reports never appear.
+   */
+  async function flatEntries(
+    range: DateRange,
+    kinds: ("expense" | "income")[],
+  ): Promise<ReportEntry[]> {
+    const kindCond = inArray(t.transactions.kind, kinds);
+    const plain = await db
+      .select({
+        id: t.transactions.id,
+        date: t.transactions.bookingDate,
+        amount: t.transactions.amount,
+        currency: t.transactions.currency,
+        kind: t.transactions.kind,
+        categoryId: t.transactions.categoryId,
+        accountId: t.transactions.accountId,
+        payee: t.transactions.payee,
+      })
+      .from(t.transactions)
+      .where(
+        and(
+          reportable(range),
+          kindCond,
+          sql`not exists (select 1 from transaction_splits s where s.transaction_id = ${t.transactions.id} and s.deleted_at is null)`,
+        ),
+      );
+    const split = await db
+      .select({
+        id: t.transactions.id,
+        date: t.transactions.bookingDate,
+        amount: t.transactionSplits.amount,
+        currency: t.transactions.currency,
+        kind: t.transactions.kind,
+        categoryId: t.transactionSplits.categoryId,
+        accountId: t.transactions.accountId,
+        payee: t.transactions.payee,
+      })
+      .from(t.transactionSplits)
+      .innerJoin(t.transactions, eq(t.transactionSplits.transactionId, t.transactions.id))
+      .where(and(reportable(range), kindCond, isNull(t.transactionSplits.deletedAt)));
+    const links = await db
+      .select({
+        transactionId: t.transactionTags.transactionId,
+        tagId: t.transactionTags.tagId,
+      })
+      .from(t.transactionTags)
+      .innerJoin(t.transactions, eq(t.transactionTags.transactionId, t.transactions.id))
+      .where(and(reportable(range), isNull(t.transactionTags.deletedAt)));
+    const tagsOf = new Map<string, string[]>();
+    for (const l of links) {
+      const list = tagsOf.get(l.transactionId);
+      if (list) list.push(l.tagId);
+      else tagsOf.set(l.transactionId, [l.tagId]);
+    }
+    return [...plain, ...split].map(
+      ({ id, ...e }): ReportEntry => ({
+        ...e,
+        kind: e.kind as ReportEntry["kind"],
+        tagIds: tagsOf.get(id) ?? [],
+      }),
     );
   }
 
@@ -788,6 +1018,292 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
         }),
     };
 
+    const budgets: Repository["budgets"] = {
+      list: () =>
+        run(async () =>
+          (
+            await db
+              .select()
+              .from(t.budgets)
+              .where(isNull(t.budgets.deletedAt))
+              .orderBy(asc(t.budgets.createdAt), asc(t.budgets.id))
+          ).map(budgetFromRow),
+        ),
+      get: (id) =>
+        run(async () => {
+          const [row] = await db
+            .select()
+            .from(t.budgets)
+            .where(and(eq(t.budgets.id, id), isNull(t.budgets.deletedAt)));
+          return row ? budgetFromRow(row) : null;
+        }),
+      create: (input: NewBudget) =>
+        atomic(async () => {
+          const row = validate(
+            budgetSchema,
+            {
+              ...fresh(),
+              name: input.name,
+              period: input.period,
+              start: input.start,
+              end: input.end ?? null,
+              amount: input.amount,
+              currency: input.currency,
+              rollover: input.rollover ?? false,
+              scope: input.scope ?? NO_SCOPE,
+            },
+            "budget",
+          );
+          await requireScope(row.scope);
+          await db.insert(t.budgets).values(budgetToRow(row));
+          return row;
+        }),
+      update: (id, patch: BudgetPatch) =>
+        atomic(async () => {
+          const current = await activeBudget(id);
+          const row = validate(budgetSchema, { ...current, ...patch, ...stamp() }, "budget");
+          await requireScope(row.scope);
+          await db.update(t.budgets).set(budgetToRow(row)).where(eq(t.budgets.id, id));
+          return row;
+        }),
+      delete: (id) =>
+        atomic(async () => {
+          await activeBudget(id);
+          const now = stamp();
+          await db
+            .update(t.budgets)
+            .set({ ...now, deletedAt: now.updatedAt })
+            .where(eq(t.budgets.id, id));
+        }),
+    };
+
+    const fx: Repository["fx"] = {
+      list: (range) =>
+        run(async () => {
+          const conds: (SQL | undefined)[] = [];
+          if (range?.from) conds.push(gte(t.fxRates.date, range.from));
+          if (range?.to) conds.push(lte(t.fxRates.date, range.to));
+          return await db
+            .select()
+            .from(t.fxRates)
+            .where(and(...conds))
+            .orderBy(asc(t.fxRates.date), asc(t.fxRates.quote));
+        }),
+      upsert: (rows) =>
+        atomic(async () => {
+          // 4 bound values per row: stay well under SQLite's variable limit.
+          for (let i = 0; i < rows.length; i += 200) {
+            await db
+              .insert(t.fxRates)
+              .values(rows.slice(i, i + 200).map((r) => ({ ...r })))
+              .onConflictDoUpdate({
+                target: [t.fxRates.date, t.fxRates.base, t.fxRates.quote],
+                set: { rate: sql`excluded.rate` },
+              });
+          }
+        }),
+      latestDate: () =>
+        run(async () => {
+          const [row] = await db
+            .select({ date: sql<string | null>`max(${t.fxRates.date})` })
+            .from(t.fxRates);
+          return row?.date ?? null;
+        }),
+    };
+
+    const goals: Repository["goals"] = {
+      list: () =>
+        run(async () =>
+          (
+            await db
+              .select()
+              .from(t.goals)
+              .where(isNull(t.goals.deletedAt))
+              .orderBy(asc(t.goals.createdAt), asc(t.goals.id))
+          ).map(goalFromRow),
+        ),
+      get: (id) =>
+        run(async () => {
+          const [row] = await db
+            .select()
+            .from(t.goals)
+            .where(and(eq(t.goals.id, id), isNull(t.goals.deletedAt)));
+          return row ? goalFromRow(row) : null;
+        }),
+      create: (input: NewGoal) =>
+        atomic(async () => {
+          const row = validate(
+            goalSchema,
+            {
+              ...fresh(),
+              name: input.name,
+              targetAmount: input.targetAmount,
+              currency: input.currency,
+              deadline: input.deadline ?? null,
+              accountIds: input.accountIds ?? [],
+              color: input.color ?? null,
+            },
+            "goal",
+          );
+          await requireAccounts(row.accountIds);
+          await db.insert(t.goals).values(goalToRow(row));
+          return row;
+        }),
+      update: (id, patch: GoalPatch) =>
+        atomic(async () => {
+          const current = await activeGoal(id);
+          const row = validate(goalSchema, { ...current, ...patch, ...stamp() }, "goal");
+          await requireAccounts(row.accountIds);
+          await db.update(t.goals).set(goalToRow(row)).where(eq(t.goals.id, id));
+          return row;
+        }),
+      delete: (id) =>
+        atomic(async () => {
+          await activeGoal(id);
+          const now = stamp();
+          await db
+            .update(t.goals)
+            .set({ ...now, deletedAt: now.updatedAt })
+            .where(eq(t.goals.id, id));
+        }),
+    };
+
+    const debts: Repository["debts"] = {
+      list: (options) =>
+        run(async () => {
+          const conds = [isNull(t.debts.deletedAt)];
+          if (!options?.includeSettled) conds.push(eq(t.debts.settled, false));
+          const rows = (await db
+            .select()
+            .from(t.debts)
+            .where(and(...conds))
+            .orderBy(desc(t.debts.createdAt), asc(t.debts.id))) as Debt[];
+          const totals = await repaymentTotals();
+          return rows.map((d) => withProgress(d, totals));
+        }),
+      get: (id) =>
+        run(async () => {
+          const [row] = await db
+            .select()
+            .from(t.debts)
+            .where(and(eq(t.debts.id, id), isNull(t.debts.deletedAt)));
+          return row ? withProgress(row as Debt, await repaymentTotals(id)) : null;
+        }),
+      create: (input: NewDebt) =>
+        atomic(async () => {
+          const row = validate(
+            debtSchema,
+            {
+              ...fresh(),
+              person: input.person,
+              direction: input.direction,
+              amount: input.amount,
+              currency: input.currency,
+              settled: input.settled ?? false,
+            },
+            "debt",
+          );
+          await db.insert(t.debts).values(row);
+          return row;
+        }),
+      update: (id, patch: DebtPatch) =>
+        atomic(async () => {
+          const current = await activeDebt(id);
+          const row = validate(debtSchema, { ...current, ...patch, ...stamp() }, "debt");
+          if (row.currency !== current.currency) {
+            const [linked] = await db
+              .select({ id: t.transactions.id })
+              .from(t.transactions)
+              .where(and(eq(t.transactions.debtId, id), isNull(t.transactions.deletedAt)))
+              .limit(1);
+            if (linked) throw invalid("The currency cannot change once repayments are linked");
+          }
+          await db.update(t.debts).set(row).where(eq(t.debts.id, id));
+          return row;
+        }),
+      delete: (id) =>
+        atomic(async () => {
+          await activeDebt(id);
+          const linked = await db
+            .select({ id: t.transactions.id })
+            .from(t.transactions)
+            .where(and(eq(t.transactions.debtId, id), isNull(t.transactions.deletedAt)));
+          for (const l of linked) {
+            await db
+              .update(t.transactions)
+              .set({ ...stamp(), debtId: null })
+              .where(eq(t.transactions.id, l.id));
+          }
+          const now = stamp();
+          await db
+            .update(t.debts)
+            .set({ ...now, deletedAt: now.updatedAt })
+            .where(eq(t.debts.id, id));
+        }),
+    };
+
+    const recurring: Repository["recurring"] = {
+      list: (options) =>
+        run(async () => {
+          const conds = [isNull(t.recurringRules.deletedAt)];
+          if (!options?.includeInactive) conds.push(eq(t.recurringRules.active, true));
+          return (
+            await db
+              .select()
+              .from(t.recurringRules)
+              .where(and(...conds))
+              .orderBy(asc(t.recurringRules.nextDate), asc(t.recurringRules.id))
+          ).map(ruleFromRow);
+        }),
+      get: (id) =>
+        run(async () => {
+          const [row] = await db
+            .select()
+            .from(t.recurringRules)
+            .where(and(eq(t.recurringRules.id, id), isNull(t.recurringRules.deletedAt)));
+          return row ? ruleFromRow(row) : null;
+        }),
+      create: (input: NewRecurringRule) =>
+        atomic(async () => {
+          const row = validate(
+            recurringRuleSchema,
+            {
+              ...fresh(),
+              template: input.template,
+              rrule: input.rrule,
+              nextDate: input.nextDate,
+              autoDetected: input.autoDetected ?? false,
+              active: input.active ?? true,
+            },
+            "recurring rule",
+          );
+          await checkRule(row);
+          await db.insert(t.recurringRules).values(ruleToRow(row));
+          return row;
+        }),
+      update: (id, patch: RecurringRulePatch) =>
+        atomic(async () => {
+          const current = await activeRule(id);
+          const row = validate(
+            recurringRuleSchema,
+            { ...current, ...patch, ...stamp() },
+            "recurring rule",
+          );
+          await checkRule(row);
+          await db.update(t.recurringRules).set(ruleToRow(row)).where(eq(t.recurringRules.id, id));
+          return row;
+        }),
+      delete: (id) =>
+        atomic(async () => {
+          await activeRule(id);
+          const now = stamp();
+          await db
+            .update(t.recurringRules)
+            .set({ ...now, deletedAt: now.updatedAt })
+            .where(eq(t.recurringRules.id, id));
+        }),
+    };
+
     const transactions: Repository["transactions"] = {
       list: (filter = {}) =>
         run(async () => {
@@ -839,6 +1355,7 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
           const splits = input.splits ?? [];
           checkSplits(input.amount, splits);
           await requireCategories([input.categoryId, ...splits.map((s) => s.categoryId)]);
+          await requireDebt(input.debtId, input.currency);
 
           const categorised = !!input.categoryId;
           const row = validate(
@@ -911,6 +1428,8 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
             ...(newSplits ?? []).map((s) => s.categoryId),
           ]);
 
+          await requireDebt(merged.debtId, merged.currency);
+
           const row = validate(transactionSchema, merged, "transaction");
           await db.update(t.transactions).set(txToRow(row)).where(eq(t.transactions.id, id));
           if (newSplits) {
@@ -981,6 +1500,44 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
             else merged.set(key, { categoryId: row.categoryId, currency: row.currency, total });
           }
           return [...merged.values()].sort((a, b) => a.total - b.total);
+        }),
+      spendEntries: (range) =>
+        run(async () =>
+          (await flatEntries(range, ["expense"])).map(
+            ({ kind: _kind, payee: _payee, ...e }): SpendEntry => e,
+          ),
+        ),
+      reportEntries: (range, filter) =>
+        run(async () => {
+          const rows = await flatEntries(range, ["expense", "income"]);
+          const acc = filter?.accountIds?.length ? new Set(filter.accountIds) : null;
+          const cat = filter?.categoryIds?.length ? new Set(filter.categoryIds) : null;
+          const tag = filter?.tagIds?.length ? new Set(filter.tagIds) : null;
+          return rows.filter(
+            (r) =>
+              (!acc || acc.has(r.accountId)) &&
+              (!cat || (r.categoryId !== null && cat.has(r.categoryId))) &&
+              (!tag || r.tagIds.some((id) => tag.has(id))),
+          );
+        }),
+      dailyTotals: (to) =>
+        run(async () => {
+          const rows = await db
+            .select({
+              date: t.transactions.bookingDate,
+              accountId: t.transactions.accountId,
+              total: sql<number>`sum(${t.transactions.amount})`,
+            })
+            .from(t.transactions)
+            .where(
+              and(
+                isNull(t.transactions.deletedAt),
+                to ? lte(t.transactions.bookingDate, to) : undefined,
+              ),
+            )
+            .groupBy(t.transactions.bookingDate, t.transactions.accountId)
+            .orderBy(asc(t.transactions.bookingDate));
+          return rows.map((r) => ({ ...r, total: Number(r.total) }));
         }),
       createTransfer: (input: NewTransfer) =>
         atomic(async () => {
@@ -1081,6 +1638,11 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
       categories,
       tags,
       transactions,
+      budgets,
+      recurring,
+      fx,
+      goals,
+      debts,
       transaction: (fn) =>
         inTx ? fn(self) : exclusive(() => exec.transaction(() => fn(build(true)))),
     };

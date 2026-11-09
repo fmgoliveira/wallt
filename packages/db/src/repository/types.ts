@@ -1,4 +1,17 @@
-import type { Account, Category, Tag, Transaction, TransactionSplit } from "@wallt/core";
+import type {
+  Account,
+  Budget,
+  BudgetEntry,
+  Category,
+  Debt,
+  FxRow,
+  Goal,
+  RecurringRule,
+  ReportEntry,
+  Tag,
+  Transaction,
+  TransactionSplit,
+} from "@wallt/core";
 
 /**
  * Data-access interface (ADR 0002): fully async, no SQL, no sync calls. Android implements it on local SQLite
@@ -87,6 +100,91 @@ export interface TagsRepository {
   delete(id: string): Promise<void>;
 }
 
+/* ----------------------------------------------------------------- budgets */
+
+export type NewBudget = Pick<Budget, "name" | "period" | "start" | "amount" | "currency"> &
+  Partial<Pick<Budget, "end" | "rollover" | "scope">>;
+export type BudgetPatch = Partial<Omit<Budget, Stamped>>;
+
+export interface BudgetsRepository {
+  /** Active budgets, oldest first. */
+  list(): Promise<Budget[]>;
+  get(id: string): Promise<Budget | null>;
+  /** Scope ids must exist (categories, tags, accounts); a custom period needs an end date. */
+  create(input: NewBudget): Promise<Budget>;
+  update(id: string, patch: BudgetPatch): Promise<Budget>;
+  /** Soft delete (tombstone). */
+  delete(id: string): Promise<void>;
+}
+
+/* ------------------------------------------------------------ goals & debts */
+
+export type NewGoal = Pick<Goal, "name" | "targetAmount" | "currency"> &
+  Partial<Pick<Goal, "deadline" | "accountIds" | "color">>;
+export type GoalPatch = Partial<Omit<Goal, Stamped>>;
+
+export interface GoalsRepository {
+  /** Active goals, oldest first. Progress is derived from the linked accounts' balances, never stored. */
+  list(): Promise<Goal[]>;
+  get(id: string): Promise<Goal | null>;
+  /** Linked accounts must exist. */
+  create(input: NewGoal): Promise<Goal>;
+  update(id: string, patch: GoalPatch): Promise<Goal>;
+  delete(id: string): Promise<void>;
+}
+
+export type NewDebt = Pick<Debt, "person" | "direction" | "amount" | "currency"> &
+  Partial<Pick<Debt, "settled">>;
+export type DebtPatch = Partial<Omit<Debt, Stamped>>;
+
+/**
+ * A debt with what has been repaid so far, derived from the transactions linked to it (`debtId`): money received
+ * for a debt you lent, money paid for one you borrowed. Never stored.
+ */
+export type DebtWithProgress = Debt & { repaid: number; repaymentCount: number };
+
+export interface DebtsRepository {
+  /** Open debts, newest first; settled ones only with `includeSettled`. */
+  list(options?: { includeSettled?: boolean }): Promise<DebtWithProgress[]>;
+  get(id: string): Promise<DebtWithProgress | null>;
+  create(input: NewDebt): Promise<Debt>;
+  update(id: string, patch: DebtPatch): Promise<Debt>;
+  /** Soft delete; transactions linked to it are kept and unlinked. */
+  delete(id: string): Promise<void>;
+}
+
+/* ---------------------------------------------------------------------- fx */
+
+/**
+ * ECB reference rates (units of `quote` per 1 EUR). Not a synced table: the server owns them and clients download
+ * them through `GET /fx/rates` into the local copy of `fx_rates`. Nothing here goes through the outbox.
+ */
+export interface FxRepository {
+  /** Rates with `from <= date <= to` (both optional), oldest first. */
+  list(range?: { from?: string; to?: string }): Promise<FxRow[]>;
+  /** Insert or update by (date, base, quote). */
+  upsert(rows: readonly FxRow[]): Promise<void>;
+  /** Newest date held, or null when there are no rates yet. */
+  latestDate(): Promise<string | null>;
+}
+
+/* --------------------------------------------------------------- recurring */
+
+export type NewRecurringRule = Pick<RecurringRule, "template" | "rrule" | "nextDate"> &
+  Partial<Pick<RecurringRule, "autoDetected" | "active">>;
+export type RecurringRulePatch = Partial<Omit<RecurringRule, Stamped>>;
+
+export interface RecurringRepository {
+  /** Active rules by next due date; paused ones only with `includeInactive`. */
+  list(options?: { includeInactive?: boolean }): Promise<RecurringRule[]>;
+  get(id: string): Promise<RecurringRule | null>;
+  /** The RRULE must parse (see `parseRRule`); the template's account and category must exist and match its currency. */
+  create(input: NewRecurringRule): Promise<RecurringRule>;
+  update(id: string, patch: RecurringRulePatch): Promise<RecurringRule>;
+  /** Soft delete (tombstone). Transactions already posted from the rule stay. */
+  delete(id: string): Promise<void>;
+}
+
 /* ------------------------------------------------------------ transactions */
 
 export type NewSplit = Pick<TransactionSplit, "amount"> &
@@ -157,6 +255,8 @@ export interface TransactionFilter {
   kind?: Transaction["kind"];
   status?: Transaction["status"];
   needsReview?: boolean;
+  /** Transactions linked to this debt (its repayments). */
+  debtId?: string;
   /** Inclusive `YYYY-MM-DD` bounds on `bookingDate`. */
   from?: string;
   to?: string;
@@ -187,6 +287,24 @@ export interface CategorySpend {
   total: number;
 }
 
+/** One expense, or one split of a split expense, in its own currency: the input of budget math. */
+export type SpendEntry = BudgetEntry & { currency: string };
+
+/** Optional narrowing of report entries; lists are "any of", dimensions combine with AND. */
+export interface ReportFilter {
+  accountIds?: string[];
+  /** Matched against each entry's own category (a split's, for split transactions). */
+  categoryIds?: string[];
+  tagIds?: string[];
+}
+
+/** Everything a transaction did to one account on one day (transfers included), in the account's currency. */
+export interface DailyTotal {
+  date: string;
+  accountId: string;
+  total: number;
+}
+
 export interface TransactionsRepository {
   /** Newest booking date first (then newest created). `limit` defaults to 100. */
   list(
@@ -204,6 +322,21 @@ export interface TransactionsRepository {
   cashflow(range: DateRange): Promise<Cashflow[]>;
   /** Expense totals per category for a period (largest spending first). Computed in SQL, never stored. */
   spendingByCategory(range: DateRange): Promise<CategorySpend[]>;
+  /**
+   * Expenses in a period as flat entries for budgets: a split transaction yields one entry per split (each with the
+   * transaction's account and tags); transfers, income and rows excluded from reports are left out.
+   */
+  spendEntries(range: DateRange): Promise<SpendEntry[]>;
+  /**
+   * Income and expenses in a period as flat entries for reports (splits expanded, transfers and rows excluded from
+   * reports left out), optionally narrowed by account, category and tag.
+   */
+  reportEntries(range: DateRange, filter?: ReportFilter): Promise<ReportEntry[]>;
+  /**
+   * Per account and day, the sum of all non-deleted transactions up to `to` (transfers included, whatever
+   * `excludedFromReports` says: balances are real). With `opening` accounts' opening balances give net worth over time.
+   */
+  dailyTotals(to?: string): Promise<DailyTotal[]>;
   createTransfer(input: NewTransfer): Promise<[TransactionDetail, TransactionDetail]>;
   /** Edits both legs together; `id` may be either leg. */
   updateTransfer(id: string, patch: TransferPatch): Promise<[TransactionDetail, TransactionDetail]>;
@@ -221,6 +354,11 @@ export interface Repository {
   categories: CategoriesRepository;
   tags: TagsRepository;
   transactions: TransactionsRepository;
+  budgets: BudgetsRepository;
+  recurring: RecurringRepository;
+  fx: FxRepository;
+  goals: GoalsRepository;
+  debts: DebtsRepository;
   /**
    * Runs `fn` atomically: everything commits together or not at all. Re-entrant (nested calls join the
    * outer transaction). Use it for batches: writes outside a transaction cost 50-150 ms each on web.

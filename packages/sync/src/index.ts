@@ -1,6 +1,7 @@
 export * from "./auth";
 export * from "./conflict";
 export * from "./engine";
+export * from "./fx";
 export * from "./hlc";
 export * from "./http";
 export * from "./protocol";

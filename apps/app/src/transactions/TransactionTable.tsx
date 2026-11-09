@@ -122,7 +122,7 @@ export function TransactionTable({
   const fixed = (width: number): ViewStyle => ({ width, flexShrink: 0 });
 
   return (
-    <Card className="flex-1 overflow-hidden p-0 tablet:p-0">
+    <Card className="shrink grow-0 overflow-hidden p-0 tablet:p-0">
       <View
         role="row"
         className="flex-row items-center border-b border-border"

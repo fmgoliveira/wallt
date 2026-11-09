@@ -5,11 +5,20 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import {
+  type Budget,
+  type BudgetStatus,
+  budgetStatus,
+  entriesNeededFrom,
+  expandCategoryIds,
+} from "@wallt/core";
 import type {
   AccountPatch,
+  BudgetPatch,
   CategoryPatch,
   DateRange,
   NewAccount,
+  NewBudget,
   NewCategory,
   NewTag,
   NewTransaction,
@@ -29,6 +38,11 @@ export const queryKeys = {
   categories: ["categories"] as const,
   tags: ["tags"] as const,
   transactions: ["transactions"] as const,
+  budgets: ["budgets"] as const,
+  recurring: ["recurring"] as const,
+  goals: ["goals"] as const,
+  debts: ["debts"] as const,
+  fx: ["fx"] as const,
 };
 
 type Root = keyof typeof queryKeys;
@@ -38,10 +52,15 @@ type Root = keyof typeof queryKeys;
  * deleting an account/category/tag changes how transactions are shown.
  */
 const invalidates: Record<Root, Root[]> = {
-  accounts: ["accounts", "transactions"],
-  categories: ["categories", "transactions"],
-  tags: ["tags", "transactions"],
-  transactions: ["transactions", "accounts", "categories"],
+  accounts: ["accounts", "transactions", "budgets", "goals", "debts"],
+  categories: ["categories", "transactions", "budgets"],
+  tags: ["tags", "transactions", "budgets"],
+  transactions: ["transactions", "accounts", "categories", "budgets", "goals", "debts"],
+  budgets: ["budgets"],
+  recurring: ["recurring", "transactions", "accounts", "categories", "budgets", "goals", "debts"],
+  goals: ["goals"],
+  fx: ["fx"],
+  debts: ["debts", "transactions", "accounts", "categories", "budgets", "goals"],
 };
 
 function invalidate(client: QueryClient, root: Root) {
@@ -51,7 +70,7 @@ function invalidate(client: QueryClient, root: Root) {
 }
 
 /** A query that waits for the data source and talks to the `Repository` only. */
-function useRepoQuery<T>(key: readonly unknown[], fn: (repo: Repository) => Promise<T>) {
+export function useRepoQuery<T>(key: readonly unknown[], fn: (repo: Repository) => Promise<T>) {
   const data = useDataState();
   return useQuery({
     queryKey: key,
@@ -63,7 +82,7 @@ function useRepoQuery<T>(key: readonly unknown[], fn: (repo: Repository) => Prom
   });
 }
 
-function useRepoMutation<TInput, TOutput>(
+export function useRepoMutation<TInput, TOutput>(
   root: Root,
   fn: (repo: Repository, input: TInput) => Promise<TOutput>,
 ) {
@@ -217,4 +236,50 @@ export const useCashflow = (range: DateRange) =>
 export const useSpendingByCategory = (range: DateRange) =>
   useRepoQuery([...queryKeys.transactions, "spending", range], (r) =>
     r.transactions.spendingByCategory(range),
+  );
+
+/* ---------------------------------------------------------------- budgets */
+
+export const useBudgets = () =>
+  useRepoQuery([...queryKeys.budgets, "list"], (r) => r.budgets.list());
+
+export const useCreateBudget = () =>
+  useRepoMutation("budgets", (r, input: NewBudget) => r.budgets.create(input));
+export const useUpdateBudget = () =>
+  useRepoMutation("budgets", (r, input: { id: string; patch: BudgetPatch }) =>
+    r.budgets.update(input.id, input.patch),
+  );
+export const useDeleteBudget = () =>
+  useRepoMutation("budgets", (r, id: string) => r.budgets.delete(id));
+
+export interface BudgetWithStatus {
+  budget: Budget;
+  /** Null only for a custom budget without an end date (cannot exist through the repository). */
+  status: BudgetStatus | null;
+}
+
+/**
+ * Every budget with where it stands on `today`. One entries query covers all budgets: it starts at the earliest
+ * date any budget needs (the budget's start when it rolls over, else its current period).
+ */
+export const useBudgetStatuses = (today: string) =>
+  useRepoQuery(
+    [...queryKeys.budgets, "statuses", today],
+    async (r): Promise<BudgetWithStatus[]> => {
+      const budgets = await r.budgets.list();
+      if (budgets.length === 0) return [];
+      const categories = await r.categories.list({ includeArchived: true });
+      const froms = budgets.map((b) => entriesNeededFrom(b, today)).filter((d): d is string => !!d);
+      const from = [today, ...froms].sort()[0] ?? today;
+      const entries = await r.transactions.spendEntries({ from, to: "9999-12-31" });
+      return budgets.map((budget) => ({
+        budget,
+        status: budgetStatus(
+          budget,
+          entries.filter((e) => e.currency === budget.currency),
+          today,
+          expandCategoryIds(budget.scope.categoryIds, categories),
+        ),
+      }));
+    },
   );

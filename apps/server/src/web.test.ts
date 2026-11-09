@@ -69,14 +69,17 @@ describe("static web + security headers", () => {
     for (const path of ["/", "/health", "/nope.js"]) {
       const h = (await app.request(path)).headers;
       const csp = h.get("content-security-policy") ?? "";
-      expect(csp).toContain(`script-src 'self' ${hash}`);
+      expect(csp).toContain(`script-src 'self' ${hash} 'wasm-unsafe-eval'`);
+      expect(csp).toContain("worker-src 'self' blob:");
       expect(csp).not.toMatch(/script-src[^;]*unsafe-inline/);
       expect(csp).toContain("frame-ancestors 'none'");
       expect(csp).toContain("object-src 'none'");
       expect(h.get("strict-transport-security")).toContain("max-age=31536000");
       expect(h.get("x-content-type-options")).toBe("nosniff");
       expect(h.get("x-frame-options")).toBe("DENY");
-      expect(h.get("cross-origin-embedder-policy")).toBeNull();
+      // cross-origin isolation, required by the web SQLite (SharedArrayBuffer / OPFS)
+      expect(h.get("cross-origin-embedder-policy")).toBe("credentialless");
+      expect(h.get("cross-origin-opener-policy")).toBe("same-origin");
     }
     expect(inlineScriptHashes("/does/not/exist")).toEqual([]);
     db.close();
