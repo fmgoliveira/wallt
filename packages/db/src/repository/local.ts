@@ -11,6 +11,7 @@ import {
   goalSchema,
   isValidRRule,
   type RecurringRule,
+  type ReportEntry,
   recurringRuleSchema,
   splitsError,
   type Tag,
@@ -491,6 +492,71 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
       eq(t.transactions.excludedFromReports, false),
       gte(t.transactions.bookingDate, range.from),
       lte(t.transactions.bookingDate, range.to),
+    );
+  }
+
+  /**
+   * Expenses/income in a period as one row per transaction, or per split for split transactions (each split keeps
+   * the transaction's account, payee, kind and tags). Transfers and rows excluded from reports never appear.
+   */
+  async function flatEntries(
+    range: DateRange,
+    kinds: ("expense" | "income")[],
+  ): Promise<ReportEntry[]> {
+    const kindCond = inArray(t.transactions.kind, kinds);
+    const plain = await db
+      .select({
+        id: t.transactions.id,
+        date: t.transactions.bookingDate,
+        amount: t.transactions.amount,
+        currency: t.transactions.currency,
+        kind: t.transactions.kind,
+        categoryId: t.transactions.categoryId,
+        accountId: t.transactions.accountId,
+        payee: t.transactions.payee,
+      })
+      .from(t.transactions)
+      .where(
+        and(
+          reportable(range),
+          kindCond,
+          sql`not exists (select 1 from transaction_splits s where s.transaction_id = ${t.transactions.id} and s.deleted_at is null)`,
+        ),
+      );
+    const split = await db
+      .select({
+        id: t.transactions.id,
+        date: t.transactions.bookingDate,
+        amount: t.transactionSplits.amount,
+        currency: t.transactions.currency,
+        kind: t.transactions.kind,
+        categoryId: t.transactionSplits.categoryId,
+        accountId: t.transactions.accountId,
+        payee: t.transactions.payee,
+      })
+      .from(t.transactionSplits)
+      .innerJoin(t.transactions, eq(t.transactionSplits.transactionId, t.transactions.id))
+      .where(and(reportable(range), kindCond, isNull(t.transactionSplits.deletedAt)));
+    const links = await db
+      .select({
+        transactionId: t.transactionTags.transactionId,
+        tagId: t.transactionTags.tagId,
+      })
+      .from(t.transactionTags)
+      .innerJoin(t.transactions, eq(t.transactionTags.transactionId, t.transactions.id))
+      .where(and(reportable(range), isNull(t.transactionTags.deletedAt)));
+    const tagsOf = new Map<string, string[]>();
+    for (const l of links) {
+      const list = tagsOf.get(l.transactionId);
+      if (list) list.push(l.tagId);
+      else tagsOf.set(l.transactionId, [l.tagId]);
+    }
+    return [...plain, ...split].map(
+      ({ id, ...e }): ReportEntry => ({
+        ...e,
+        kind: e.kind as ReportEntry["kind"],
+        tagIds: tagsOf.get(id) ?? [],
+      }),
     );
   }
 
@@ -1436,59 +1502,42 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
           return [...merged.values()].sort((a, b) => a.total - b.total);
         }),
       spendEntries: (range) =>
+        run(async () =>
+          (await flatEntries(range, ["expense"])).map(
+            ({ kind: _kind, payee: _payee, ...e }): SpendEntry => e,
+          ),
+        ),
+      reportEntries: (range, filter) =>
         run(async () => {
-          const plain = await db
+          const rows = await flatEntries(range, ["expense", "income"]);
+          const acc = filter?.accountIds?.length ? new Set(filter.accountIds) : null;
+          const cat = filter?.categoryIds?.length ? new Set(filter.categoryIds) : null;
+          const tag = filter?.tagIds?.length ? new Set(filter.tagIds) : null;
+          return rows.filter(
+            (r) =>
+              (!acc || acc.has(r.accountId)) &&
+              (!cat || (r.categoryId !== null && cat.has(r.categoryId))) &&
+              (!tag || r.tagIds.some((id) => tag.has(id))),
+          );
+        }),
+      dailyTotals: (to) =>
+        run(async () => {
+          const rows = await db
             .select({
-              id: t.transactions.id,
               date: t.transactions.bookingDate,
-              amount: t.transactions.amount,
-              currency: t.transactions.currency,
-              categoryId: t.transactions.categoryId,
               accountId: t.transactions.accountId,
+              total: sql<number>`sum(${t.transactions.amount})`,
             })
             .from(t.transactions)
             .where(
               and(
-                reportable(range),
-                eq(t.transactions.kind, "expense"),
-                sql`not exists (select 1 from transaction_splits s where s.transaction_id = ${t.transactions.id} and s.deleted_at is null)`,
+                isNull(t.transactions.deletedAt),
+                to ? lte(t.transactions.bookingDate, to) : undefined,
               ),
-            );
-          const split = await db
-            .select({
-              id: t.transactions.id,
-              date: t.transactions.bookingDate,
-              amount: t.transactionSplits.amount,
-              currency: t.transactions.currency,
-              categoryId: t.transactionSplits.categoryId,
-              accountId: t.transactions.accountId,
-            })
-            .from(t.transactionSplits)
-            .innerJoin(t.transactions, eq(t.transactionSplits.transactionId, t.transactions.id))
-            .where(
-              and(
-                reportable(range),
-                eq(t.transactions.kind, "expense"),
-                isNull(t.transactionSplits.deletedAt),
-              ),
-            );
-          const links = await db
-            .select({
-              transactionId: t.transactionTags.transactionId,
-              tagId: t.transactionTags.tagId,
-            })
-            .from(t.transactionTags)
-            .innerJoin(t.transactions, eq(t.transactionTags.transactionId, t.transactions.id))
-            .where(and(reportable(range), isNull(t.transactionTags.deletedAt)));
-          const tagsOf = new Map<string, string[]>();
-          for (const l of links) {
-            const list = tagsOf.get(l.transactionId);
-            if (list) list.push(l.tagId);
-            else tagsOf.set(l.transactionId, [l.tagId]);
-          }
-          return [...plain, ...split].map(
-            ({ id, ...e }): SpendEntry => ({ ...e, tagIds: tagsOf.get(id) ?? [] }),
-          );
+            )
+            .groupBy(t.transactions.bookingDate, t.transactions.accountId)
+            .orderBy(asc(t.transactions.bookingDate));
+          return rows.map((r) => ({ ...r, total: Number(r.total) }));
         }),
       createTransfer: (input: NewTransfer) =>
         atomic(async () => {
