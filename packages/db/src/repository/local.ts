@@ -21,6 +21,8 @@ import {
   type AccountPatch,
   type AccountWithBalance,
   type CategoryPatch,
+  type CategorySpend,
+  type DateRange,
   type NewAccount,
   type NewCategory,
   type NewSplit,
@@ -313,6 +315,16 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): R
     }
     if (sort.by === "amount") return [dir(t.transactions.amount), ...newest];
     return [dir(sql`lower(${t.transactions.payee})`), ...newest];
+  }
+
+  /** Transactions that count in reports for a period: not deleted, not excluded, inside the dates. */
+  function reportable(range: DateRange): SQL | undefined {
+    return and(
+      isNull(t.transactions.deletedAt),
+      eq(t.transactions.excludedFromReports, false),
+      gte(t.transactions.bookingDate, range.from),
+      lte(t.transactions.bookingDate, range.to),
+    );
   }
 
   function checkSign(kind: Transaction["kind"], amount: number) {
@@ -904,6 +916,68 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): R
           }
           if (tagIds) await syncTags(id, tagIds);
           return loadDetail(row);
+        }),
+      cashflow: (range) =>
+        run(async () => {
+          const rows = await db
+            .select({
+              currency: t.transactions.currency,
+              income: sql<number>`coalesce(sum(case when ${t.transactions.kind} = 'income' then ${t.transactions.amount} else 0 end), 0)`,
+              expense: sql<number>`coalesce(sum(case when ${t.transactions.kind} = 'expense' then ${t.transactions.amount} else 0 end), 0)`,
+            })
+            .from(t.transactions)
+            .where(reportable(range))
+            .groupBy(t.transactions.currency)
+            .orderBy(asc(t.transactions.currency));
+          return rows.map((r) => ({
+            currency: r.currency,
+            income: Number(r.income),
+            expense: Number(r.expense),
+          }));
+        }),
+      spendingByCategory: (range) =>
+        run(async () => {
+          // Rows without splits count under their own category; rows with splits under each split's category.
+          const plain = await db
+            .select({
+              categoryId: t.transactions.categoryId,
+              currency: t.transactions.currency,
+              total: sql<number>`sum(${t.transactions.amount})`,
+            })
+            .from(t.transactions)
+            .where(
+              and(
+                reportable(range),
+                eq(t.transactions.kind, "expense"),
+                sql`not exists (select 1 from transaction_splits s where s.transaction_id = ${t.transactions.id} and s.deleted_at is null)`,
+              ),
+            )
+            .groupBy(t.transactions.categoryId, t.transactions.currency);
+          const split = await db
+            .select({
+              categoryId: t.transactionSplits.categoryId,
+              currency: t.transactions.currency,
+              total: sql<number>`sum(${t.transactionSplits.amount})`,
+            })
+            .from(t.transactionSplits)
+            .innerJoin(t.transactions, eq(t.transactionSplits.transactionId, t.transactions.id))
+            .where(
+              and(
+                reportable(range),
+                eq(t.transactions.kind, "expense"),
+                isNull(t.transactionSplits.deletedAt),
+              ),
+            )
+            .groupBy(t.transactionSplits.categoryId, t.transactions.currency);
+          const merged = new Map<string, CategorySpend>();
+          for (const row of [...plain, ...split]) {
+            const key = `${row.categoryId ?? ""}|${row.currency}`;
+            const cur = merged.get(key);
+            const total = Number(row.total);
+            if (cur) cur.total += total;
+            else merged.set(key, { categoryId: row.categoryId, currency: row.currency, total });
+          }
+          return [...merged.values()].sort((a, b) => a.total - b.total);
         }),
       createTransfer: (input: NewTransfer) =>
         atomic(async () => {

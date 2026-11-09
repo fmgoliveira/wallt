@@ -167,6 +167,26 @@ export interface TransactionFilter {
   maxAmount?: number;
 }
 
+/** Inclusive `YYYY-MM-DD` bounds. */
+export interface DateRange {
+  from: string;
+  to: string;
+}
+
+/** Money in and out over a period, per currency. `expense` is negative (sign convention). Transfers and rows excluded from reports are left out. */
+export interface Cashflow {
+  currency: string;
+  income: number;
+  expense: number;
+}
+
+/** Spending (negative) per category and currency over a period; splits count towards their own category. `categoryId` null = uncategorised. */
+export interface CategorySpend {
+  categoryId: string | null;
+  currency: string;
+  total: number;
+}
+
 export interface TransactionsRepository {
   /** Newest booking date first (then newest created). `limit` defaults to 100. */
   list(
@@ -180,6 +200,10 @@ export interface TransactionsRepository {
    * Creates the two linked rows of a transfer: `[source leg (negative), destination leg (positive)]`.
    * Transfers have no category, splits or tags. Different accounts, same currency (no FX yet).
    */
+  /** Income and expense totals for a period, one row per currency. Computed in SQL, never stored. */
+  cashflow(range: DateRange): Promise<Cashflow[]>;
+  /** Expense totals per category for a period (largest spending first). Computed in SQL, never stored. */
+  spendingByCategory(range: DateRange): Promise<CategorySpend[]>;
   createTransfer(input: NewTransfer): Promise<[TransactionDetail, TransactionDetail]>;
   /** Edits both legs together; `id` may be either leg. */
   updateTransfer(id: string, patch: TransferPatch): Promise<[TransactionDetail, TransactionDetail]>;

@@ -872,5 +872,77 @@ describe("scale", () => {
     expect(
       await timed("count", () => repo.transactions.count({ search: "payee 69" })),
     ).toBeLessThan(budget);
+    const month = { from: "2026-03-01", to: "2026-03-31" };
+    expect(await timed("month cashflow", () => repo.transactions.cashflow(month))).toBeLessThan(
+      budget,
+    );
+    expect(
+      await timed("month spending by category", () => repo.transactions.spendingByCategory(month)),
+    ).toBeLessThan(budget);
+    expect(
+      await timed("net worth (balances)", () => repo.accounts.listWithBalances()),
+    ).toBeLessThan(budget);
   }, 60_000);
+});
+
+describe("dashboard aggregates", () => {
+  const range = { from: "2026-11-01", to: "2026-11-30" };
+
+  it("sums income and expense per currency, skipping transfers, excluded rows and other months", async () => {
+    const a = await account();
+    const b = await account({ name: "Savings", openingBalance: 0 });
+    const usd = await account({ name: "USD", currency: "USD" });
+    const tx = (accountId: string, amount: number, over: Record<string, unknown> = {}) =>
+      repo.transactions.create({
+        accountId,
+        amount,
+        currency: accountId === usd.id ? "USD" : "EUR",
+        bookingDate: "2026-11-10",
+        ...over,
+      });
+    await tx(a.id, -1000);
+    await tx(a.id, -250, { status: "pending" });
+    await tx(a.id, 5000);
+    await tx(a.id, -9999, { excludedFromReports: true });
+    await tx(a.id, -777, { bookingDate: "2026-10-31" });
+    await tx(usd.id, -300);
+    await repo.transactions.createTransfer({
+      fromAccountId: a.id,
+      toAccountId: b.id,
+      amount: 4000,
+      bookingDate: "2026-11-11",
+    });
+    expect(await repo.transactions.cashflow(range)).toEqual([
+      { currency: "EUR", income: 5000, expense: -1250 },
+      { currency: "USD", income: 0, expense: -300 },
+    ]);
+    expect(await repo.transactions.cashflow({ from: "2027-01-01", to: "2027-01-31" })).toEqual([]);
+  });
+
+  it("totals spending per category, counting splits under their own categories", async () => {
+    const a = await account();
+    const food = await repo.categories.create({ name: "Food", type: "expense" });
+    const home = await repo.categories.create({ name: "Home", type: "expense" });
+    const base = { accountId: a.id, currency: "EUR", bookingDate: "2026-11-10" };
+    await repo.transactions.create({ ...base, amount: -1000, categoryId: food.id });
+    await repo.transactions.create({ ...base, amount: -500 }); // uncategorised
+    await repo.transactions.create({
+      ...base,
+      amount: -900,
+      splits: [
+        { amount: -600, categoryId: food.id },
+        { amount: -300, categoryId: home.id },
+      ],
+    });
+    await repo.transactions.create({ ...base, amount: 7000 }); // income: not spending
+    const rows = await repo.transactions.spendingByCategory(range);
+    expect(rows).toEqual([
+      { categoryId: food.id, currency: "EUR", total: -1600 },
+      { categoryId: null, currency: "EUR", total: -500 },
+      { categoryId: home.id, currency: "EUR", total: -300 },
+    ]);
+    // the parts add up to total expenses
+    expect(rows.reduce((s, r) => s + r.total, 0)).toBe(-2400);
+    expect((await repo.transactions.cashflow(range))[0]?.expense).toBe(-2400);
+  });
 });
