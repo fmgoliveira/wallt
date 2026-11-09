@@ -418,13 +418,37 @@ function EditorForm({
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (/^\d$/.test(e.key)) setAmount((v) => pressDigits(v, e.key));
       else if (e.key === "Backspace") setAmount((v) => backspace(v));
-      else if (e.key === "Enter" && amount > 0) setStep(steps[1] ?? "account");
       else return;
       e.preventDefault();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [step, amount, steps]);
+  }, [step]);
+
+  // Enter = the primary button: Next on every step but the last, Save on the last (web).
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const onEnter = (e: KeyboardEvent) => {
+      if (e.key !== "Enter" || e.shiftKey || e.metaKey || e.ctrlKey || e.altKey || e.isComposing)
+        return;
+      if (confirmDelete || e.defaultPrevented) return;
+      const t = e.target as HTMLElement | null;
+      // Focused buttons/links/selects activate themselves; textareas need Enter for newlines.
+      if (t && ["BUTTON", "A", "SELECT", "TEXTAREA"].includes(t.tagName)) return;
+      if (t?.getAttribute("role") === "button" || t?.getAttribute("role") === "radio") return;
+      if (last) {
+        // Single-line inputs on the last step (e.g. new tag) handle Enter themselves.
+        if (t?.tagName === "INPUT" || busy || invalid) return;
+        e.preventDefault();
+        void save();
+      } else if (amount > 0) {
+        e.preventDefault();
+        go(1);
+      }
+    };
+    document.addEventListener("keydown", onEnter);
+    return () => document.removeEventListener("keydown", onEnter);
+  });
 
   function changeKind(next: Kind) {
     setKind(next);

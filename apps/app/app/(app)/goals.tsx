@@ -38,8 +38,7 @@ const sections = [
 
 function useMoney() {
   const hidden = usePrivacyStore((s) => s.hidden);
-  return (amount: number, currency: string) =>
-    hidden ? "••••" : formatAmount({ amount, currency });
+  return (amount: number, currency: string) => (hidden ? "—" : formatAmount({ amount, currency }));
 }
 
 function GoalsList({ onAdd, onEdit }: { onAdd: () => void; onEdit: (id: string) => void }) {

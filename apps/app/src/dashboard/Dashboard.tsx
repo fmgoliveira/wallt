@@ -122,7 +122,7 @@ function NetWorth({ range }: { range: { from: string; to: string } }) {
               key={f.currency}
               onHero={net >= 0}
               tone={net >= 0 ? "positive" : "negative"}
-              label={`${hidden ? "••••" : `${net >= 0 ? "+" : ""}${formatAmount({ amount: net, currency: f.currency })}`} this month`}
+              label={`${hidden ? "Hidden" : `${net >= 0 ? "+" : ""}${formatAmount({ amount: net, currency: f.currency })} this month`}`}
             />
           );
         })}
@@ -265,7 +265,7 @@ function Recent() {
   const open = (row: TxRow) => useEditorStore.getState().openEdit(row.id);
 
   return (
-    <Card className="gap-1 p-0 tablet:p-0">
+    <Card className="gap-1 p-0">
       <View className="flex-row items-center justify-between px-4 pt-4 pb-2 tablet:px-5">
         <Text variant="title">Recent</Text>
         <Pressable
@@ -327,13 +327,13 @@ function Recent() {
 }
 
 /** Slot for the categorisation review queue (P5): shows how many need review, or that all is clear. */
-function ReviewSlot() {
+function ReviewSlot({ className }: { className?: string }) {
   const router = useRouter();
   const { colors } = useTheme();
   const count = useTransactionCount({ needsReview: true });
   const n = count.data ?? 0;
   return (
-    <Card className="flex-row items-center gap-3">
+    <Card className={`flex-row items-center gap-3 ${className ?? ""}`}>
       <IconTile>
         <CircleCheck size={18} color={n > 0 ? colors.warning : colors.positive} strokeWidth={1.6} />
       </IconTile>
@@ -353,7 +353,7 @@ function ReviewSlot() {
 }
 
 /** Budgets snapshot: the three budgets closest to (or over) their limit. */
-function BudgetsSlot() {
+function BudgetsSlot({ className }: { className?: string }) {
   const router = useRouter();
   const { colors } = useTheme();
   const budgets = useBudgetStatuses(fromLocalDate(new Date()));
@@ -364,7 +364,7 @@ function BudgetsSlot() {
   if (budgets.isPending) return <Skeleton className="h-24 w-full" />;
   if (items.length === 0) {
     return (
-      <Card className="flex-row items-center gap-3">
+      <Card className={`flex-row items-center gap-3 ${className ?? ""}`}>
         <IconTile>
           <PiggyBank size={18} color={colors.muted} strokeWidth={1.6} />
         </IconTile>
@@ -442,10 +442,10 @@ export function Dashboard() {
         {recent}
         <View className="flex-row gap-4">
           <View className="flex-1">
-            <ReviewSlot />
+            <ReviewSlot className="flex-1" />
           </View>
           <View className="flex-1">
-            <BudgetsSlot />
+            <BudgetsSlot className="flex-1" />
           </View>
         </View>
       </View>
