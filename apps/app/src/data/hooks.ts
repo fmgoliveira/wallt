@@ -42,6 +42,7 @@ export const queryKeys = {
   recurring: ["recurring"] as const,
   goals: ["goals"] as const,
   debts: ["debts"] as const,
+  fx: ["fx"] as const,
 };
 
 type Root = keyof typeof queryKeys;
@@ -58,6 +59,7 @@ const invalidates: Record<Root, Root[]> = {
   budgets: ["budgets"],
   recurring: ["recurring", "transactions", "accounts", "categories", "budgets", "goals", "debts"],
   goals: ["goals"],
+  fx: ["fx"],
   debts: ["debts", "transactions", "accounts", "categories", "budgets", "goals"],
 };
 

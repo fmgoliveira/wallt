@@ -88,6 +88,7 @@ export async function repositoryFromDatabase(db: SQLiteDatabase): Promise<Reposi
   registerSyncRuntime({
     store: repository.sync,
     clock: stamper.clock,
+    fx: repository.fx,
     deviceId: nodeId,
     setUserId: stamper.setUserId,
   });

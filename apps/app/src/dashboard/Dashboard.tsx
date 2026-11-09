@@ -39,6 +39,7 @@ import {
 import { placeholderIcon } from "../shell/placeholder";
 import { useEditorStore } from "../transactions/editorStore";
 import { type TxRow, useTxRows } from "../transactions/rows";
+import { ConvertedTotal } from "./ConvertedTotal";
 
 const monthName = (date: string) => {
   const [y = 0, m = 1] = date.split("-").map(Number);
@@ -112,6 +113,7 @@ function NetWorth({ range }: { range: { from: string; to: string } }) {
           />
         ))}
       </View>
+      <ConvertedTotal balances={totals} />
       <View className="flex-row flex-wrap gap-2">
         {(flow.data ?? []).map((f) => {
           const net = f.income + f.expense;

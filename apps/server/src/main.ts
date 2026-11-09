@@ -5,6 +5,7 @@ import { createAuthService } from "./auth/service";
 import { configureBackups } from "./backup/setup";
 import { loadConfig } from "./config";
 import { openDatabase, runMigrations } from "./database";
+import { createFxService } from "./fx/service";
 import { createLogger } from "./logger";
 import { parseTrustedProxies } from "./proxy";
 import { createScheduler } from "./scheduler";
@@ -29,6 +30,12 @@ if (!config.SETUP_TOKEN) {
 }
 
 const scheduler = createScheduler(db, log);
+const fx = createFxService({
+  db,
+  log,
+  fetch: (url) => fetch(url, { signal: AbortSignal.timeout(30_000) }),
+});
+fx.register(scheduler);
 const backup = configureBackups({ config, db, log, keys, scheduler });
 const server = serve(
   {
@@ -37,6 +44,7 @@ const server = serve(
       log,
       auth,
       backup,
+      fx,
       ...(config.WEB_DIR ? { webDir: config.WEB_DIR } : {}),
       trustedProxies: parseTrustedProxies(config.TRUSTED_PROXIES),
     }).fetch,
