@@ -49,6 +49,70 @@ export default function DataSmoke() {
     void transactions.refetch();
   }
 
+  /** A small, anonymised set that exercises the review queue: habits to learn from, guesses and unknowns. */
+  async function seedReviewDemo() {
+    if (data.status !== "ready") return;
+    const repo = data.repository;
+    const account = (await repo.accounts.list())[0];
+    if (!account) return;
+    const cats = await repo.categories.list();
+    const byKey = (k: string) => cats.find((c) => c.systemKey === k)?.id ?? null;
+    const day = (n: number) =>
+      new Date(Date.UTC(2026, 10, 8) - n * 86_400_000).toISOString().slice(0, 10);
+    const base = { accountId: account.id, currency: account.currency };
+    await repo.transaction(async (tx) => {
+      for (let i = 0; i < 3; i++) {
+        await tx.transactions.create({
+          ...base,
+          amount: -2150 - i * 100,
+          bookingDate: day(10 + i),
+          payee: "Lidl",
+          descriptionClean: "LIDL LISBOA",
+          categoryId: byKey("groceries"),
+        });
+        await tx.transactions.create({
+          ...base,
+          amount: -5200 - i * 100,
+          bookingDate: day(20 + i),
+          payee: "Galp",
+          descriptionClean: "GALP ENERGIA",
+          categoryId: byKey("transport.fuel"),
+        });
+      }
+      const flagged = (
+        n: number,
+        amount: number,
+        payee: string,
+        desc: string,
+        extra: Record<string, unknown> = {},
+      ) =>
+        tx.transactions.create({
+          ...base,
+          amount,
+          bookingDate: day(n),
+          payee,
+          descriptionClean: desc,
+          descriptionRaw: desc,
+          source: "import",
+          needsReview: true,
+          ...extra,
+        });
+      await flagged(1, -2390, "Lidl", "COMPRA LIDL PORTO");
+      await flagged(2, -6100, "Galp", "GALP ENERGIA A1");
+      await flagged(3, -1290, "Spotify", "SPOTIFY AB", {
+        categoryId: byKey("leisure.subscriptions"),
+        categorization: { method: "ml", confidence: 0.64, needsReview: true },
+      });
+      await flagged(4, -4500, "Clinica Sao Joao", "CLINICA SAO JOAO CONSULTA");
+      await flagged(5, 150000, "Empresa XYZ", "TRF EMPRESA XYZ SALARIO");
+      await flagged(6, -899, "Compra desconhecida", "POS 123456 LOJA XPTO", {
+        notes: "Possible duplicate of a transaction added by hand",
+      });
+    });
+    setSeeding("review demo seeded");
+    void transactions.refetch();
+  }
+
   if (!__DEV__) return <Redirect href="/" />;
 
   const first = accounts.data?.[0];
@@ -90,6 +154,12 @@ export default function DataSmoke() {
               payee: "Smoke test",
             })
           }
+        />
+        <Button
+          label="Seed review demo"
+          variant="secondary"
+          disabled={!first}
+          onPress={seedReviewDemo}
         />
         <Button
           label="Seed 2,000"

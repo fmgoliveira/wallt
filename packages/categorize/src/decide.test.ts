@@ -3,6 +3,7 @@ import { categorize } from "./decide";
 import { buildPayeeMemory, lookupPayeeMemory } from "./memory";
 import { type MlExample, type Model, splitHeldOut, trainModel } from "./ml";
 import type { RuleLike } from "./rules";
+import { suggestCategories } from "./suggest";
 
 const kinds: Record<string, "expense" | "income"> = {
   groceries: "expense",
@@ -127,5 +128,36 @@ describe("model thresholds", () => {
       confidence: 0,
       needsReview: true,
     });
+  });
+});
+
+describe("suggestCategories", () => {
+  const memory = buildPayeeMemory([user("Lidl", "groceries"), user("Lidl", "groceries")]);
+
+  it("lists rule, then memory, then model picks, without repeats or wrong-sign categories", () => {
+    const rules: RuleLike[] = [
+      {
+        id: "r",
+        priority: 0,
+        conditions: [{ field: "payee", op: "contains", value: "lidl" }],
+        action: { categoryId: "fuel" },
+      },
+    ];
+    const out = suggestCategories(facts("Lidl"), { ...ctx, rules, memory });
+    expect(out.map((s) => [s.categoryId, s.source])).toEqual([
+      ["fuel", "rule"],
+      ["groceries", "payee_memory"],
+    ]);
+    // income categories never fit an outflow
+    expect(
+      suggestCategories(facts("Lidl"), { ...ctx, memory, rules: [] }).every(
+        (s) => kinds[s.categoryId] === "expense",
+      ),
+    ).toBe(true);
+    expect(suggestCategories(facts("Lidl", 500), { ...ctx, memory })).toEqual([]);
+  });
+
+  it("is empty when nothing is known", () => {
+    expect(suggestCategories(facts("Zzz"), ctx)).toEqual([]);
   });
 });

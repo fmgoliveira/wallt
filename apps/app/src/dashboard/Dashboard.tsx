@@ -346,7 +346,7 @@ function ReviewSlot({ className }: { className?: string }) {
         </Text>
       </View>
       {n > 0 ? (
-        <Button label="Review" variant="secondary" onPress={() => router.push("/transactions")} />
+        <Button label="Review" variant="secondary" onPress={() => router.push("/review")} />
       ) : null}
     </Card>
   );

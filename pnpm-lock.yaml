@@ -410,6 +410,9 @@ importers:
       '@types/node':
         specifier: 26.6.6
         version: 26.6.6
+      '@wallt/categorize':
+        specifier: workspace:*
+        version: link:../categorize
       '@wallt/config':
         specifier: workspace:*
         version: link:../config
