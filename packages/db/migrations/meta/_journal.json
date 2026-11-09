@@ -15,6 +15,13 @@
       "when": 1793990788305,
       "tag": "0001_server_tables_import_profiles",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1794233808013,
+      "tag": "0002_sync_outbox",
+      "breakpoints": true
     }
   ]
 }
