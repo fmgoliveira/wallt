@@ -1,4 +1,4 @@
-import { categorize } from "@wallt/categorize";
+import { buildPayeeMemory, categorize } from "@wallt/categorize";
 import type { Transaction } from "@wallt/core";
 import { createUuidV7Generator, type Repository } from "@wallt/db";
 import {
@@ -8,6 +8,10 @@ import {
   type ParsedRow,
   planImport,
 } from "@wallt/ingest";
+
+import { historyTxOf } from "../rules/data";
+import { getModel } from "../sync/ml";
+import { getDeviceMeta } from "../sync/runtime";
 
 const newBatchId = createUuidV7Generator();
 
@@ -72,11 +76,14 @@ export async function applyPlan(
   currency: string,
 ): Promise<ImportOutcome> {
   const batchId = newBatchId();
-  const [rules, categories, tags] = await Promise.all([
+  const [rules, categories, tags, history, model] = await Promise.all([
     repo.rules.list(),
     repo.categories.list({ includeArchived: true }),
     repo.tags.list(),
+    repo.transactions.list({ limit: 60000 }),
+    getModel(getDeviceMeta()),
   ]);
+  const memory = buildPayeeMemory(history.map(historyTxOf));
   const kinds = new Map(categories.map((c) => [c.id, c.type] as const));
   const liveTags = new Set(tags.map((t) => t.id));
   return repo.transaction(async (tx) => {
@@ -93,8 +100,9 @@ export async function applyPlan(
             descriptionRaw: row.description,
             amount: row.amount,
             accountId: plan.accountId,
+            bookingDate: row.bookingDate,
           },
-          { rules, categoryKind: (id) => kinds.get(id) },
+          { rules, categoryKind: (id) => kinds.get(id), memory, model },
         );
         const made = await tx.transactions.create({
           accountId: plan.accountId,
@@ -116,7 +124,7 @@ export async function applyPlan(
             ? {
                 categoryId: decision.categoryId,
                 categorization: {
-                  method: decision.method === "none" ? ("rule" as const) : decision.method,
+                  method: decision.method,
                   confidence: decision.confidence,
                   needsReview: p.needsReview || decision.needsReview,
                 },

@@ -305,6 +305,9 @@ importers:
       '@hono/node-server':
         specifier: 2.1.6
         version: 2.1.6(hono@4.13.16)
+      '@wallt/categorize':
+        specifier: workspace:*
+        version: link:../../packages/categorize
       '@wallt/sync':
         specifier: workspace:*
         version: link:../../packages/sync

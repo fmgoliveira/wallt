@@ -10,6 +10,8 @@ import type { Db } from "./database";
 import { fxRoutes } from "./fx/routes";
 import type { FxService } from "./fx/service";
 import type { Logger } from "./logger";
+import { mlRoutes } from "./ml/routes";
+import type { MlService } from "./ml/service";
 import { parseTrustedProxies, resolveClientIp } from "./proxy";
 import { securityHeaders } from "./security";
 import { syncRoutes } from "./sync/routes";
@@ -29,13 +31,25 @@ export type AppDeps = {
   backup?: BackupService | null;
   /** `GET /fx/rates` (needs `auth`); omitted = no FX endpoint. */
   fx?: FxService;
+  /** `/ml/*` classifier model + status (needs `auth`); omitted = no ML endpoints. */
+  ml?: MlService;
   /** Clock (ms) for the per-IP rate limiters; tests inject one. */
   clock?: () => number;
 };
 
 export type AppEnv = { Variables: { clientIp: string } };
 
-export function createApp({ db, log, webDir, trustedProxies, auth, backup, fx, clock }: AppDeps) {
+export function createApp({
+  db,
+  log,
+  webDir,
+  trustedProxies,
+  auth,
+  backup,
+  fx,
+  ml,
+  clock,
+}: AppDeps) {
   const app = new Hono<AppEnv>();
   const trusted = trustedProxies ?? parseTrustedProxies("127.0.0.1,::1");
 
@@ -83,6 +97,7 @@ export function createApp({ db, log, webDir, trustedProxies, auth, backup, fx, c
     app.route("/sync", syncRoutes(auth, createSyncService(db, clock), db, clock ?? Date.now));
     if (backup !== undefined) app.route("/backups", backupRoutes(auth, backup));
     if (fx) app.route("/fx", fxRoutes(auth, fx, clock ?? Date.now));
+    if (ml) app.route("/ml", mlRoutes(auth, ml));
   }
 
   app.onError((err, c) => {

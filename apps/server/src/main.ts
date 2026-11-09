@@ -7,6 +7,7 @@ import { loadConfig } from "./config";
 import { openDatabase, runMigrations } from "./database";
 import { createFxService } from "./fx/service";
 import { createLogger } from "./logger";
+import { createMlService } from "./ml/service";
 import { parseTrustedProxies } from "./proxy";
 import { createScheduler } from "./scheduler";
 
@@ -36,6 +37,8 @@ const fx = createFxService({
   fetch: (url) => fetch(url, { signal: AbortSignal.timeout(30_000) }),
 });
 fx.register(scheduler);
+const ml = createMlService({ db, log });
+ml.register(scheduler);
 const backup = configureBackups({ config, db, log, keys, scheduler });
 const server = serve(
   {
@@ -45,6 +48,7 @@ const server = serve(
       auth,
       backup,
       fx,
+      ml,
       ...(config.WEB_DIR ? { webDir: config.WEB_DIR } : {}),
       trustedProxies: parseTrustedProxies(config.TRUSTED_PROXIES),
     }).fetch,
