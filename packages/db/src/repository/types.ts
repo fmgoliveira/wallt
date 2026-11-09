@@ -6,6 +6,7 @@ import type {
   Debt,
   FxRow,
   Goal,
+  ImportProfile,
   RecurringRule,
   ReportEntry,
   Tag,
@@ -362,6 +363,21 @@ export interface TransactionsRepository {
 
 /* -------------------------------------------------------------- repository */
 
+export type NewImportProfile = Pick<ImportProfile, "name" | "fingerprints" | "config"> &
+  Partial<Pick<ImportProfile, "institution" | "defaultAccountId">>;
+export type ImportProfilePatch = Partial<Omit<ImportProfile, Stamped>>;
+
+/** Saved bank file formats (PLAN 5.2): name, fingerprints and the detection/mapping config. Synced. */
+export interface ImportProfilesRepository {
+  /** Active profiles by name. */
+  list(): Promise<ImportProfile[]>;
+  get(id: string): Promise<ImportProfile | null>;
+  create(input: NewImportProfile): Promise<ImportProfile>;
+  update(id: string, patch: ImportProfilePatch): Promise<ImportProfile>;
+  /** Soft delete (tombstone). */
+  delete(id: string): Promise<void>;
+}
+
 export interface Repository {
   accounts: AccountsRepository;
   categories: CategoriesRepository;
@@ -372,6 +388,7 @@ export interface Repository {
   fx: FxRepository;
   goals: GoalsRepository;
   debts: DebtsRepository;
+  importProfiles: ImportProfilesRepository;
   /**
    * Runs `fn` atomically: everything commits together or not at all. Re-entrant (nested calls join the
    * outer transaction). Use it for batches: writes outside a transaction cost 50-150 ms each on web.

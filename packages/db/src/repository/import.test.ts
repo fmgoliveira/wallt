@@ -128,3 +128,58 @@ describe("deleteImportBatch", () => {
     expect(live("transaction_tags")).toBe(0);
   });
 });
+
+describe("importProfiles", () => {
+  const config = { headerRow: 3, columns: { date: 0, description: 1, amount: 2 } };
+
+  it("round-trips fingerprints and config, sorted by name, outbox-queued", async () => {
+    const { repo, raw, a } = await setup();
+    raw.exec("DELETE FROM outbox");
+    const z = await repo.importProfiles.create({
+      name: "Zeta bank",
+      fingerprints: ["aaaa1111"],
+      config,
+      defaultAccountId: a.id,
+    });
+    await repo.importProfiles.create({
+      name: "Alpha bank",
+      fingerprints: ["bbbb2222", "cccc3333"],
+      config,
+    });
+    expect((await repo.importProfiles.list()).map((p) => p.name)).toEqual([
+      "Alpha bank",
+      "Zeta bank",
+    ]);
+    expect(await repo.importProfiles.get(z.id)).toMatchObject({
+      config,
+      defaultAccountId: a.id,
+      institution: null,
+    });
+    const queued = raw.prepare("SELECT table_name FROM outbox").all() as { table_name: string }[];
+    expect(queued.every((q) => q.table_name === "import_profiles")).toBe(true);
+    expect(queued).toHaveLength(2);
+  });
+
+  it("updates (e.g. adds a fingerprint), validates and soft-deletes", async () => {
+    const { repo } = await setup();
+    const p = await repo.importProfiles.create({ name: "Bank", fingerprints: ["f1"], config });
+    const next = await repo.importProfiles.update(p.id, {
+      fingerprints: ["f1", "f2"],
+      name: "Bank (new)",
+    });
+    expect(next.fingerprints).toEqual(["f1", "f2"]);
+    await expect(repo.importProfiles.update(p.id, { name: " " })).rejects.toThrow();
+    await expect(
+      repo.importProfiles.update(p.id, {
+        defaultAccountId: "0190a5c4-7b1e-7a3f-8c2d-0000000000ff",
+      }),
+    ).rejects.toThrow(/does not exist/);
+    await expect(
+      repo.importProfiles.create({ name: "x", fingerprints: [], config }),
+    ).rejects.toThrow();
+    await repo.importProfiles.delete(p.id);
+    expect(await repo.importProfiles.get(p.id)).toBeNull();
+    expect(await repo.importProfiles.list()).toEqual([]);
+    await expect(repo.importProfiles.delete(p.id)).rejects.toThrow();
+  });
+});
