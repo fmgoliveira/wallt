@@ -451,9 +451,9 @@ export default function UiGallery() {
         <Sheet visible={sheet} onClose={() => setSheet(false)} title="Add transaction">
           <Input label="Payee" placeholder="Who did you pay?" />
           {/* Long content: the sheet must cap its height and scroll */}
-          {Array.from({ length: 24 }, (_, i) => (
-            <Text key={`row-${i + 1}`} tone="muted">
-              Scrollable row {i + 1}
+          {Array.from({ length: 24 }, (_, i) => i + 1).map((n) => (
+            <Text key={n} tone="muted">
+              Scrollable row {n}
             </Text>
           ))}
           <Button label="Save" onPress={() => setSheet(false)} />
