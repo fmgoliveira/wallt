@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@wallt/core": "workspace:*",
+    "@wallt/sync": "workspace:*",
     "drizzle-orm": "0.45.4"
   }
 }
