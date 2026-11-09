@@ -293,6 +293,9 @@ importers:
       '@wallt/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@wallt/sync':
+        specifier: workspace:*
+        version: link:../../packages/sync
       age-encryption:
         specifier: 0.3.1
         version: 0.3.1
