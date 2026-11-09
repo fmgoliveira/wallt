@@ -101,7 +101,7 @@ function MonthGrid({
                   <Text
                     tabular
                     weight={isSelected || isToday ? "semibold" : "regular"}
-                    style={{ color: isSelected ? colors.bg : undefined }}
+                    style={isSelected ? { color: colors.bg } : undefined}
                   >
                     {day}
                   </Text>
