@@ -10,8 +10,13 @@
     "test": "vitest run --passWithNoTests"
   },
   "devDependencies": {
+    "@types/node": "26.6.6",
     "@wallt/config": "workspace:*",
     "typescript": "7.0.2",
     "vitest": "5.1.0"
+  },
+  "dependencies": {
+    "@wallt/core": "workspace:*",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   }
 }

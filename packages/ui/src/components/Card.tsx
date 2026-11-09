@@ -16,10 +16,13 @@ export interface CardProps extends ViewProps {
  */
 export function Card({ className, children, style, ...rest }: CardProps) {
   const { scheme, colors } = useTheme();
+  // The default padding is not merged with overrides (cn only joins), so `p-0` opts out of it explicitly;
+  // otherwise `p-4 tablet:p-5` and `p-0` both apply and CSS order decides (double padding on web).
+  const flush = /(^|\s)p-0(\s|$)/.test(className ?? "");
   return (
     <View
       {...rest}
-      className={cn("p-4 tablet:p-5", className)}
+      className={cn(!flush && "p-4 tablet:p-5", className)}
       style={[
         {
           borderRadius: radius.lg,

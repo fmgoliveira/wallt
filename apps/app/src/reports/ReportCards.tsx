@@ -383,16 +383,16 @@ export function HeatmapCard({ data, loading }: { data: ReportData; loading: bool
         accessible
         accessibilityRole="image"
         accessibilityLabel="Calendar heatmap of daily spending, darker means more"
-        className="flex-row flex-wrap gap-[3px]"
+        className="flex-row gap-[3px]"
       >
         {weeks.map((week) => (
-          <View key={week.find(Boolean)?.date ?? "pad"} className="gap-[3px]">
-            {week.map((d, i) => (
+          <View key={week.find(Boolean)?.date ?? "pad"} className="flex-1 gap-[3px]">
+            {Array.from({ length: 7 }, (_, i) => week[i] ?? null).map((d, i) => (
               <View
                 key={d?.date ?? `p${i}`}
                 style={{
-                  width: 14,
-                  height: 14,
+                  width: "100%",
+                  aspectRatio: 1,
                   borderRadius: 3,
                   backgroundColor: d ? shade(d.level) : "transparent",
                 }}

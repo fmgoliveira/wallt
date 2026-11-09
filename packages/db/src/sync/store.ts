@@ -11,6 +11,7 @@ import {
   type SyncStorePort,
   type SyncTable,
 } from "@wallt/sync";
+import { dedupeSystemCategories, type Stamp } from "../dedupe";
 import { OUTBOX_SUSPENDED_KEY } from "../outbox-triggers";
 import type { RawSqlExecutor } from "../repository/executor";
 import { syncColumns, upsertParams, upsertSql } from "./tables";
@@ -26,6 +27,8 @@ export interface SyncStore extends SyncStorePort {
    * Returns the number of rows touched. Rows that already carry `userId` are left alone.
    */
   enroll(userId: string): Promise<number>;
+  /** Merges duplicate default categories created by several devices seeding (see `dedupeSystemCategories`). */
+  dedupeSystemCategories(stamp: Stamp): Promise<number>;
 }
 
 /** Serializes work on the shared connection; the repository's queue, so sync never interleaves with a write. */
@@ -192,6 +195,7 @@ export function createSyncStore(exec: RawSqlExecutor, exclusive: Exclusive): Syn
         }
       }),
 
+    dedupeSystemCategories: (stamp) => exclusive(() => dedupeSystemCategories(exec, stamp)),
     enroll: (userId) =>
       atomic(async () => {
         // Never merge another account's data into this one: only placeholder (`local`) rows may be re-stamped.

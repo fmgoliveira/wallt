@@ -9,6 +9,8 @@ import {
   debtSchema,
   type Goal,
   goalSchema,
+  type ImportProfile,
+  importProfileSchema,
   isValidRRule,
   type RecurringRule,
   type ReportEntry,
@@ -38,11 +40,13 @@ import {
   type DebtPatch,
   type DebtWithProgress,
   type GoalPatch,
+  type ImportProfilePatch,
   type NewAccount,
   type NewBudget,
   type NewCategory,
   type NewDebt,
   type NewGoal,
+  type NewImportProfile,
   type NewRecurringRule,
   type NewSplit,
   type NewTag,
@@ -117,6 +121,19 @@ type BudgetRow = typeof t.budgets.$inferSelect;
 const budgetFromRow = (row: BudgetRow): Budget =>
   ({ ...row, scope: JSON.parse(row.scope) }) as Budget;
 const budgetToRow = (b: Budget): BudgetRow => ({ ...b, scope: JSON.stringify(b.scope) });
+type ProfileRow = typeof t.importProfiles.$inferSelect;
+
+const profileFromRow = (row: ProfileRow): ImportProfile =>
+  ({
+    ...row,
+    fingerprints: JSON.parse(row.fingerprints),
+    config: JSON.parse(row.config),
+  }) as ImportProfile;
+const profileToRow = (p: ImportProfile): ProfileRow => ({
+  ...p,
+  fingerprints: JSON.stringify(p.fingerprints),
+  config: JSON.stringify(p.config),
+});
 type RecurringRow = typeof t.recurringRules.$inferSelect;
 
 const ruleFromRow = (row: RecurringRow): RecurringRule =>
@@ -1077,6 +1094,77 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
         }),
     };
 
+    const importProfiles: Repository["importProfiles"] = {
+      list: () =>
+        run(async () =>
+          (
+            await db
+              .select()
+              .from(t.importProfiles)
+              .where(isNull(t.importProfiles.deletedAt))
+              .orderBy(asc(t.importProfiles.name), asc(t.importProfiles.id))
+          ).map(profileFromRow),
+        ),
+      get: (id) =>
+        run(async () => {
+          const [row] = await db
+            .select()
+            .from(t.importProfiles)
+            .where(and(eq(t.importProfiles.id, id), isNull(t.importProfiles.deletedAt)));
+          return row ? profileFromRow(row) : null;
+        }),
+      create: (input: NewImportProfile) =>
+        atomic(async () => {
+          const row = validate(
+            importProfileSchema,
+            {
+              ...fresh(),
+              name: input.name,
+              institution: input.institution ?? null,
+              defaultAccountId: input.defaultAccountId ?? null,
+              fingerprints: input.fingerprints,
+              config: input.config,
+            },
+            "import profile",
+          );
+          if (row.defaultAccountId) await requireAccounts([row.defaultAccountId]);
+          await db.insert(t.importProfiles).values(profileToRow(row));
+          return row;
+        }),
+      update: (id, patch: ImportProfilePatch) =>
+        atomic(async () => {
+          const [current] = await db
+            .select()
+            .from(t.importProfiles)
+            .where(and(eq(t.importProfiles.id, id), isNull(t.importProfiles.deletedAt)));
+          if (!current) throw notFound("Import profile", id);
+          const row = validate(
+            importProfileSchema,
+            { ...profileFromRow(current), ...patch, ...stamp() },
+            "import profile",
+          );
+          if (row.defaultAccountId) await requireAccounts([row.defaultAccountId]);
+          await db
+            .update(t.importProfiles)
+            .set(profileToRow(row))
+            .where(eq(t.importProfiles.id, id));
+          return row;
+        }),
+      delete: (id) =>
+        atomic(async () => {
+          const [current] = await db
+            .select({ id: t.importProfiles.id })
+            .from(t.importProfiles)
+            .where(and(eq(t.importProfiles.id, id), isNull(t.importProfiles.deletedAt)));
+          if (!current) throw notFound("Import profile", id);
+          const now = stamp();
+          await db
+            .update(t.importProfiles)
+            .set({ ...now, deletedAt: now.updatedAt })
+            .where(eq(t.importProfiles.id, id));
+        }),
+    };
+
     const fx: Repository["fx"] = {
       list: (range) =>
         run(async () => {
@@ -1384,7 +1472,7 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
               categorization: {
                 method: categorised ? "user" : "none",
                 confidence: categorised ? 1 : 0,
-                needsReview: false,
+                needsReview: input.needsReview ?? false,
               },
             },
             "transaction",
@@ -1612,6 +1700,77 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
             TransactionDetail,
           ];
         }),
+      linkTransfer: (aId, bId) =>
+        atomic(async () => {
+          if (aId === bId) throw invalid("A transfer needs two different transactions");
+          const a = await activeTransaction(aId);
+          const b = await activeTransaction(bId);
+          if (a.kind === "transfer" || b.kind === "transfer")
+            throw invalid("Already part of a transfer");
+          if (a.accountId === b.accountId) throw invalid("A transfer needs two different accounts");
+          if (a.currency !== b.currency || a.amount === 0 || a.amount !== -b.amount) {
+            throw invalid("The two transactions are not opposite amounts in the same currency");
+          }
+          const link = async (x: Transaction, peer: Transaction) => {
+            await tombstoneSplits(x.id);
+            await tombstoneTagLinks(eq(t.transactionTags.transactionId, x.id));
+            const row = validate(
+              transactionSchema,
+              { ...x, kind: "transfer", transferPeerId: peer.id, categoryId: null, ...stamp() },
+              "transaction",
+            );
+            await db.update(t.transactions).set(txToRow(row)).where(eq(t.transactions.id, x.id));
+            return row;
+          };
+          const legs = [await link(a, b), await link(b, a)].sort((x, y) => x.amount - y.amount);
+          return [
+            await loadDetail(legs[0] as Transaction),
+            await loadDetail(legs[1] as Transaction),
+          ] as [TransactionDetail, TransactionDetail];
+        }),
+      deleteImportBatch: (batchId) =>
+        atomic(async () => {
+          const rows = (
+            await db
+              .select()
+              .from(t.transactions)
+              .where(
+                and(eq(t.transactions.importBatchId, batchId), isNull(t.transactions.deletedAt)),
+              )
+              .orderBy(asc(t.transactions.id))
+          ).map(txFromRow);
+          const inBatch = new Set(rows.map((r) => r.id));
+          for (const r of rows) {
+            if (r.kind === "transfer" && r.transferPeerId && !inBatch.has(r.transferPeerId)) {
+              const peer = await activeTransaction(r.transferPeerId).catch(() => null);
+              if (peer) {
+                // the other account's row stays, as a plain income/expense again
+                const restored = validate(
+                  transactionSchema,
+                  {
+                    ...peer,
+                    kind: peer.amount > 0 ? "income" : "expense",
+                    transferPeerId: null,
+                    ...stamp(),
+                  },
+                  "transaction",
+                );
+                await db
+                  .update(t.transactions)
+                  .set(txToRow(restored))
+                  .where(eq(t.transactions.id, peer.id));
+              }
+            }
+            await tombstoneSplits(r.id);
+            await tombstoneTagLinks(eq(t.transactionTags.transactionId, r.id));
+            const now = stamp();
+            await db
+              .update(t.transactions)
+              .set({ ...now, deletedAt: now.updatedAt })
+              .where(eq(t.transactions.id, r.id));
+          }
+          return rows.length;
+        }),
       delete: (id) =>
         atomic(async () => {
           const current = await activeTransaction(id);
@@ -1643,6 +1802,7 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
       fx,
       goals,
       debts,
+      importProfiles,
       transaction: (fn) =>
         inTx ? fn(self) : exclusive(() => exec.transaction(() => fn(build(true)))),
     };

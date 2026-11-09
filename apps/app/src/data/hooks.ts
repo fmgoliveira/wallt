@@ -17,9 +17,11 @@ import type {
   BudgetPatch,
   CategoryPatch,
   DateRange,
+  ImportProfilePatch,
   NewAccount,
   NewBudget,
   NewCategory,
+  NewImportProfile,
   NewTag,
   NewTransaction,
   NewTransfer,
@@ -42,6 +44,7 @@ export const queryKeys = {
   recurring: ["recurring"] as const,
   goals: ["goals"] as const,
   debts: ["debts"] as const,
+  importProfiles: ["importProfiles"] as const,
   fx: ["fx"] as const,
 };
 
@@ -61,6 +64,7 @@ const invalidates: Record<Root, Root[]> = {
   goals: ["goals"],
   fx: ["fx"],
   debts: ["debts", "transactions", "accounts", "categories", "budgets", "goals"],
+  importProfiles: ["importProfiles"],
 };
 
 function invalidate(client: QueryClient, root: Root) {
@@ -283,3 +287,16 @@ export const useBudgetStatuses = (today: string) =>
       }));
     },
   );
+
+/* --------------------------------------------------------- import formats */
+
+export const useImportProfiles = () =>
+  useRepoQuery([...queryKeys.importProfiles, "list"], (r) => r.importProfiles.list());
+export const useCreateImportProfile = () =>
+  useRepoMutation("importProfiles", (r, input: NewImportProfile) => r.importProfiles.create(input));
+export const useUpdateImportProfile = () =>
+  useRepoMutation("importProfiles", (r, input: { id: string; patch: ImportProfilePatch }) =>
+    r.importProfiles.update(input.id, input.patch),
+  );
+export const useDeleteImportProfile = () =>
+  useRepoMutation("importProfiles", (r, id: string) => r.importProfiles.delete(id));

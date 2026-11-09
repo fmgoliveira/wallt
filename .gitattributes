@@ -1,0 +1,2 @@
+# Fixtures are byte-exact test inputs (Windows-1252, UTF-16, BOMs, binary spreadsheets): never normalize them.
+fixtures/** -text

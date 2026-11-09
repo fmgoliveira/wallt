@@ -17,6 +17,8 @@ export interface SyncRuntime {
   /** Local copy of the server's ECB rates, refreshed after syncs. */
   fx: FxRepository;
   deviceId: string;
+  /** Merges duplicate default categories that other devices seeded; returns how many copies were merged. */
+  dedupeCategories(): Promise<number>;
   /** Switches the owner of future local writes (after `store.enroll`). */
   setUserId(userId: string): void;
 }
@@ -120,7 +122,14 @@ export async function configureSyncSession(session: SyncSession | null) {
     useSyncUi.setState({ engine: state });
     if (!state.syncing && state.lastSyncedAt !== lastSeen) {
       lastSeen = state.lastSyncedAt;
-      onPulled?.();
+      // other devices seed their own default categories: merge their copies, then refresh (the merge syncs back)
+      void runtime
+        ?.dedupeCategories()
+        .catch(() => 0)
+        .then((merged) => {
+          if (merged > 0) next.notifyLocalWrite();
+          onPulled?.();
+        });
       void refreshFxRates(session);
     }
   });

@@ -1,3 +1,4 @@
+export * from "./dedupe";
 export * from "./migrate";
 export * from "./migrations.generated";
 export * from "./outbox-triggers";

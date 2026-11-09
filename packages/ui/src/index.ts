@@ -24,6 +24,7 @@ export { Gradient, type GradientProps } from "./components/Gradient";
 export { HeroCard, type HeroCardProps } from "./components/HeroCard";
 export { Input, type InputProps } from "./components/Input";
 export { ListItem, type ListItemProps } from "./components/ListItem";
+export { MaskedValue, type MaskedValueProps } from "./components/MaskedValue";
 export { MasterDetail, type MasterDetailProps } from "./components/MasterDetail";
 export { Reveal, RevealGroup, type RevealProps, usePressScale } from "./components/motion";
 export { Portal } from "./components/Portal";
@@ -42,6 +43,7 @@ export { Select, type SelectOption, type SelectProps } from "./components/Select
 export { Sheet, type SheetProps } from "./components/Sheet";
 export { Skeleton, type SkeletonProps } from "./components/Skeleton";
 export { SortableList, type SortableListProps } from "./components/SortableList";
+export { Switch, type SwitchProps } from "./components/Switch";
 export { CategoryDot, Chip, type ChipTone, IconTile, Kbd } from "./components/small";
 export { Table, type TableColumn, type TableProps } from "./components/Table";
 export { type TabItem, Tabs, type TabsProps } from "./components/Tabs";

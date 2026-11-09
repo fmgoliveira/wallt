@@ -21,6 +21,7 @@ import {
   Progress,
   type SchemePreference,
   Select,
+  SeriesChart,
   Sheet,
   Skeleton,
   semanticColorNames,
@@ -449,9 +450,39 @@ export default function UiGallery() {
         </View>
         <Sheet visible={sheet} onClose={() => setSheet(false)} title="Add transaction">
           <Input label="Payee" placeholder="Who did you pay?" />
+          {/* Long content: the sheet must cap its height and scroll */}
+          {Array.from({ length: 24 }, (_, i) => i + 1).map((n) => (
+            <Text key={n} tone="muted">
+              Scrollable row {n}
+            </Text>
+          ))}
           <Button label="Save" onPress={() => setSheet(false)} />
           <Button label="Cancel" variant="ghost" onPress={() => setSheet(false)} />
         </Sheet>
+      </Section>
+
+      <Section title="Line chart">
+        <View className="gap-4 tablet:flex-row">
+          <Card className="tablet:flex-1">
+            <SeriesChart
+              accessibilityLabel="Flat then a sharp drop"
+              data={["Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb"].map((label, i) => ({
+                label,
+                value: [0, 0, 0, 3400, -22500, -22500, -22509][i] as number,
+              }))}
+            />
+          </Card>
+          <Card className="tablet:flex-1">
+            <SeriesChart
+              area
+              accessibilityLabel="Rising area"
+              data={["1", "2", "3", "4", "5", "6"].map((label, i) => ({
+                label,
+                value: [100, 400, 350, 900, 1200, 1500][i] as number,
+              }))}
+            />
+          </Card>
+        </View>
       </Section>
 
       <Section title="Empty state and skeleton">
