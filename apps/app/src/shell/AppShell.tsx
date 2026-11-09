@@ -18,6 +18,8 @@ import { PanelLeftClose, PanelLeftOpen, Plus } from "lucide-react-native";
 import { type ReactNode, useEffect } from "react";
 import { Image, Platform, Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSyncUi } from "../sync/runtime";
+import { SyncStatus } from "../sync/SyncStatus";
 import { useEditorStore } from "../transactions/editorStore";
 import { TransactionEditorHost } from "../transactions/TransactionEditor";
 import { NavButton } from "./NavButton";
@@ -27,13 +29,21 @@ import { hydrateShellStore, useShellStore } from "./store";
 const icon = require("../../assets/icon.png");
 
 /**
- * Web keeps its data in this browser only until the RemoteRepository exists (ADR 0005), so say so: it does not sync
- * with Android or the server, and clearing site data erases it.
+ * Sync status; on web, while signed out, also the interim notice (ADR 0005): web data stays in this browser only and
+ * clearing site data erases it.
  */
-function InterimDataNotice() {
+function StatusRow() {
+  const signedIn = useSyncUi((u) => u.session !== null);
+  // Android without a server session has nothing to say: keep the P2 layout untouched.
+  if (Platform.OS !== "web" && !signedIn) return null;
   return (
     <View className="mx-auto w-full max-w-[1200px] px-4 pt-3 tablet:px-6 desktop:px-8">
-      <Chip tone="warning" label="Interim: web data stays in this browser only" />
+      <View className="flex-row flex-wrap items-center gap-2">
+        <SyncStatus />
+        {Platform.OS === "web" && !signedIn ? (
+          <Chip tone="warning" label="Interim: web data stays in this browser only" />
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -212,7 +222,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <View className="flex-1 flex-row">
       {bp === "phone" ? null : <SideNav wide={bp === "desktop"} />}
       <View className="flex-1">
-        {Platform.OS === "web" ? <InterimDataNotice /> : null}
+        <StatusRow />
         <View className="flex-1">{children}</View>
         {bp === "phone" ? (
           // Floats over the content so lists run full height and scroll behind the glass bar.
