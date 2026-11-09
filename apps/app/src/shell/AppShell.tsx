@@ -214,7 +214,12 @@ export function AppShell({ children }: { children: ReactNode }) {
       <View className="flex-1">
         {Platform.OS === "web" ? <InterimDataNotice /> : null}
         <View className="flex-1">{children}</View>
-        {bp === "phone" ? <BottomBar /> : null}
+        {bp === "phone" ? (
+          // Floats over the content so lists run full height and scroll behind the glass bar.
+          <View pointerEvents="box-none" className="absolute right-0 bottom-0 left-0">
+            <BottomBar />
+          </View>
+        ) : null}
       </View>
       <TransactionEditorHost />
     </View>

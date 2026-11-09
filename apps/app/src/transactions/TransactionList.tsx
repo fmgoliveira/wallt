@@ -2,6 +2,7 @@ import { Amount, Card, Chip, IconTile, ListItem, Text } from "@wallt/ui";
 import { ArrowLeftRight } from "lucide-react-native";
 import { useMemo } from "react";
 import { FlatList, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { categoryIcon } from "../categories/icons";
 import { dayLabel, type TxRow } from "./rows";
 
@@ -17,6 +18,7 @@ export function TransactionList({
   onOpen: (row: TxRow) => void;
   onEndReached: () => void;
 }) {
+  const insets = useSafeAreaInsets();
   const items = useMemo(() => {
     const out: Item[] = [];
     let day = "";
@@ -33,6 +35,8 @@ export function TransactionList({
   return (
     <Card className="flex-1 overflow-hidden p-0 tablet:p-0">
       <FlatList
+        // Room for the floating tab bar so the last rows can scroll clear of it.
+        contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
         data={items}
         keyExtractor={(i) => i.key}
         onEndReached={onEndReached}
