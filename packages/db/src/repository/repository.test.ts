@@ -1141,3 +1141,155 @@ describe("recurring rules", () => {
     );
   });
 });
+
+describe("goals", () => {
+  it("creates, updates and soft deletes; the linked accounts round-trip", async () => {
+    const a = await account();
+    const g = await repo.goals.create({
+      name: "Holiday",
+      targetAmount: 200_000,
+      currency: "EUR",
+      deadline: "2027-06-01",
+      accountIds: [a.id],
+      color: "#336699",
+    });
+    expect((await repo.goals.get(g.id))?.accountIds).toEqual([a.id]);
+    const upd = await repo.goals.update(g.id, { targetAmount: 250_000, deadline: null });
+    expect(upd).toMatchObject({ targetAmount: 250_000, deadline: null });
+    expect(await repo.goals.list()).toHaveLength(1);
+    expect(
+      raw.prepare("select count(*) as n from outbox where table_name = 'goals'").get(),
+    ).toEqual({ n: 1 });
+    await repo.goals.delete(g.id);
+    expect(await repo.goals.list()).toEqual([]);
+    await expectCode(repo.goals.delete(g.id), "not_found");
+    await expectCode(repo.goals.update(g.id, { name: "x" }), "not_found");
+  });
+
+  it("validates input and linked accounts", async () => {
+    const missing = idSchema.parse("01900000-0000-7000-8000-000000000000");
+    const base = { name: "Car", targetAmount: 1000, currency: "EUR" };
+    await expectCode(repo.goals.create({ ...base, targetAmount: 0 }), "validation");
+    await expectCode(repo.goals.create({ ...base, name: " " }), "validation");
+    await expectCode(repo.goals.create({ ...base, accountIds: [missing] }), "validation");
+    expect(await repo.goals.create(base)).toMatchObject({ accountIds: [], deadline: null });
+  });
+});
+
+describe("debts", () => {
+  const tx = (
+    accountId: string,
+    amount: number,
+    debtId: string | null,
+    over: Record<string, unknown> = {},
+  ) =>
+    repo.transactions.create({
+      accountId,
+      amount,
+      currency: "EUR",
+      bookingDate: "2026-11-10",
+      debtId,
+      ...over,
+    });
+
+  it("derives repaid amounts from linked transactions, by direction", async () => {
+    const a = await account();
+    const lent = await repo.debts.create({
+      person: "Ana",
+      direction: "lent",
+      amount: 10_000,
+      currency: "EUR",
+    });
+    const borrowed = await repo.debts.create({
+      person: "Rui",
+      direction: "borrowed",
+      amount: 5000,
+      currency: "EUR",
+    });
+    await tx(a.id, 3000, lent.id); // Ana pays back 30
+    await tx(a.id, 2000, lent.id);
+    await tx(a.id, -10_000, lent.id); // the loan itself leaving the account: not a repayment
+    await tx(a.id, -1500, borrowed.id);
+    await tx(a.id, 800, borrowed.id); // money in on a borrowed debt: not a repayment
+    const [l, b] = [await repo.debts.get(lent.id), await repo.debts.get(borrowed.id)];
+    expect(l).toMatchObject({ repaid: 5000, repaymentCount: 2 });
+    expect(b).toMatchObject({ repaid: 1500, repaymentCount: 1 });
+    expect((await repo.debts.list()).map((d) => d.person).sort()).toEqual(["Ana", "Rui"]);
+    // deleting a repayment lowers the total: nothing is stored
+    const [first] = await repo.transactions.list({
+      debtId: lent.id,
+      minAmount: 1,
+      sort: { by: "amount", dir: "desc" },
+    });
+    await repo.transactions.delete(first?.id ?? "");
+    expect((await repo.debts.get(lent.id))?.repaid).toBe(2000);
+  });
+
+  it("hides settled debts by default and edits", async () => {
+    const d = await repo.debts.create({
+      person: "Ana",
+      direction: "lent",
+      amount: 100,
+      currency: "EUR",
+    });
+    await repo.debts.update(d.id, { settled: true });
+    expect(await repo.debts.list()).toEqual([]);
+    expect(await repo.debts.list({ includeSettled: true })).toHaveLength(1);
+    await expectCode(
+      repo.debts.create({ person: "", direction: "lent", amount: 1, currency: "EUR" }),
+      "validation",
+    );
+    await expectCode(
+      repo.debts.create({ person: "x", direction: "lent", amount: 0, currency: "EUR" }),
+      "validation",
+    );
+  });
+
+  it("only links transactions to existing debts in the same currency", async () => {
+    const a = await account();
+    const d = await repo.debts.create({
+      person: "Ana",
+      direction: "lent",
+      amount: 100,
+      currency: "USD",
+    });
+    const missing = idSchema.parse("01900000-0000-7000-8000-000000000000");
+    await expectCode(tx(a.id, 100, missing), "validation");
+    await expectCode(tx(a.id, 100, d.id), "validation"); // EUR vs USD
+    const ok = await tx(a.id, 100, null);
+    await expectCode(repo.transactions.update(ok.id, { debtId: d.id }), "validation");
+    await expectCode(
+      repo.debts.get(d.id).then(() => repo.debts.update(missing, { settled: true })),
+      "not_found",
+    );
+  });
+
+  it("deleting a debt unlinks its repayments but keeps them", async () => {
+    const a = await account();
+    const d = await repo.debts.create({
+      person: "Ana",
+      direction: "lent",
+      amount: 10_000,
+      currency: "EUR",
+    });
+    const t1 = await tx(a.id, 3000, d.id);
+    await repo.debts.delete(d.id);
+    expect(await repo.debts.get(d.id)).toBeNull();
+    expect((await repo.transactions.get(t1.id))?.debtId).toBeNull();
+    await expectCode(repo.debts.delete(d.id), "not_found");
+  });
+
+  it("refuses to change the currency once repayments exist", async () => {
+    const a = await account();
+    const d = await repo.debts.create({
+      person: "Ana",
+      direction: "lent",
+      amount: 10_000,
+      currency: "EUR",
+    });
+    expect((await repo.debts.update(d.id, { currency: "USD" })).currency).toBe("USD");
+    await repo.debts.update(d.id, { currency: "EUR" });
+    await tx(a.id, 3000, d.id);
+    await expectCode(repo.debts.update(d.id, { currency: "USD" }), "validation");
+  });
+});

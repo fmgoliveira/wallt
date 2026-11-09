@@ -40,6 +40,8 @@ export const queryKeys = {
   transactions: ["transactions"] as const,
   budgets: ["budgets"] as const,
   recurring: ["recurring"] as const,
+  goals: ["goals"] as const,
+  debts: ["debts"] as const,
 };
 
 type Root = keyof typeof queryKeys;
@@ -49,12 +51,14 @@ type Root = keyof typeof queryKeys;
  * deleting an account/category/tag changes how transactions are shown.
  */
 const invalidates: Record<Root, Root[]> = {
-  accounts: ["accounts", "transactions", "budgets"],
+  accounts: ["accounts", "transactions", "budgets", "goals", "debts"],
   categories: ["categories", "transactions", "budgets"],
   tags: ["tags", "transactions", "budgets"],
-  transactions: ["transactions", "accounts", "categories", "budgets"],
+  transactions: ["transactions", "accounts", "categories", "budgets", "goals", "debts"],
   budgets: ["budgets"],
-  recurring: ["recurring", "transactions", "accounts", "categories", "budgets"],
+  recurring: ["recurring", "transactions", "accounts", "categories", "budgets", "goals", "debts"],
+  goals: ["goals"],
+  debts: ["debts", "transactions", "accounts", "categories", "budgets", "goals"],
 };
 
 function invalidate(client: QueryClient, root: Root) {

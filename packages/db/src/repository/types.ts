@@ -3,6 +3,8 @@ import type {
   Budget,
   BudgetEntry,
   Category,
+  Debt,
+  Goal,
   RecurringRule,
   Tag,
   Transaction,
@@ -113,6 +115,42 @@ export interface BudgetsRepository {
   delete(id: string): Promise<void>;
 }
 
+/* ------------------------------------------------------------ goals & debts */
+
+export type NewGoal = Pick<Goal, "name" | "targetAmount" | "currency"> &
+  Partial<Pick<Goal, "deadline" | "accountIds" | "color">>;
+export type GoalPatch = Partial<Omit<Goal, Stamped>>;
+
+export interface GoalsRepository {
+  /** Active goals, oldest first. Progress is derived from the linked accounts' balances, never stored. */
+  list(): Promise<Goal[]>;
+  get(id: string): Promise<Goal | null>;
+  /** Linked accounts must exist. */
+  create(input: NewGoal): Promise<Goal>;
+  update(id: string, patch: GoalPatch): Promise<Goal>;
+  delete(id: string): Promise<void>;
+}
+
+export type NewDebt = Pick<Debt, "person" | "direction" | "amount" | "currency"> &
+  Partial<Pick<Debt, "settled">>;
+export type DebtPatch = Partial<Omit<Debt, Stamped>>;
+
+/**
+ * A debt with what has been repaid so far, derived from the transactions linked to it (`debtId`): money received
+ * for a debt you lent, money paid for one you borrowed. Never stored.
+ */
+export type DebtWithProgress = Debt & { repaid: number; repaymentCount: number };
+
+export interface DebtsRepository {
+  /** Open debts, newest first; settled ones only with `includeSettled`. */
+  list(options?: { includeSettled?: boolean }): Promise<DebtWithProgress[]>;
+  get(id: string): Promise<DebtWithProgress | null>;
+  create(input: NewDebt): Promise<Debt>;
+  update(id: string, patch: DebtPatch): Promise<Debt>;
+  /** Soft delete; transactions linked to it are kept and unlinked. */
+  delete(id: string): Promise<void>;
+}
+
 /* --------------------------------------------------------------- recurring */
 
 export type NewRecurringRule = Pick<RecurringRule, "template" | "rrule" | "nextDate"> &
@@ -200,6 +238,8 @@ export interface TransactionFilter {
   kind?: Transaction["kind"];
   status?: Transaction["status"];
   needsReview?: boolean;
+  /** Transactions linked to this debt (its repayments). */
+  debtId?: string;
   /** Inclusive `YYYY-MM-DD` bounds on `bookingDate`. */
   from?: string;
   to?: string;
@@ -274,6 +314,8 @@ export interface Repository {
   transactions: TransactionsRepository;
   budgets: BudgetsRepository;
   recurring: RecurringRepository;
+  goals: GoalsRepository;
+  debts: DebtsRepository;
   /**
    * Runs `fn` atomically: everything commits together or not at all. Re-entrant (nested calls join the
    * outer transaction). Use it for batches: writes outside a transaction cost 50-150 ms each on web.

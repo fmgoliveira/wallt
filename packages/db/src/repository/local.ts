@@ -5,6 +5,10 @@ import {
   budgetSchema,
   type Category,
   categorySchema,
+  type Debt,
+  debtSchema,
+  type Goal,
+  goalSchema,
   isValidRRule,
   type RecurringRule,
   recurringRuleSchema,
@@ -30,9 +34,14 @@ import {
   type CategoryPatch,
   type CategorySpend,
   type DateRange,
+  type DebtPatch,
+  type DebtWithProgress,
+  type GoalPatch,
   type NewAccount,
   type NewBudget,
   type NewCategory,
+  type NewDebt,
+  type NewGoal,
   type NewRecurringRule,
   type NewSplit,
   type NewTag,
@@ -115,6 +124,11 @@ const ruleToRow = (r: RecurringRule): RecurringRow => ({
   ...r,
   template: JSON.stringify(r.template),
 });
+type GoalRow = typeof t.goals.$inferSelect;
+
+const goalFromRow = (row: GoalRow): Goal =>
+  ({ ...row, accountIds: JSON.parse(row.accountIds) }) as Goal;
+const goalToRow = (g: Goal): GoalRow => ({ ...g, accountIds: JSON.stringify(g.accountIds) });
 const NO_SCOPE = { categoryIds: [], tagIds: [], accountIds: [] };
 
 const escapeLike = (s: string) => s.replace(/[\\%_]/g, (c) => `\\${c}`);
@@ -294,6 +308,78 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
     await requireCategories([rule.template.categoryId]);
   }
 
+  async function activeGoal(id: string): Promise<Goal> {
+    const [row] = await db
+      .select()
+      .from(t.goals)
+      .where(and(eq(t.goals.id, id), isNull(t.goals.deletedAt)));
+    if (!row) throw notFound("Goal", id);
+    return goalFromRow(row);
+  }
+
+  async function activeDebt(id: string): Promise<Debt> {
+    const [row] = await db
+      .select()
+      .from(t.debts)
+      .where(and(eq(t.debts.id, id), isNull(t.debts.deletedAt)));
+    if (!row) throw notFound("Debt", id);
+    return row as Debt;
+  }
+
+  /** A transaction may only point at a debt that exists and is in the same currency. */
+  async function requireDebt(debtId: string | null | undefined, currency: string) {
+    if (!debtId) return;
+    const debt = await activeDebt(debtId).catch(() => {
+      throw invalid(`Debt ${debtId} does not exist`);
+    });
+    if (debt.currency !== currency) {
+      throw invalid(`Transaction currency ${currency} differs from debt ${debt.currency}`);
+    }
+  }
+
+  /** What has been repaid per debt: money received (lent) or paid (borrowed) on transactions linked to it. */
+  async function repaymentTotals(debtId?: string) {
+    const rows = await db
+      .select({
+        debtId: t.transactions.debtId,
+        received: sql<number>`coalesce(sum(case when ${t.transactions.amount} > 0 then ${t.transactions.amount} else 0 end), 0)`,
+        paid: sql<number>`coalesce(sum(case when ${t.transactions.amount} < 0 then -${t.transactions.amount} else 0 end), 0)`,
+        receivedCount: sql<number>`coalesce(sum(case when ${t.transactions.amount} > 0 then 1 else 0 end), 0)`,
+        paidCount: sql<number>`coalesce(sum(case when ${t.transactions.amount} < 0 then 1 else 0 end), 0)`,
+      })
+      .from(t.transactions)
+      .where(
+        and(
+          isNull(t.transactions.deletedAt),
+          debtId ? eq(t.transactions.debtId, debtId) : sql`${t.transactions.debtId} is not null`,
+        ),
+      )
+      .groupBy(t.transactions.debtId);
+    return new Map(rows.map((r) => [r.debtId as string, r]));
+  }
+
+  function withProgress(
+    debt: Debt,
+    totals: Awaited<ReturnType<typeof repaymentTotals>>,
+  ): DebtWithProgress {
+    const r = totals.get(debt.id);
+    const lent = debt.direction === "lent";
+    return {
+      ...debt,
+      repaid: Number((lent ? r?.received : r?.paid) ?? 0),
+      repaymentCount: Number((lent ? r?.receivedCount : r?.paidCount) ?? 0),
+    };
+  }
+
+  /** A goal may only link accounts that exist. */
+  async function requireAccounts(ids: readonly string[]) {
+    for (const id of new Set(ids)) {
+      await activeAccount(id).catch(() => {
+        throw invalid(`Account ${id} does not exist`);
+      });
+    }
+  }
+
   async function activeTransaction(id: string): Promise<Transaction> {
     const [row] = await db
       .select()
@@ -340,6 +426,7 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
     if (filter.categoryIds?.length) c.push(inArray(t.transactions.categoryId, filter.categoryIds));
     if (filter.kind) c.push(eq(t.transactions.kind, filter.kind));
     if (filter.status) c.push(eq(t.transactions.status, filter.status));
+    if (filter.debtId) c.push(eq(t.transactions.debtId, filter.debtId));
     if (filter.needsReview !== undefined)
       c.push(eq(t.transactions.needsReview, filter.needsReview));
     if (filter.from) c.push(gte(t.transactions.bookingDate, filter.from));
@@ -924,6 +1011,137 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
         }),
     };
 
+    const goals: Repository["goals"] = {
+      list: () =>
+        run(async () =>
+          (
+            await db
+              .select()
+              .from(t.goals)
+              .where(isNull(t.goals.deletedAt))
+              .orderBy(asc(t.goals.createdAt), asc(t.goals.id))
+          ).map(goalFromRow),
+        ),
+      get: (id) =>
+        run(async () => {
+          const [row] = await db
+            .select()
+            .from(t.goals)
+            .where(and(eq(t.goals.id, id), isNull(t.goals.deletedAt)));
+          return row ? goalFromRow(row) : null;
+        }),
+      create: (input: NewGoal) =>
+        atomic(async () => {
+          const row = validate(
+            goalSchema,
+            {
+              ...fresh(),
+              name: input.name,
+              targetAmount: input.targetAmount,
+              currency: input.currency,
+              deadline: input.deadline ?? null,
+              accountIds: input.accountIds ?? [],
+              color: input.color ?? null,
+            },
+            "goal",
+          );
+          await requireAccounts(row.accountIds);
+          await db.insert(t.goals).values(goalToRow(row));
+          return row;
+        }),
+      update: (id, patch: GoalPatch) =>
+        atomic(async () => {
+          const current = await activeGoal(id);
+          const row = validate(goalSchema, { ...current, ...patch, ...stamp() }, "goal");
+          await requireAccounts(row.accountIds);
+          await db.update(t.goals).set(goalToRow(row)).where(eq(t.goals.id, id));
+          return row;
+        }),
+      delete: (id) =>
+        atomic(async () => {
+          await activeGoal(id);
+          const now = stamp();
+          await db
+            .update(t.goals)
+            .set({ ...now, deletedAt: now.updatedAt })
+            .where(eq(t.goals.id, id));
+        }),
+    };
+
+    const debts: Repository["debts"] = {
+      list: (options) =>
+        run(async () => {
+          const conds = [isNull(t.debts.deletedAt)];
+          if (!options?.includeSettled) conds.push(eq(t.debts.settled, false));
+          const rows = (await db
+            .select()
+            .from(t.debts)
+            .where(and(...conds))
+            .orderBy(desc(t.debts.createdAt), asc(t.debts.id))) as Debt[];
+          const totals = await repaymentTotals();
+          return rows.map((d) => withProgress(d, totals));
+        }),
+      get: (id) =>
+        run(async () => {
+          const [row] = await db
+            .select()
+            .from(t.debts)
+            .where(and(eq(t.debts.id, id), isNull(t.debts.deletedAt)));
+          return row ? withProgress(row as Debt, await repaymentTotals(id)) : null;
+        }),
+      create: (input: NewDebt) =>
+        atomic(async () => {
+          const row = validate(
+            debtSchema,
+            {
+              ...fresh(),
+              person: input.person,
+              direction: input.direction,
+              amount: input.amount,
+              currency: input.currency,
+              settled: input.settled ?? false,
+            },
+            "debt",
+          );
+          await db.insert(t.debts).values(row);
+          return row;
+        }),
+      update: (id, patch: DebtPatch) =>
+        atomic(async () => {
+          const current = await activeDebt(id);
+          const row = validate(debtSchema, { ...current, ...patch, ...stamp() }, "debt");
+          if (row.currency !== current.currency) {
+            const [linked] = await db
+              .select({ id: t.transactions.id })
+              .from(t.transactions)
+              .where(and(eq(t.transactions.debtId, id), isNull(t.transactions.deletedAt)))
+              .limit(1);
+            if (linked) throw invalid("The currency cannot change once repayments are linked");
+          }
+          await db.update(t.debts).set(row).where(eq(t.debts.id, id));
+          return row;
+        }),
+      delete: (id) =>
+        atomic(async () => {
+          await activeDebt(id);
+          const linked = await db
+            .select({ id: t.transactions.id })
+            .from(t.transactions)
+            .where(and(eq(t.transactions.debtId, id), isNull(t.transactions.deletedAt)));
+          for (const l of linked) {
+            await db
+              .update(t.transactions)
+              .set({ ...stamp(), debtId: null })
+              .where(eq(t.transactions.id, l.id));
+          }
+          const now = stamp();
+          await db
+            .update(t.debts)
+            .set({ ...now, deletedAt: now.updatedAt })
+            .where(eq(t.debts.id, id));
+        }),
+    };
+
     const recurring: Repository["recurring"] = {
       list: (options) =>
         run(async () => {
@@ -1037,6 +1255,7 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
           const splits = input.splits ?? [];
           checkSplits(input.amount, splits);
           await requireCategories([input.categoryId, ...splits.map((s) => s.categoryId)]);
+          await requireDebt(input.debtId, input.currency);
 
           const categorised = !!input.categoryId;
           const row = validate(
@@ -1108,6 +1327,8 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
             merged.categoryId,
             ...(newSplits ?? []).map((s) => s.categoryId),
           ]);
+
+          await requireDebt(merged.debtId, merged.currency);
 
           const row = validate(transactionSchema, merged, "transaction");
           await db.update(t.transactions).set(txToRow(row)).where(eq(t.transactions.id, id));
@@ -1336,6 +1557,8 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
       transactions,
       budgets,
       recurring,
+      goals,
+      debts,
       transaction: (fn) =>
         inTx ? fn(self) : exclusive(() => exec.transaction(() => fn(build(true)))),
     };

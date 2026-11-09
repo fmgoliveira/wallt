@@ -7,6 +7,7 @@ import {
   PiggyBank,
   Repeat,
   Settings,
+  Target,
   Wallet,
 } from "lucide-react-native";
 
@@ -50,6 +51,13 @@ export const recurring: NavItem = {
   href: "/recurring",
   icon: Repeat,
 };
+export const goals: NavItem = {
+  key: "goals",
+  label: "Goals & debts",
+  shortLabel: "Goals",
+  href: "/goals",
+  icon: Target,
+};
 export const reports: NavItem = {
   key: "reports",
   label: "Reports",
@@ -77,12 +85,13 @@ export const wideItems: readonly NavItem[] = [
   accounts,
   budgets,
   recurring,
+  goals,
   reports,
   settings,
 ];
 
 /** Routes reached through "More" on phones. */
-export const moreItems: readonly NavItem[] = [budgets, recurring, reports, settings];
+export const moreItems: readonly NavItem[] = [budgets, recurring, goals, reports, settings];
 
 export function isActive(item: NavItem, pathname: string): boolean {
   if (item.href === "/") return pathname === "/";
