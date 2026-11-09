@@ -3,6 +3,7 @@ import Head from "expo-router/head";
 import type { ReactNode } from "react";
 import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { NotificationBell } from "../notifications/NotificationBell";
 import { PrivacyToggle } from "../security/PrivacyToggle";
 
 export interface PageProps {
@@ -36,6 +37,7 @@ export function Page({ title, subtitle, actions, fill, children }: PageProps) {
           {subtitle ? <Text tone="muted">{subtitle}</Text> : null}
         </View>
         <View className="flex-row items-center gap-2">
+          <NotificationBell />
           <PrivacyToggle />
           {actions}
         </View>
