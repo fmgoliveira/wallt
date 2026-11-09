@@ -1,6 +1,8 @@
 import {
   createLocalRepository,
   createLocalStamper,
+  createSyncStore,
+  createUuidV7Generator,
   migrate,
   type RawSqlExecutor,
   type Repository,
@@ -8,6 +10,7 @@ import {
 } from "@wallt/db";
 import type { SQLiteBindParams, SQLiteDatabase } from "expo-sqlite";
 import { Platform } from "react-native";
+import { registerSyncRuntime } from "../sync/runtime";
 
 /** Local user until sign-in exists (P3 re-stamps rows to the server user; see ADR 0005). */
 export const LOCAL_USER_ID = "local";
@@ -49,16 +52,44 @@ async function toExecutor(db: SQLiteDatabase): Promise<RawSqlExecutor> {
   };
 }
 
+const NODE_ID_KEY = "node_id";
+
+/** Stable per-install id: the node part of every clock value and the device id sent to the server. */
+async function installId(exec: RawSqlExecutor): Promise<string> {
+  const rows = await exec.all<{ value: string }>("SELECT value FROM sync_meta WHERE key = ?", [
+    NODE_ID_KEY,
+  ]);
+  const existing = rows[0]?.value;
+  if (existing) return existing;
+  const id = createUuidV7Generator()();
+  await exec.run("INSERT OR REPLACE INTO sync_meta (key, value) VALUES (?, ?)", [NODE_ID_KEY, id]);
+  return id;
+}
+
 /** Applies pending migrations, seeds default categories, returns the repository over `db`. */
 export async function repositoryFromDatabase(db: SQLiteDatabase): Promise<Repository> {
   const exec = await toExecutor(db);
   await migrate(exec);
-  const stamper = createLocalStamper({ userId: LOCAL_USER_ID, nodeId: Platform.OS });
+  const nodeId = await installId(exec);
+  // the clock must never go backwards across restarts: start from the highest value already stored
+  const initialHlc = await createSyncStore(exec, (fn) => fn()).maxHlc();
+  const stamper = createLocalStamper({
+    userId: LOCAL_USER_ID,
+    nodeId,
+    ...(initialHlc ? { initialHlc } : {}),
+  });
   await seedDefaultCategories(exec, {
     userId: stamper.userId,
     newId: stamper.newId,
     now: stamper.now(),
     hlc: stamper.hlc(),
   });
-  return createLocalRepository(exec, stamper);
+  const repository = createLocalRepository(exec, stamper);
+  registerSyncRuntime({
+    store: repository.sync,
+    clock: stamper.clock,
+    deviceId: nodeId,
+    setUserId: stamper.setUserId,
+  });
+  return repository;
 }

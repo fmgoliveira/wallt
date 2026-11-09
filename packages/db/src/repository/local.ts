@@ -15,6 +15,7 @@ import {
 } from "@wallt/core";
 import { and, asc, desc, eq, gte, inArray, isNull, lte, or, type SQL, sql } from "drizzle-orm";
 import * as t from "../schema";
+import { createSyncStore, type SyncStore } from "../sync/store";
 import { createDrizzle, type RawSqlExecutor, type WalltDb } from "./executor";
 import type { Stamper } from "./stamper";
 import {
@@ -98,7 +99,9 @@ const escapeLike = (s: string) => s.replace(/[\\%_]/g, (c) => `\\${c}`);
  * node:sqlite / better-sqlite3 in tests. Statements run one at a time on the single connection, and
  * transactions are atomic and serialized, so concurrent callers never interleave inside someone else's BEGIN.
  */
-export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): Repository {
+export type SyncableRepository = Repository & { sync: SyncStore };
+
+export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): SyncableRepository {
   const db: WalltDb = createDrizzle(exec);
 
   // One connection: serialize every operation (and transaction) through a queue.
@@ -1084,5 +1087,5 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): R
     return self;
   }
 
-  return build(false);
+  return Object.assign(build(false), { sync: createSyncStore(exec, exclusive) });
 }

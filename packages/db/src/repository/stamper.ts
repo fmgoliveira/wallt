@@ -1,3 +1,5 @@
+import { createHlcClock, type HlcClock } from "@wallt/sync";
+
 /**
  * Everything a write needs to stamp a synced row (PLAN §3.2): id, owner, timestamps and the clock value.
  * Repositories never generate these themselves, so P3 can swap in the real HLC (and add the outbox) in one place.
@@ -79,27 +81,36 @@ export interface LocalStamperOptions {
   nodeId?: string;
   clock?: () => number;
   random?: RandomBytes;
+  /** Highest clock value already stored (see `SyncStore.maxHlc`), so values never go backwards after a restart. */
+  initialHlc?: string;
 }
 
-/**
- * Pre-sync stamper (P2). `hlc` is a placeholder with the final *shape*: `<ms hex>-<counter hex>-<node>`,
- * lexicographically ordered and strictly increasing on this device. P3 (packages/sync) replaces it.
- */
-export function createLocalStamper(options: LocalStamperOptions): Stamper {
-  const clock = options.clock ?? Date.now;
-  const node = options.nodeId ?? "local";
-  const newId = createUuidV7Generator(clock, options.random);
-  let lastMs = 0;
-  let counter = 0;
+/** A stamper backed by a real hybrid logical clock (ADR 0007); the sync engine feeds pulled values into `clock`. */
+export interface HlcStamper extends Stamper {
+  readonly clock: HlcClock;
+  /** Switches the owner of future writes (after first sign-in, with `SyncStore.enroll`). */
+  setUserId(userId: string): void;
+}
+
+export function createLocalStamper(options: LocalStamperOptions): HlcStamper {
+  const wall = options.clock ?? Date.now;
+  const newId = createUuidV7Generator(wall, options.random);
+  const clock = createHlcClock({
+    node: options.nodeId ?? "local",
+    wallClock: wall,
+    ...(options.initialHlc ? { initial: options.initialHlc } : {}),
+  });
+  let userId = options.userId;
   return {
-    userId: options.userId,
-    newId,
-    now: () => new Date(clock()).toISOString(),
-    hlc: () => {
-      const ms = Math.max(clock(), lastMs);
-      counter = ms === lastMs ? counter + 1 : 0;
-      lastMs = ms;
-      return `${ms.toString(16).padStart(12, "0")}-${counter.toString(16).padStart(4, "0")}-${node}`;
+    get userId() {
+      return userId;
     },
+    setUserId(next) {
+      userId = next;
+    },
+    clock,
+    newId,
+    now: () => new Date(wall()).toISOString(),
+    hlc: () => clock.now(),
   };
 }

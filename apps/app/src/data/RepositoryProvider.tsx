@@ -1,6 +1,8 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MutationCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Repository } from "@wallt/db";
 import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from "react";
+import { notifyLocalWrite, setOnRemoteChanges } from "../sync/runtime";
+import { restoreSession } from "../sync/session";
 import { openRepository } from "./database";
 
 type State =
@@ -37,6 +39,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const queryClient = useMemo(
     () =>
       new QueryClient({
+        // every successful local write may need pushing (no-op while signed out)
+        mutationCache: new MutationCache({ onSuccess: () => notifyLocalWrite() }),
         defaultOptions: {
           // Local data: no network retries or window-focus refetching to speak of.
           queries: {
@@ -52,8 +56,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let alive = true;
+    // a sync that pulled rows: cached queries are stale
+    setOnRemoteChanges(() => void queryClient.invalidateQueries());
     openRepository().then(
-      (repository) => alive && setState({ status: "ready", repository }),
+      (repository) => {
+        if (!alive) return;
+        setState({ status: "ready", repository });
+        void restoreSession().catch(() => undefined);
+      },
       (cause: unknown) =>
         alive &&
         setState({
@@ -63,8 +73,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
     );
     return () => {
       alive = false;
+      setOnRemoteChanges(null);
     };
-  }, []);
+  }, [queryClient]);
 
   return (
     <RepositoryContext.Provider value={state}>

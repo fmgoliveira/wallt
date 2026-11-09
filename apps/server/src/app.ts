@@ -10,6 +10,8 @@ import type { Db } from "./database";
 import type { Logger } from "./logger";
 import { parseTrustedProxies, resolveClientIp } from "./proxy";
 import { securityHeaders } from "./security";
+import { syncRoutes } from "./sync/routes";
+import { createSyncService } from "./sync/service";
 import { inlineScriptHashes, serveWeb } from "./web";
 
 export type AppDeps = {
@@ -74,6 +76,7 @@ export function createApp({ db, log, webDir, trustedProxies, auth, backup, clock
 
   if (auth) {
     app.route("/auth", authRoutes(auth, clock));
+    app.route("/sync", syncRoutes(auth, createSyncService(db, clock), db, clock ?? Date.now));
     if (backup !== undefined) app.route("/backups", backupRoutes(auth, backup));
   }
 

@@ -1,9 +1,8 @@
 import { DatabaseSync } from "node:sqlite";
 import { migrate } from "../migrate";
 import type { RawSqlExecutor } from "./executor";
-import { createLocalRepository } from "./local";
-import { createLocalStamper } from "./stamper";
-import type { Repository } from "./types";
+import { createLocalRepository, type SyncableRepository } from "./local";
+import { createLocalStamper, type HlcStamper } from "./stamper";
 
 /** In-memory SQLite (Node's built-in) as a `RawSqlExecutor`, standing in for expo-sqlite / better-sqlite3. */
 export function createNodeExecutor(): { exec: RawSqlExecutor; raw: DatabaseSync } {
@@ -40,17 +39,22 @@ export function createNodeExecutor(): { exec: RawSqlExecutor; raw: DatabaseSync 
   return { exec, raw };
 }
 
-export async function createTestRepository(options?: { clock?: () => number }): Promise<{
-  repo: Repository;
+export async function createTestRepository(options?: {
+  clock?: () => number;
+  nodeId?: string;
+  userId?: string;
+}): Promise<{
+  repo: SyncableRepository;
   raw: DatabaseSync;
+  stamper: HlcStamper;
 }> {
   const { exec, raw } = createNodeExecutor();
   await migrate(exec);
   let t = Date.UTC(2026, 10, 8, 12, 0, 0);
   const stamper = createLocalStamper({
-    userId: "local",
-    nodeId: "test",
+    userId: options?.userId ?? "local",
+    nodeId: options?.nodeId ?? "test",
     clock: options?.clock ?? (() => (t += 1)),
   });
-  return { repo: createLocalRepository(exec, stamper), raw };
+  return { repo: createLocalRepository(exec, stamper), raw, stamper };
 }
