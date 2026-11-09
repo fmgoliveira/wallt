@@ -23,7 +23,7 @@ import {
 import { useRouter } from "expo-router";
 import { ArrowLeftRight, CircleCheck, PiggyBank, Receipt } from "lucide-react-native";
 import { type ReactNode, useMemo } from "react";
-import { View } from "react-native";
+import { Pressable, View } from "react-native";
 import { categoryTint } from "../categories/color";
 import { categoryIcon } from "../categories/icons";
 import {
@@ -116,7 +116,8 @@ function NetWorth({ range }: { range: { from: string; to: string } }) {
           return (
             <Chip
               key={f.currency}
-              onHero
+              onHero={net >= 0}
+              tone={net >= 0 ? "positive" : "negative"}
               label={`${hidden ? "••••" : `${net >= 0 ? "+" : ""}${formatAmount({ amount: net, currency: f.currency })}`} this month`}
             />
           );
@@ -263,7 +264,16 @@ function Recent() {
     <Card className="gap-1 p-0 tablet:p-0">
       <View className="flex-row items-center justify-between px-4 pt-4 pb-2 tablet:px-5">
         <Text variant="title">Recent</Text>
-        <Button label="See all" variant="ghost" onPress={() => router.push("/transactions")} />
+        <Pressable
+          accessibilityRole="link"
+          onPress={() => router.push("/transactions")}
+          hitSlop={8}
+          className="py-1 web:cursor-pointer web:outline-none web:hover:opacity-70 active:opacity-60"
+        >
+          <Text variant="small" weight="medium" tone="muted">
+            See all
+          </Text>
+        </Pressable>
       </View>
       {recent.isPending ? (
         <View className="gap-3 px-4 pb-4">

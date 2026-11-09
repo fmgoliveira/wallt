@@ -1,5 +1,12 @@
 import { type ReactNode, useEffect } from "react";
-import { Platform, Pressable, ScrollView, View } from "react-native";
+import {
+  BackHandler,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  View,
+} from "react-native";
 import {
   Easing,
   FadeIn,
@@ -41,6 +48,16 @@ export function Sheet({ visible, onClose, title, children }: SheetProps) {
     return () => document.removeEventListener("keydown", onKey);
   }, [visible, onClose]);
 
+  // Android back button closes the topmost sheet instead of navigating behind it.
+  useEffect(() => {
+    if (!visible || Platform.OS !== "android") return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      onClose();
+      return true;
+    });
+    return () => sub.remove();
+  }, [visible, onClose]);
+
   if (!visible) return null;
 
   const enter = desktop
@@ -56,7 +73,9 @@ export function Sheet({ visible, onClose, title, children }: SheetProps) {
 
   return (
     <Portal>
-      <View
+      <KeyboardAvoidingView
+        behavior="padding"
+        enabled={Platform.OS !== "web"}
         className={cn(
           "absolute inset-0 z-50",
           desktop ? "items-center justify-center" : "justify-end",
@@ -107,7 +126,7 @@ export function Sheet({ visible, onClose, title, children }: SheetProps) {
             </ScrollView>
           </GlassSurface>
         </AnimatedView>
-      </View>
+      </KeyboardAvoidingView>
     </Portal>
   );
 }
