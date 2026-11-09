@@ -77,3 +77,36 @@ Owner accepted option A (NativeWind v4 + Reanimated, Moti dropped) and approved 
 - `expo-blur` (Expo-bundled native module) is added for Android glass; wrap it in a `GlassSurface` component in `packages/ui` that uses `backdrop-filter` on web and `BlurView` on native, with a translucent-fill fallback.
 - Biome config disables `noUnknownAtRules` for CSS.
 - Plan §2.1's "Moti" is dropped; animations use Reanimated.
+
+## P2.1 follow-up (2026-11-07)
+Implemented in `packages/ui` + `apps/app` (#14). Verified on **web** (phone 390 / desktop 1280, light + dark): NativeWind v4, Reanimated,
+glass (`backdrop-filter`), gradients (hero card, logo mark, background glows only). **Android is still unverified** (no emulator/device in
+the dev environment); `expo-blur` `BlurView` is used on native with a translucent fill, so the fallback is a plain translucent card.
+To be checked before P2.2 builds on it; if NativeWind misbehaves on device, fall back as decided above.
+
+## Update: visual design pass (P2.10, #79, 2026-11-08)
+Owner decisions (answered in the session): (1) replace the indigo palette and "gradients in three places" with the greyscale palette and
+monochrome gradient rules of `docs/design/GUIDELINES.md` §2–§3; (2) the user-selectable accent is kept **for `data` only** (charts, focus ring,
+selection, links; steel blue default); (3) Inter → **Geist** + **Geist Mono**.
+
+What changed in code: `tokens.ts` is the single source (semantic palette incl. `borderStrong`/`subtle`/`data`, `dataPalette`, radii 6/8/12/16,
+Geist type scale with tracking, gradient/depth/glass/ring helpers); the Tailwind preset exposes only semantic colours (no brand colours);
+`GlassSurface` has three levels (bar, sheet, toast) and is used only for floating layers, cards are solid `surfaceGradient`; the backdrop is two
+static desaturated glows (SVG radial gradients, no CSS blur, so web and Android match); depth is a `box-shadow` recipe (inset highlight + layered
+shadow) applied through the `style` prop because NativeWind's `shadow-*` utilities do not map to it on native.
+
+Verified on web (light + dark, phone/desktop). **Android is still unverified by me** (the device screen was locked); on-device checks of Geist,
+`expo-blur` glass, `boxShadow` and gradients remain open in #79. Native caveat carried over from P2.2: do not put `className` and an animated
+`style` on the same Reanimated view (use a plain wrapper View for `className`).
+
+### Motion (P2.10 follow-up)
+`AnimatedView` (NativeWind-wrapped Reanimated view) supports `className` and `entering`/`exiting` only; the wrapper flattens `style` and
+silently drops `useAnimatedStyle` output on web and Android. Anything with an animated `style` (button press scale, segmented pill, press
+feedback) uses `MotionView` (an unwrapped `Animated.createAnimatedComponent(View)`) with plain style objects, `className` on a plain parent.
+`onLayout` does not fire on views under the wrapper either; measure with `ref.measure`. Entrances use `Reveal`/`RevealGroup` (shared values, 180 ms, 25 ms
+stagger, max 8; not `entering` layout animations, which leave elements `visibility: hidden` on web when the tree mounts late). Shared spring is critically damped (`damping 30, stiffness 340`) to avoid visible bounce.
+
+### Static rendering and hydration (flicker fix)
+Expo's static/SSR render has no window size (width 0), so it always produced the **phone** layout; on desktop the browser painted that,
+then hydration swapped in the sidebar and replayed entrances (everything jumped). The root layout now renders the app only after it has
+mounted on the client (and fonts are loaded). The app is behind login, so there is nothing to server-render; the static HTML is an empty shell.
