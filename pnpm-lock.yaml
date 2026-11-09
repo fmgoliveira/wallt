@@ -293,9 +293,6 @@ importers:
       '@hono/node-server':
         specifier: 2.1.6
         version: 2.1.6(hono@4.13.16)
-      '@wallt/db':
-        specifier: workspace:*
-        version: link:../../packages/db
       '@wallt/sync':
         specifier: workspace:*
         version: link:../../packages/sync
@@ -327,9 +324,15 @@ importers:
       '@wallt/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@wallt/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       esbuild:
         specifier: 0.28.2
         version: 0.28.2
+      fast-check:
+        specifier: 4.10.2
+        version: 4.10.2
       tsx:
         specifier: ^4.23.15
         version: 4.23.15
@@ -423,7 +426,7 @@ importers:
         specifier: workspace:*
         version: link:../config
       fast-check:
-        specifier: ^4.10.2
+        specifier: 4.10.2
         version: 4.10.2
       typescript:
         specifier: 7.0.2
