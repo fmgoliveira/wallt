@@ -1011,6 +1011,40 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
         }),
     };
 
+    const fx: Repository["fx"] = {
+      list: (range) =>
+        run(async () => {
+          const conds: (SQL | undefined)[] = [];
+          if (range?.from) conds.push(gte(t.fxRates.date, range.from));
+          if (range?.to) conds.push(lte(t.fxRates.date, range.to));
+          return await db
+            .select()
+            .from(t.fxRates)
+            .where(and(...conds))
+            .orderBy(asc(t.fxRates.date), asc(t.fxRates.quote));
+        }),
+      upsert: (rows) =>
+        atomic(async () => {
+          // 4 bound values per row: stay well under SQLite's variable limit.
+          for (let i = 0; i < rows.length; i += 200) {
+            await db
+              .insert(t.fxRates)
+              .values(rows.slice(i, i + 200).map((r) => ({ ...r })))
+              .onConflictDoUpdate({
+                target: [t.fxRates.date, t.fxRates.base, t.fxRates.quote],
+                set: { rate: sql`excluded.rate` },
+              });
+          }
+        }),
+      latestDate: () =>
+        run(async () => {
+          const [row] = await db
+            .select({ date: sql<string | null>`max(${t.fxRates.date})` })
+            .from(t.fxRates);
+          return row?.date ?? null;
+        }),
+    };
+
     const goals: Repository["goals"] = {
       list: () =>
         run(async () =>
@@ -1557,6 +1591,7 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
       transactions,
       budgets,
       recurring,
+      fx,
       goals,
       debts,
       transaction: (fn) =>

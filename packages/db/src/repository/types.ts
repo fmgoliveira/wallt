@@ -4,6 +4,7 @@ import type {
   BudgetEntry,
   Category,
   Debt,
+  FxRow,
   Goal,
   RecurringRule,
   Tag,
@@ -149,6 +150,21 @@ export interface DebtsRepository {
   update(id: string, patch: DebtPatch): Promise<Debt>;
   /** Soft delete; transactions linked to it are kept and unlinked. */
   delete(id: string): Promise<void>;
+}
+
+/* ---------------------------------------------------------------------- fx */
+
+/**
+ * ECB reference rates (units of `quote` per 1 EUR). Not a synced table: the server owns them and clients download
+ * them through `GET /fx/rates` into the local copy of `fx_rates`. Nothing here goes through the outbox.
+ */
+export interface FxRepository {
+  /** Rates with `from <= date <= to` (both optional), oldest first. */
+  list(range?: { from?: string; to?: string }): Promise<FxRow[]>;
+  /** Insert or update by (date, base, quote). */
+  upsert(rows: readonly FxRow[]): Promise<void>;
+  /** Newest date held, or null when there are no rates yet. */
+  latestDate(): Promise<string | null>;
 }
 
 /* --------------------------------------------------------------- recurring */
@@ -314,6 +330,7 @@ export interface Repository {
   transactions: TransactionsRepository;
   budgets: BudgetsRepository;
   recurring: RecurringRepository;
+  fx: FxRepository;
   goals: GoalsRepository;
   debts: DebtsRepository;
   /**

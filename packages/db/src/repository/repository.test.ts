@@ -1293,3 +1293,40 @@ describe("debts", () => {
     await expectCode(repo.debts.update(d.id, { currency: "USD" }), "validation");
   });
 });
+
+describe("fx rates", () => {
+  const rate = (date: string, quote: string, r: string) => ({ date, base: "EUR", quote, rate: r });
+
+  it("stores rates, updates by key and lists by date range", async () => {
+    expect(await repo.fx.latestDate()).toBeNull();
+    expect(await repo.fx.list()).toEqual([]);
+    await repo.fx.upsert([
+      rate("2026-11-04", "USD", "1.10"),
+      rate("2026-11-05", "USD", "1.09"),
+      rate("2026-11-05", "GBP", "0.87"),
+    ]);
+    expect(await repo.fx.latestDate()).toBe("2026-11-05");
+    await repo.fx.upsert([rate("2026-11-05", "USD", "1.0950"), rate("2026-11-06", "USD", "1.08")]);
+    const all = await repo.fx.list();
+    expect(all).toHaveLength(4);
+    expect(all.find((r) => r.date === "2026-11-05" && r.quote === "USD")?.rate).toBe("1.0950");
+    expect(
+      (await repo.fx.list({ from: "2026-11-05", to: "2026-11-05" })).map((r) => r.quote),
+    ).toEqual(["GBP", "USD"]);
+    expect(await repo.fx.list({ from: "2026-11-06" })).toHaveLength(1);
+    expect(
+      raw.prepare("select count(*) as n from outbox where table_name = 'fx_rates'").get(),
+    ).toEqual({
+      n: 0,
+    });
+  });
+
+  it("handles batches larger than one statement can bind", async () => {
+    const letters = (n: number) =>
+      String.fromCharCode(65 + Math.floor(n / 676), 65 + (Math.floor(n / 26) % 26), 65 + (n % 26));
+    const rows = Array.from({ length: 1000 }, (_, i) => rate("2026-11-05", letters(i), "1.5"));
+    await repo.fx.upsert(rows);
+    expect(await repo.fx.list()).toHaveLength(1000);
+    await repo.fx.upsert([]);
+  });
+});
