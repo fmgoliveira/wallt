@@ -38,6 +38,14 @@ describe("sniffDelimiter", () => {
   it("ignores delimiters inside quotes", () => {
     expect(sniffDelimiter('"a,b";"c,d"\n"1,5";"2,5"\n"3,5";"4,5"')).toBe(";");
   });
+  it("keeps sparse trailing debit/credit columns in the row width", () => {
+    // decimal commas appear in rows whose last cell is empty: trimming first would make "," look consistent
+    expect(
+      sniffDelimiter(
+        "Data;Descrição;Débito;Crédito\n02/01/2024;COMPRA;23,45;\n05/01/2024;SALARIO;;1500,00\n06/01/2024;CAFE;1,50;\n",
+      ),
+    ).toBe(";");
+  });
   it("defaults to semicolon for single-column text", () => {
     expect(sniffDelimiter("hello\nworld")).toBe(";");
   });

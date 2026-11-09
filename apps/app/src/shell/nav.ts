@@ -8,6 +8,7 @@ import {
   Repeat,
   Settings,
   Target,
+  Upload,
   Wallet,
 } from "lucide-react-native";
 
@@ -64,6 +65,12 @@ export const reports: NavItem = {
   href: "/reports",
   icon: ChartColumn,
 };
+export const importItem: NavItem = {
+  key: "import",
+  label: "Import",
+  href: "/import",
+  icon: Upload,
+};
 export const settings: NavItem = {
   key: "settings",
   label: "Settings",
@@ -87,15 +94,27 @@ export const wideItems: readonly NavItem[] = [
   recurring,
   goals,
   reports,
+  importItem,
   settings,
 ];
 
 /** Routes reached through "More" on phones. */
-export const moreItems: readonly NavItem[] = [budgets, recurring, goals, reports, settings];
+export const moreItems: readonly NavItem[] = [
+  budgets,
+  recurring,
+  goals,
+  reports,
+  importItem,
+  settings,
+];
 
 export function isActive(item: NavItem, pathname: string): boolean {
   if (item.href === "/") return pathname === "/";
-  if (item.key === "settings" && pathname.startsWith("/categories")) return true;
+  if (
+    item.key === "settings" &&
+    (pathname.startsWith("/categories") || pathname.startsWith("/import-formats"))
+  )
+    return true;
   if (item.key === "more")
     return moreItems.some((m) => isActive(m, pathname)) || pathname === "/more";
   return pathname === item.href || pathname.startsWith(`${item.href}/`);
