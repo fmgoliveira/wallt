@@ -7,6 +7,7 @@ import type {
   FxRow,
   Goal,
   RecurringRule,
+  ReportEntry,
   Tag,
   Transaction,
   TransactionSplit,
@@ -289,6 +290,21 @@ export interface CategorySpend {
 /** One expense, or one split of a split expense, in its own currency: the input of budget math. */
 export type SpendEntry = BudgetEntry & { currency: string };
 
+/** Optional narrowing of report entries; lists are "any of", dimensions combine with AND. */
+export interface ReportFilter {
+  accountIds?: string[];
+  /** Matched against each entry's own category (a split's, for split transactions). */
+  categoryIds?: string[];
+  tagIds?: string[];
+}
+
+/** Everything a transaction did to one account on one day (transfers included), in the account's currency. */
+export interface DailyTotal {
+  date: string;
+  accountId: string;
+  total: number;
+}
+
 export interface TransactionsRepository {
   /** Newest booking date first (then newest created). `limit` defaults to 100. */
   list(
@@ -311,6 +327,16 @@ export interface TransactionsRepository {
    * transaction's account and tags); transfers, income and rows excluded from reports are left out.
    */
   spendEntries(range: DateRange): Promise<SpendEntry[]>;
+  /**
+   * Income and expenses in a period as flat entries for reports (splits expanded, transfers and rows excluded from
+   * reports left out), optionally narrowed by account, category and tag.
+   */
+  reportEntries(range: DateRange, filter?: ReportFilter): Promise<ReportEntry[]>;
+  /**
+   * Per account and day, the sum of all non-deleted transactions up to `to` (transfers included, whatever
+   * `excludedFromReports` says: balances are real). With `opening` accounts' opening balances give net worth over time.
+   */
+  dailyTotals(to?: string): Promise<DailyTotal[]>;
   createTransfer(input: NewTransfer): Promise<[TransactionDetail, TransactionDetail]>;
   /** Edits both legs together; `id` may be either leg. */
   updateTransfer(id: string, patch: TransferPatch): Promise<[TransactionDetail, TransactionDetail]>;

@@ -1330,3 +1330,107 @@ describe("fx rates", () => {
     await repo.fx.upsert([]);
   });
 });
+
+describe("report entries", () => {
+  const range = { from: "2026-11-01", to: "2026-11-30" };
+
+  it("returns income and expenses with payee and kind, splits expanded, and filters", async () => {
+    const a = await account();
+    const b = await account({ name: "Other", openingBalance: 0 });
+    const food = await repo.categories.create({ name: "Food", type: "expense" });
+    const home = await repo.categories.create({ name: "Home", type: "expense" });
+    const tag = await repo.tags.create({ name: "trip" });
+    const base = { accountId: a.id, currency: "EUR", bookingDate: "2026-11-10" };
+    await repo.transactions.create({
+      ...base,
+      amount: -1000,
+      categoryId: food.id,
+      payee: "Shop",
+      tagIds: [tag.id],
+    });
+    await repo.transactions.create({
+      ...base,
+      amount: -900,
+      payee: "Mix",
+      splits: [
+        { amount: -600, categoryId: food.id },
+        { amount: -300, categoryId: home.id },
+      ],
+    });
+    await repo.transactions.create({ ...base, amount: 5000, payee: "Employer" });
+    await repo.transactions.create({
+      accountId: b.id,
+      currency: "EUR",
+      bookingDate: "2026-11-11",
+      amount: -50,
+    });
+    await repo.transactions.create({ ...base, amount: -777, excludedFromReports: true });
+    await repo.transactions.createTransfer({
+      fromAccountId: a.id,
+      toAccountId: b.id,
+      amount: 400,
+      bookingDate: "2026-11-10",
+    });
+
+    const all = await repo.transactions.reportEntries(range);
+    expect(all).toHaveLength(5);
+    expect(all.filter((e) => e.kind === "income").map((e) => e.payee)).toEqual(["Employer"]);
+    expect(all.reduce((s, e) => s + e.amount, 0)).toBe(-1000 - 900 + 5000 - 50);
+
+    const foodOnly = await repo.transactions.reportEntries(range, { categoryIds: [food.id] });
+    expect(foodOnly.map((e) => e.amount).sort((x, y) => x - y)).toEqual([-1000, -600]);
+    expect(await repo.transactions.reportEntries(range, { tagIds: [tag.id] })).toHaveLength(1);
+    expect(await repo.transactions.reportEntries(range, { accountIds: [b.id] })).toHaveLength(1);
+    expect(
+      await repo.transactions.reportEntries(range, { accountIds: [a.id], categoryIds: [home.id] }),
+    ).toHaveLength(1);
+    expect(await repo.transactions.reportEntries({ from: "2027-01-01", to: "2027-01-31" })).toEqual(
+      [],
+    );
+  });
+});
+
+describe("daily totals", () => {
+  it("sums every non-deleted transaction per account and day, transfers and excluded rows included", async () => {
+    const a = await account();
+    const b = await account({ name: "Other", openingBalance: 0 });
+    const base = { accountId: a.id, currency: "EUR" };
+    await repo.transactions.create({ ...base, bookingDate: "2026-11-01", amount: -100 });
+    await repo.transactions.create({
+      ...base,
+      bookingDate: "2026-11-01",
+      amount: -50,
+      excludedFromReports: true,
+    });
+    await repo.transactions.create({ ...base, bookingDate: "2026-11-03", amount: 300 });
+    const gone = await repo.transactions.create({
+      ...base,
+      bookingDate: "2026-11-03",
+      amount: 9999,
+    });
+    await repo.transactions.delete(gone.id);
+    await repo.transactions.createTransfer({
+      fromAccountId: a.id,
+      toAccountId: b.id,
+      amount: 70,
+      bookingDate: "2026-11-03",
+    });
+
+    const rows = await repo.transactions.dailyTotals();
+    expect(rows).toEqual(
+      [
+        { date: "2026-11-01", accountId: a.id, total: -150 },
+        { date: "2026-11-03", accountId: a.id, total: 300 - 70 },
+        { date: "2026-11-03", accountId: b.id, total: 70 },
+      ].sort((x, y) => x.date.localeCompare(y.date)),
+    );
+    expect(await repo.transactions.dailyTotals("2026-11-02")).toEqual([
+      { date: "2026-11-01", accountId: a.id, total: -150 },
+    ]);
+    // opening balance + all activity = the derived balance
+    const bal = (await repo.accounts.getWithBalance(a.id))?.balance;
+    expect(
+      100_000 + rows.filter((r) => r.accountId === a.id).reduce((s, r) => s + r.total, 0),
+    ).toBe(bal);
+  });
+});
