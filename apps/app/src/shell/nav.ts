@@ -112,7 +112,9 @@ export function isActive(item: NavItem, pathname: string): boolean {
   if (item.href === "/") return pathname === "/";
   if (
     item.key === "settings" &&
-    (pathname.startsWith("/categories") || pathname.startsWith("/import-formats"))
+    (pathname.startsWith("/categories") ||
+      pathname.startsWith("/import-formats") ||
+      pathname.startsWith("/rules"))
   )
     return true;
   if (item.key === "more")

@@ -312,6 +312,7 @@ function EditorForm({
   onClose: () => void;
 }) {
   const { scheme, colors } = useTheme();
+  const router = useRouter();
   const remember = useEditorStore((s) => s.remember);
   const createTx = useCreateTransaction();
   const updateTx = useUpdateTransaction();
@@ -933,6 +934,16 @@ function EditorForm({
           )}
           {!last && canJump && !invalid ? (
             <Button label="Save now" variant="ghost" loading={busy} onPress={save} />
+          ) : null}
+          {last && editing && !wasTransfer && existing ? (
+            <Button
+              label="Create rule"
+              variant="ghost"
+              onPress={() => {
+                onClose();
+                router.push({ pathname: "/rules", params: { tx: existing.id } });
+              }}
+            />
           ) : null}
           {last && editing ? (
             <Button label="Delete" variant="ghost" onPress={() => setConfirmDelete(true)} />

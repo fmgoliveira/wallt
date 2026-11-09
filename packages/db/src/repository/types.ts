@@ -7,8 +7,10 @@ import type {
   FxRow,
   Goal,
   ImportProfile,
+  PayeeAlias,
   RecurringRule,
   ReportEntry,
+  Rule,
   Tag,
   Transaction,
   TransactionSplit,
@@ -222,6 +224,8 @@ export type NewTransaction = Pick<
   > & {
     /** Imports flag ambiguous rows (possible duplicates) for the review queue. */
     needsReview?: boolean;
+    /** How the category was chosen (rules/ML on import). Defaults to `user` when a category is given, else `none`. */
+    categorization?: Transaction["categorization"];
     splits?: NewSplit[];
     tagIds?: string[];
   };
@@ -378,6 +382,38 @@ export interface ImportProfilesRepository {
   delete(id: string): Promise<void>;
 }
 
+export type NewRule = Pick<Rule, "name" | "conditions" | "action"> &
+  Partial<Pick<Rule, "priority">>;
+export type RulePatch = Partial<Omit<Rule, Stamped>>;
+
+/** User categorization rules (PLAN §6). Synced. Evaluation lives in `@wallt/categorize`; this only stores them. */
+export interface RulesRepository {
+  /** Active rules in evaluation order (priority, then id). */
+  list(): Promise<Rule[]>;
+  get(id: string): Promise<Rule | null>;
+  /** Categories and tags named by the action must exist; `priority` defaults to after the last rule. */
+  create(input: NewRule): Promise<Rule>;
+  update(id: string, patch: RulePatch): Promise<Rule>;
+  /** Sets `priority` to the position in `ids` (0-based); pass every rule you want ordered. */
+  reorder(ids: string[]): Promise<void>;
+  /** Soft delete (tombstone). Transactions keep the category the rule gave them. */
+  delete(id: string): Promise<void>;
+}
+
+export type NewPayeeAlias = Pick<PayeeAlias, "pattern" | "payee">;
+export type PayeeAliasPatch = Partial<Omit<PayeeAlias, Stamped>>;
+
+/** Raw text pattern -> clean payee name (PLAN §5). Synced. First match in list order wins at import. */
+export interface PayeeAliasesRepository {
+  /** Active aliases, oldest first (the order import applies them in). */
+  list(): Promise<PayeeAlias[]>;
+  get(id: string): Promise<PayeeAlias | null>;
+  /** The pattern must be a valid regular expression or plain text; the payee must not be empty. */
+  create(input: NewPayeeAlias): Promise<PayeeAlias>;
+  update(id: string, patch: PayeeAliasPatch): Promise<PayeeAlias>;
+  delete(id: string): Promise<void>;
+}
+
 export interface Repository {
   accounts: AccountsRepository;
   categories: CategoriesRepository;
@@ -389,6 +425,8 @@ export interface Repository {
   goals: GoalsRepository;
   debts: DebtsRepository;
   importProfiles: ImportProfilesRepository;
+  rules: RulesRepository;
+  payeeAliases: PayeeAliasesRepository;
   /**
    * Runs `fn` atomically: everything commits together or not at all. Re-entrant (nested calls join the
    * outer transaction). Use it for batches: writes outside a transaction cost 50-150 ms each on web.

@@ -1,3 +1,4 @@
+import { categorize } from "@wallt/categorize";
 import type { Transaction } from "@wallt/core";
 import { createUuidV7Generator, type Repository } from "@wallt/db";
 import {
@@ -34,8 +35,9 @@ export async function planForAccount(
   currency: string,
   rows: readonly ParsedRow[],
 ): Promise<ImportPlan> {
+  const aliases = await repo.payeeAliases.list();
   const range = lookupRange(rows);
-  if (!range) return planImport({ accountId, currency, rows, existing: [] });
+  if (!range) return planImport({ accountId, currency, rows, existing: [], aliases });
   const all = (await repo.transactions.list({ from: range.from, to: range.to, limit: 20000 })).map(
     existingOf,
   );
@@ -43,6 +45,7 @@ export async function planForAccount(
     accountId,
     currency,
     rows,
+    aliases,
     existing: all.filter((t) => t.accountId === accountId),
     others: all.filter((t) => t.accountId !== accountId),
   });
@@ -63,12 +66,19 @@ export interface ImportOutcome {
  * Write a plan in one transaction: new rows (stamped with a batch id so the whole import can be undone), pending ->
  * booked updates, and the high-confidence transfer links. Duplicates are skipped, never written.
  */
-export function applyPlan(
+export async function applyPlan(
   repo: Repository,
   plan: ImportPlan,
   currency: string,
 ): Promise<ImportOutcome> {
   const batchId = newBatchId();
+  const [rules, categories, tags] = await Promise.all([
+    repo.rules.list(),
+    repo.categories.list({ includeArchived: true }),
+    repo.tags.list(),
+  ]);
+  const kinds = new Map(categories.map((c) => [c.id, c.type] as const));
+  const liveTags = new Set(tags.map((t) => t.id));
   return repo.transaction(async (tx) => {
     const created = new Map<number, string>(); // plan row index -> new transaction id
     let inserted = 0;
@@ -76,13 +86,23 @@ export function applyPlan(
     for (const [i, p] of plan.rows.entries()) {
       const { row } = p;
       if (p.action === "insert") {
+        const decision = categorize(
+          {
+            payee: p.payee,
+            description: p.descriptionClean,
+            descriptionRaw: row.description,
+            amount: row.amount,
+            accountId: plan.accountId,
+          },
+          { rules, categoryKind: (id) => kinds.get(id) },
+        );
         const made = await tx.transactions.create({
           accountId: plan.accountId,
           amount: row.amount,
           currency,
           bookingDate: row.bookingDate,
           valueDate: row.valueDate,
-          payee: p.payee,
+          payee: decision.payeeRename ?? p.payee,
           descriptionRaw: row.description,
           descriptionClean: p.descriptionClean,
           status: "booked",
@@ -90,8 +110,19 @@ export function applyPlan(
           externalId: row.externalId,
           dedupHash: p.dedupHash,
           importBatchId: batchId,
-          needsReview: p.needsReview,
+          needsReview: p.needsReview || decision.needsReview,
           notes: p.needsReview ? p.reasons.join("; ") : "",
+          ...(decision.categoryId
+            ? {
+                categoryId: decision.categoryId,
+                categorization: {
+                  method: decision.method === "none" ? ("rule" as const) : decision.method,
+                  confidence: decision.confidence,
+                  needsReview: p.needsReview || decision.needsReview,
+                },
+              }
+            : {}),
+          tagIds: decision.tagIds.filter((id) => liveTags.has(id)),
         });
         created.set(i, made.id);
         inserted++;

@@ -1,6 +1,6 @@
 import { Card, IconTile, ListItem, useTheme } from "@wallt/ui";
 import { useRouter } from "expo-router";
-import { ChevronRight, FileSpreadsheet, Tags } from "lucide-react-native";
+import { ChevronRight, FileSpreadsheet, ListFilter, Tags } from "lucide-react-native";
 import { NotificationSetting } from "../../src/notifications/NotificationSettings";
 import { LockSetting, PrivacySetting } from "../../src/security/SecuritySettings";
 import { Page } from "../../src/shell/Page";
@@ -10,7 +10,10 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   return (
-    <Page title="Settings" subtitle="Security, categories; theme, currency and backups later">
+    <Page
+      title="Settings"
+      subtitle="Security, categories, rules; theme, currency and backups later"
+    >
       <SyncSetting />
       <NotificationSetting />
       <PrivacySetting />
@@ -26,6 +29,18 @@ export default function SettingsScreen() {
           }
           trailing={<ChevronRight size={16} color={colors.subtle} strokeWidth={1.6} />}
           onPress={() => router.push("/categories")}
+        />
+        <ListItem
+          title="Rules"
+          subtitle="Categorise transactions automatically"
+          divider
+          leading={
+            <IconTile>
+              <ListFilter size={18} color={colors.muted} strokeWidth={1.6} />
+            </IconTile>
+          }
+          trailing={<ChevronRight size={16} color={colors.subtle} strokeWidth={1.6} />}
+          onPress={() => router.push("/rules")}
         />
         <ListItem
           title="Import formats"

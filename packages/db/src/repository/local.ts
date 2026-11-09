@@ -12,9 +12,13 @@ import {
   type ImportProfile,
   importProfileSchema,
   isValidRRule,
+  type PayeeAlias,
+  payeeAliasSchema,
   type RecurringRule,
   type ReportEntry,
+  type Rule,
   recurringRuleSchema,
+  ruleSchema,
   splitsError,
   type Tag,
   type Transaction,
@@ -47,14 +51,18 @@ import {
   type NewDebt,
   type NewGoal,
   type NewImportProfile,
+  type NewPayeeAlias,
   type NewRecurringRule,
+  type NewRule,
   type NewSplit,
   type NewTag,
   type NewTransaction,
   type NewTransfer,
+  type PayeeAliasPatch,
   type RecurringRulePatch,
   type Repository,
   RepositoryError,
+  type RulePatch,
   type SpendEntry,
   type TagPatch,
   type TransactionDetail,
@@ -133,6 +141,15 @@ const profileToRow = (p: ImportProfile): ProfileRow => ({
   ...p,
   fingerprints: JSON.stringify(p.fingerprints),
   config: JSON.stringify(p.config),
+});
+type RuleRow = typeof t.rules.$inferSelect;
+
+const categRuleFromRow = (row: RuleRow): Rule =>
+  ({ ...row, conditions: JSON.parse(row.conditions), action: JSON.parse(row.action) }) as Rule;
+const categRuleToRow = (r: Rule): RuleRow => ({
+  ...r,
+  conditions: JSON.stringify(r.conditions),
+  action: JSON.stringify(r.action),
 });
 type RecurringRow = typeof t.recurringRules.$inferSelect;
 
@@ -1165,6 +1182,166 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
         }),
     };
 
+    const activeCategRule = async (id: string): Promise<Rule> => {
+      const [row] = await db
+        .select()
+        .from(t.rules)
+        .where(and(eq(t.rules.id, id), isNull(t.rules.deletedAt)));
+      if (!row) throw notFound("Rule", id);
+      return categRuleFromRow(row);
+    };
+    const checkRuleRefs = async (action: Rule["action"]) => {
+      await requireCategories([action.categoryId]);
+      for (const id of action.tagIds ?? []) {
+        try {
+          await activeTag(id);
+        } catch {
+          throw invalid(`Tag ${id} does not exist`);
+        }
+      }
+    };
+
+    const rules: Repository["rules"] = {
+      list: () =>
+        run(async () =>
+          (
+            await db
+              .select()
+              .from(t.rules)
+              .where(isNull(t.rules.deletedAt))
+              .orderBy(asc(t.rules.priority), asc(t.rules.id))
+          ).map(categRuleFromRow),
+        ),
+      get: (id) =>
+        run(async () => {
+          const [row] = await db
+            .select()
+            .from(t.rules)
+            .where(and(eq(t.rules.id, id), isNull(t.rules.deletedAt)));
+          return row ? categRuleFromRow(row) : null;
+        }),
+      create: (input: NewRule) =>
+        atomic(async () => {
+          let priority = input.priority;
+          if (priority === undefined) {
+            const [last] = await db
+              .select({ p: t.rules.priority })
+              .from(t.rules)
+              .where(isNull(t.rules.deletedAt))
+              .orderBy(desc(t.rules.priority))
+              .limit(1);
+            priority = last ? last.p + 1 : 0;
+          }
+          const row = validate(
+            ruleSchema,
+            {
+              ...fresh(),
+              name: input.name,
+              conditions: input.conditions,
+              action: input.action,
+              priority,
+            },
+            "rule",
+          );
+          await checkRuleRefs(row.action);
+          await db.insert(t.rules).values(categRuleToRow(row));
+          return row;
+        }),
+      update: (id, patch: RulePatch) =>
+        atomic(async () => {
+          const current = await activeCategRule(id);
+          const row = validate(ruleSchema, { ...current, ...patch, ...stamp() }, "rule");
+          await checkRuleRefs(row.action);
+          await db.update(t.rules).set(categRuleToRow(row)).where(eq(t.rules.id, id));
+          return row;
+        }),
+      reorder: (ids) =>
+        atomic(async () => {
+          for (const [i, id] of ids.entries()) {
+            const current = await activeCategRule(id);
+            if (current.priority === i) continue;
+            await db
+              .update(t.rules)
+              .set({ priority: i, ...stamp() })
+              .where(eq(t.rules.id, id));
+          }
+        }),
+      delete: (id) =>
+        atomic(async () => {
+          await activeCategRule(id);
+          const now = stamp();
+          await db
+            .update(t.rules)
+            .set({ ...now, deletedAt: now.updatedAt })
+            .where(eq(t.rules.id, id));
+        }),
+    };
+
+    const aliasPatternError = (pattern: string): string | null =>
+      pattern.trim() === "" ? "Pattern is required" : null;
+    const activeAlias = async (id: string): Promise<PayeeAlias> => {
+      const [row] = await db
+        .select()
+        .from(t.payeeAliases)
+        .where(and(eq(t.payeeAliases.id, id), isNull(t.payeeAliases.deletedAt)));
+      if (!row) throw notFound("Payee alias", id);
+      return row as PayeeAlias;
+    };
+
+    const payeeAliases: Repository["payeeAliases"] = {
+      list: () =>
+        run(
+          async () =>
+            (await db
+              .select()
+              .from(t.payeeAliases)
+              .where(isNull(t.payeeAliases.deletedAt))
+              .orderBy(asc(t.payeeAliases.createdAt), asc(t.payeeAliases.id))) as PayeeAlias[],
+        ),
+      get: (id) =>
+        run(async () => {
+          const [row] = await db
+            .select()
+            .from(t.payeeAliases)
+            .where(and(eq(t.payeeAliases.id, id), isNull(t.payeeAliases.deletedAt)));
+          return (row as PayeeAlias | undefined) ?? null;
+        }),
+      create: (input: NewPayeeAlias) =>
+        atomic(async () => {
+          const bad = aliasPatternError(input.pattern);
+          if (bad) throw invalid(bad);
+          const row = validate(
+            payeeAliasSchema,
+            { ...fresh(), pattern: input.pattern, payee: input.payee },
+            "payee alias",
+          );
+          await db.insert(t.payeeAliases).values(row);
+          return row;
+        }),
+      update: (id, patch: PayeeAliasPatch) =>
+        atomic(async () => {
+          const current = await activeAlias(id);
+          const row = validate(
+            payeeAliasSchema,
+            { ...current, ...patch, ...stamp() },
+            "payee alias",
+          );
+          const bad = aliasPatternError(row.pattern);
+          if (bad) throw invalid(bad);
+          await db.update(t.payeeAliases).set(row).where(eq(t.payeeAliases.id, id));
+          return row;
+        }),
+      delete: (id) =>
+        atomic(async () => {
+          await activeAlias(id);
+          const now = stamp();
+          await db
+            .update(t.payeeAliases)
+            .set({ ...now, deletedAt: now.updatedAt })
+            .where(eq(t.payeeAliases.id, id));
+        }),
+    };
+
     const fx: Repository["fx"] = {
       list: (range) =>
         run(async () => {
@@ -1469,7 +1646,7 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
               dedupHash: input.dedupHash ?? "",
               importBatchId: input.importBatchId ?? null,
               debtId: input.debtId ?? null,
-              categorization: {
+              categorization: input.categorization ?? {
                 method: categorised ? "user" : "none",
                 confidence: categorised ? 1 : 0,
                 needsReview: input.needsReview ?? false,
@@ -1803,6 +1980,8 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
       goals,
       debts,
       importProfiles,
+      rules,
+      payeeAliases,
       transaction: (fn) =>
         inTx ? fn(self) : exclusive(() => exec.transaction(() => fn(build(true)))),
     };
