@@ -26,7 +26,7 @@ export interface TabularizeOptions {
 }
 
 /** Parse RFC 4180-style delimited text: quotes, doubled quotes, embedded newlines, CRLF/LF/CR. */
-export function parseDelimited(text: string, delimiter: string, quote = '"'): Rows {
+export function parseDelimited(text: string, delimiter: string, quote = '"', trim = true): Rows {
   const rows: Rows = [];
   let row: string[] = [];
   let cell = "";
@@ -65,7 +65,7 @@ export function parseDelimited(text: string, delimiter: string, quote = '"'): Ro
     }
   }
   if (started || cell !== "" || row.length > 0) endRow();
-  return trimRows(rows);
+  return trim ? trimRows(rows) : rows;
 }
 
 /** Trim cells, drop trailing empty cells and trailing empty rows. Blank rows in the middle stay. */
@@ -88,7 +88,8 @@ export function sniffDelimiter(text: string, quote = '"'): Delimiter {
   let bestScore = 0;
   const sample = text.slice(0, 20000);
   for (const d of DELIMITERS) {
-    const rows = parseDelimited(sample, d, quote)
+    // untrimmed: sparse trailing columns (debit/credit) must still count towards the row width
+    const rows = parseDelimited(sample, d, quote, false)
       .filter((r) => r.length > 0)
       .slice(0, 60);
     if (rows.length === 0) continue;

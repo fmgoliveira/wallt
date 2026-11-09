@@ -26,6 +26,7 @@ export interface Fixture {
 export const VARIANTS = [
   "pt-semicolon-cp1252",
   "pt-debit-credit",
+  "pt-debit-credit-sparse",
   "en-comma-iso-bom",
   "preamble-descending",
   "no-header-trailing-minus",
@@ -209,6 +210,19 @@ export function generateFixture(variant: Variant, seed = 1): Fixture {
         ]),
       ];
       return file("pt-debit-credit.csv", encodeCp1252(csv(lines, ";")));
+    }
+    case "pt-debit-credit-sparse": {
+      // no balance column: the last columns are mostly empty, and decimal commas must not look like a delimiter
+      const lines = [
+        ["Data", "Descrição", "Débito", "Crédito"],
+        ...asc.map((r) => [
+          dmy(r.date, "/"),
+          r.description,
+          r.amount < 0 ? fmt(-r.amount, "pt", false) : "",
+          r.amount > 0 ? fmt(r.amount, "pt", false) : "",
+        ]),
+      ];
+      return file("pt-debit-credit-sparse.csv", encodeCp1252(csv(lines, ";")));
     }
     case "en-comma-iso-bom": {
       const lines = [

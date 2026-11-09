@@ -1,6 +1,6 @@
 import { Card, IconTile, ListItem, useTheme } from "@wallt/ui";
 import { useRouter } from "expo-router";
-import { ChevronRight, Tags } from "lucide-react-native";
+import { ChevronRight, FileSpreadsheet, Tags } from "lucide-react-native";
 import { NotificationSetting } from "../../src/notifications/NotificationSettings";
 import { LockSetting, PrivacySetting } from "../../src/security/SecuritySettings";
 import { Page } from "../../src/shell/Page";
@@ -26,6 +26,18 @@ export default function SettingsScreen() {
           }
           trailing={<ChevronRight size={16} color={colors.subtle} strokeWidth={1.6} />}
           onPress={() => router.push("/categories")}
+        />
+        <ListItem
+          title="Import formats"
+          subtitle="How each bank's export is read"
+          divider
+          leading={
+            <IconTile>
+              <FileSpreadsheet size={18} color={colors.muted} strokeWidth={1.6} />
+            </IconTile>
+          }
+          trailing={<ChevronRight size={16} color={colors.subtle} strokeWidth={1.6} />}
+          onPress={() => router.push("/import-formats")}
         />
       </Card>
     </Page>

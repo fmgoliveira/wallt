@@ -193,6 +193,9 @@ importers:
       '@wallt/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@wallt/ingest':
+        specifier: workspace:*
+        version: link:../../packages/ingest
       '@wallt/sync':
         specifier: workspace:*
         version: link:../../packages/sync
