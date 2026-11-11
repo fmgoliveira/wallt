@@ -29,6 +29,7 @@ import { UpdateNotice } from "../update/UpdateNotice";
 import { NavButton } from "./NavButton";
 import { isActive, phoneItems, wideItems } from "./nav";
 import { hydrateShellStore, useShellStore } from "./store";
+import { TopInsetConsumed } from "./topInset";
 
 const icon = require("../../assets/icon.png");
 
@@ -40,9 +41,14 @@ function StatusRow() {
   const signedIn = useSyncUi((u) => u.session !== null);
   const { t } = useTranslation();
   // Android without a server session has nothing to say: keep the P2 layout untouched.
+  const insets = useSafeAreaInsets();
   if (Platform.OS !== "web" && !signedIn) return null;
   return (
-    <View className="mx-auto w-full max-w-[1200px] px-4 pt-3 tablet:px-6 desktop:px-8">
+    <View
+      className="mx-auto w-full max-w-[1200px] px-4 pt-3 tablet:px-6 desktop:px-8"
+      // below the system status bar on Android (pages skip their own top inset when this row is shown)
+      style={{ marginTop: insets.top }}
+    >
       <View className="flex-row flex-wrap items-center gap-2">
         <SyncStatus />
         <UpdateNotice />
@@ -256,6 +262,8 @@ function SkipLink() {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const bp = useBreakpoint();
+  const signedIn = useSyncUi((u) => u.session !== null);
+  const statusRowShown = Platform.OS === "web" || signedIn;
   useAddShortcut();
   useEffect(() => hydrateShellStore(), []);
 
@@ -265,15 +273,17 @@ export function AppShell({ children }: { children: ReactNode }) {
       {bp === "phone" ? null : <SideNav wide={bp === "desktop"} />}
       <View className="flex-1">
         <StatusRow />
-        <View
-          role="main"
-          nativeID="main-content"
-          // focusable by script only, so the skip link can move keyboard focus past the navigation
-          {...(Platform.OS === "web" ? ({ tabIndex: -1 } as object) : {})}
-          className="flex-1 web:outline-none"
-        >
-          {children}
-        </View>
+        <TopInsetConsumed.Provider value={statusRowShown}>
+          <View
+            role="main"
+            nativeID="main-content"
+            // focusable by script only, so the skip link can move keyboard focus past the navigation
+            {...(Platform.OS === "web" ? ({ tabIndex: -1 } as object) : {})}
+            className="flex-1 web:outline-none"
+          >
+            {children}
+          </View>
+        </TopInsetConsumed.Provider>
         {bp === "phone" ? (
           // Floats over the content so lists run full height and scroll behind the glass bar.
           <View pointerEvents="box-none" className="absolute right-0 bottom-0 left-0">

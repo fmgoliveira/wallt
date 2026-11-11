@@ -1,10 +1,11 @@
 import { Reveal, RevealGroup, Text, useBreakpoint } from "@wallt/ui";
 import Head from "expo-router/head";
-import type { ReactNode } from "react";
+import { type ReactNode, useContext } from "react";
 import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NotificationBell } from "../notifications/NotificationBell";
 import { PrivacyToggle } from "../security/PrivacyToggle";
+import { TopInsetConsumed } from "./topInset";
 
 export interface PageProps {
   title: string;
@@ -23,6 +24,8 @@ export interface PageProps {
 export function Page({ title, subtitle, actions, fill, children }: PageProps) {
   const bp = useBreakpoint();
   const insets = useSafeAreaInsets();
+  // The shell's status row (shown when signed in) already clears the status bar.
+  const topInset = useContext(TopInsetConsumed) ? 0 : insets.top;
   const header = (
     <Reveal>
       <View className="flex-row items-end justify-between gap-4">
@@ -53,14 +56,14 @@ export function Page({ title, subtitle, actions, fill, children }: PageProps) {
       {fill ? (
         <View
           className="mx-auto w-full max-w-[1200px] flex-1 gap-4 px-4 pt-6 tablet:px-6 desktop:px-8 tablet:pb-4 desktop:pt-8 desktop:pb-6"
-          style={{ paddingTop: insets.top + 24 }}
+          style={{ paddingTop: topInset + 24 }}
         >
           {header}
           <View className="flex-1">{children}</View>
         </View>
       ) : (
         <ScrollView
-          style={{ paddingTop: insets.top }}
+          style={{ paddingTop: topInset }}
           contentContainerStyle={
             bp === "phone" ? { paddingBottom: insets.bottom + 120 } : undefined
           }
