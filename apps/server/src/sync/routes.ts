@@ -4,11 +4,18 @@ import { bodyLimit } from "hono/body-limit";
 import { type AuthEnv, requireAuth } from "../auth/routes";
 import type { AuthService } from "../auth/service";
 import type { Db } from "../database";
+import type { FileStore } from "../files/store";
 import { purgeDeletedRows } from "./purge";
 import type { SyncService } from "./service";
 
 /** `/sync/push` and `/sync/pull` (access token required). See ADR 0007. */
-export function syncRoutes(auth: AuthService, sync: SyncService, db: Db, now: () => number) {
+export function syncRoutes(
+  auth: AuthService,
+  sync: SyncService,
+  db: Db,
+  now: () => number,
+  files?: FileStore,
+) {
   const app = new Hono<AuthEnv>();
   app.use(requireAuth(auth));
   app.use(async (c, next) => {
@@ -61,7 +68,7 @@ export function syncRoutes(auth: AuthService, sync: SyncService, db: Db, now: ()
   });
 
   // Removes this user's deleted rows from the server once every active device has applied them (see purge.ts).
-  app.post("/purge", (c) => c.json(purgeDeletedRows(db, c.get("userId"), now())));
+  app.post("/purge", (c) => c.json(purgeDeletedRows(db, c.get("userId"), now(), files)));
 
   return app;
 }

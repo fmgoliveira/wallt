@@ -1,6 +1,9 @@
 import {
   type Account,
+  ATTACHMENT_FILE_EXTENSIONS,
+  type Attachment,
   accountSchema,
+  attachmentSchema,
   type Budget,
   budgetSchema,
   type Category,
@@ -48,6 +51,7 @@ import {
   type GoalPatch,
   type ImportProfilePatch,
   type NewAccount,
+  type NewAttachment,
   type NewBudget,
   type NewCategory,
   type NewDebt,
@@ -709,6 +713,20 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
     }
   }
 
+  async function tombstoneAttachments(txId: string) {
+    const rows = await db
+      .select({ id: t.attachments.id })
+      .from(t.attachments)
+      .where(and(eq(t.attachments.transactionId, txId), isNull(t.attachments.deletedAt)));
+    for (const r of rows) {
+      const now = stamp();
+      await db
+        .update(t.attachments)
+        .set({ ...now, deletedAt: now.updatedAt })
+        .where(eq(t.attachments.id, r.id));
+    }
+  }
+
   async function syncTags(txId: string, tagIds: string[]) {
     const wanted = new Set(tagIds);
     for (const id of wanted) {
@@ -1110,6 +1128,93 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
             .update(t.budgets)
             .set({ ...now, deletedAt: now.updatedAt })
             .where(eq(t.budgets.id, id));
+        }),
+    };
+
+    const attachments: Repository["attachments"] = {
+      listForTransaction: (transactionId) =>
+        run(
+          async () =>
+            (await db
+              .select()
+              .from(t.attachments)
+              .where(
+                and(
+                  eq(t.attachments.transactionId, transactionId),
+                  isNull(t.attachments.deletedAt),
+                ),
+              )
+              .orderBy(asc(t.attachments.createdAt), asc(t.attachments.id))) as Attachment[],
+        ),
+      listForTransactions: (transactionIds) =>
+        run(async () => {
+          const out: Attachment[] = [];
+          // chunked: SQLite caps the number of bound parameters
+          for (let i = 0; i < transactionIds.length; i += 500) {
+            out.push(
+              ...((await db
+                .select()
+                .from(t.attachments)
+                .where(
+                  and(
+                    inArray(t.attachments.transactionId, transactionIds.slice(i, i + 500)),
+                    isNull(t.attachments.deletedAt),
+                  ),
+                )
+                .orderBy(asc(t.attachments.createdAt), asc(t.attachments.id))) as Attachment[]),
+            );
+          }
+          return out;
+        }),
+      listAll: () =>
+        run(
+          async () =>
+            (await db
+              .select()
+              .from(t.attachments)
+              .where(isNull(t.attachments.deletedAt))
+              .orderBy(asc(t.attachments.createdAt), asc(t.attachments.id))) as Attachment[],
+        ),
+      get: (id) =>
+        run(async () => {
+          const [row] = await db
+            .select()
+            .from(t.attachments)
+            .where(and(eq(t.attachments.id, id), isNull(t.attachments.deletedAt)));
+          return (row as Attachment | undefined) ?? null;
+        }),
+      create: (input: NewAttachment) =>
+        atomic(async () => {
+          await activeTransaction(input.transactionId);
+          const base = fresh();
+          const row = validate(
+            attachmentSchema,
+            {
+              ...base,
+              transactionId: input.transactionId,
+              filePath: `${base.id}.${ATTACHMENT_FILE_EXTENSIONS[input.mime]}`,
+              mime: input.mime,
+              name: input.name,
+              size: input.size,
+              sha256: input.sha256,
+            },
+            "attachment",
+          );
+          await db.insert(t.attachments).values(row);
+          return row;
+        }),
+      delete: (id) =>
+        atomic(async () => {
+          const [current] = await db
+            .select({ id: t.attachments.id })
+            .from(t.attachments)
+            .where(and(eq(t.attachments.id, id), isNull(t.attachments.deletedAt)));
+          if (!current) throw notFound("Attachment", id);
+          const now = stamp();
+          await db
+            .update(t.attachments)
+            .set({ ...now, deletedAt: now.updatedAt })
+            .where(eq(t.attachments.id, id));
         }),
     };
 
@@ -1972,6 +2077,7 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
             }
             await tombstoneSplits(r.id);
             await tombstoneTagLinks(eq(t.transactionTags.transactionId, r.id));
+            await tombstoneAttachments(r.id);
             const now = stamp();
             await db
               .update(t.transactions)
@@ -1992,6 +2098,7 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
           for (const txId of ids) {
             await tombstoneSplits(txId);
             await tombstoneTagLinks(eq(t.transactionTags.transactionId, txId));
+            await tombstoneAttachments(txId);
             const now = stamp();
             await db
               .update(t.transactions)
@@ -2002,6 +2109,7 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
     };
 
     const self: Repository = {
+      attachments,
       accounts,
       categories,
       tags,

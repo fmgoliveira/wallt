@@ -2,10 +2,13 @@ import { useQueryClient } from "@tanstack/react-query";
 import { DataImportError, tableToCsv } from "@wallt/db";
 import { SYNC_TABLES, type SyncTable } from "@wallt/sync";
 import { Button, Card, Input, Select, Sheet, Text, toast } from "@wallt/ui";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { View } from "react-native";
+import { getBlobStore } from "../attachments/blobs";
+import { readMaxBytes, writeMaxBytes } from "../attachments/prepare";
+import { useDataState } from "../data/RepositoryProvider";
 import { useTranslation } from "../i18n";
-import { getDataStore, type SyncSession, syncNow, useSyncUi } from "../sync/runtime";
+import { getDataStore, getDeviceMeta, type SyncSession, syncNow, useSyncUi } from "../sync/runtime";
 import { pickJsonText, saveTextFile } from "./files";
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -61,8 +64,41 @@ async function exportJson(): Promise<string> {
   return name;
 }
 
+const LIMIT_MB = ["2", "5", "10", "20"] as const;
+
+/** Receipt size limit (device setting). Photos are compressed first; this caps what is kept. */
+function AttachmentLimit() {
+  const { t } = useTranslation();
+  const [mb, setMb] = useState<(typeof LIMIT_MB)[number]>("10");
+  useEffect(() => {
+    void readMaxBytes(getDeviceMeta()).then((b) => {
+      const found = LIMIT_MB.find((m) => Number(m) * 1024 * 1024 === b);
+      if (found) setMb(found);
+    });
+  }, []);
+  return (
+    <View className="gap-2">
+      <Text weight="medium">{t("yourData.attachments.title")}</Text>
+      <Text variant="small" tone="muted">
+        {t("yourData.attachments.hint")}
+      </Text>
+      <Select
+        label={t("yourData.attachments.limit")}
+        options={LIMIT_MB.map((m) => ({ value: m, label: `${m} MB` }))}
+        value={mb}
+        onChange={(m) => {
+          setMb(m);
+          const meta = getDeviceMeta();
+          if (meta) void writeMaxBytes(meta, Number(m) * 1024 * 1024);
+        }}
+      />
+    </View>
+  );
+}
+
 function EraseSheet({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
+  const data = useDataState();
   const session = useSyncUi((u) => u.session);
   const client = useQueryClient();
   const [typed, setTyped] = useState("");
@@ -83,6 +119,11 @@ function EraseSheet({ onClose }: { onClose: () => void }) {
         if (backup === "missing") toast.show(t("yourData.erase.backupMissing"));
       }
       setBusy("erase");
+      // receipt files live outside the database: remove this device's copies too
+      if (data.status === "ready") {
+        const blobs = getBlobStore();
+        for (const a of await data.repository.attachments.listAll()) await blobs.remove(a.filePath);
+      }
       const deleted = await getDataStore().eraseAll();
       await client.invalidateQueries();
       toast.success(t("yourData.erase.done", { count: deleted }));
@@ -259,6 +300,8 @@ export function DataSetting() {
           className="self-start"
         />
       </View>
+
+      <AttachmentLimit />
 
       {session ? (
         <View className="gap-2">

@@ -7,6 +7,8 @@ import type { AuthService } from "./auth/service";
 import { backupRoutes } from "./backup/routes";
 import type { BackupService } from "./backup/service";
 import type { Db } from "./database";
+import { fileRoutes } from "./files/routes";
+import type { FileStore } from "./files/store";
 import { fxRoutes } from "./fx/routes";
 import type { FxService } from "./fx/service";
 import type { Logger } from "./logger";
@@ -29,6 +31,8 @@ export type AppDeps = {
   auth?: AuthService;
   /** `/backups` status + manual run (needs `auth`); null = backups not configured. */
   backup?: BackupService | null;
+  /** `/files/:id` attachment bytes (needs `auth`); omitted = no file endpoint. */
+  files?: FileStore;
   /** `GET /fx/rates` (needs `auth`); omitted = no FX endpoint. */
   fx?: FxService;
   /** `/ml/*` classifier model + status (needs `auth`); omitted = no ML endpoints. */
@@ -48,6 +52,7 @@ export function createApp({
   trustedProxies,
   auth,
   backup,
+  files,
   fx,
   ml,
   clock,
@@ -101,7 +106,11 @@ export function createApp({
 
   if (auth) {
     app.route("/auth", authRoutes(auth, clock));
-    app.route("/sync", syncRoutes(auth, createSyncService(db, clock), db, clock ?? Date.now));
+    app.route(
+      "/sync",
+      syncRoutes(auth, createSyncService(db, clock), db, clock ?? Date.now, files),
+    );
+    if (files) app.route("/files", fileRoutes(auth, db, files));
     if (backup !== undefined) app.route("/backups", backupRoutes(auth, backup));
     if (fx) app.route("/fx", fxRoutes(auth, fx, clock ?? Date.now));
     if (ml) app.route("/ml", mlRoutes(auth, ml));

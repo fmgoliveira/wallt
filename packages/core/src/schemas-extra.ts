@@ -99,10 +99,32 @@ export const payeeAliasSchema = syncedRowSchema.extend({
   payee: z.string().trim().min(1),
 });
 
+/** Mime types a receipt may have (PLAN §1.3: photos and PDFs). */
+export const ATTACHMENT_MIME_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/pdf",
+] as const;
+export type AttachmentMime = (typeof ATTACHMENT_MIME_TYPES)[number];
+export const ATTACHMENT_FILE_EXTENSIONS: Record<AttachmentMime, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "application/pdf": "pdf",
+};
+/** Default and hard upper bound for one attachment, in bytes (the owner can lower it in Settings). */
+export const ATTACHMENT_DEFAULT_MAX_BYTES = 10 * 1024 * 1024;
+export const ATTACHMENT_HARD_MAX_BYTES = 20 * 1024 * 1024;
+
 export const attachmentSchema = syncedRowSchema.extend({
   transactionId: idSchema,
+  /** `<id>.<ext>`: the same on every device; where it lives on each device is that device's business. */
   filePath: z.string().min(1),
-  mime: z.string().min(1),
+  mime: z.enum(ATTACHMENT_MIME_TYPES),
+  name: z.string().max(200),
+  size: z.number().int().min(0).max(ATTACHMENT_HARD_MAX_BYTES),
+  sha256: z.string().regex(/^[0-9a-f]{64}$/),
 });
 
 /** Server-only, read-only on clients. `rate` is a decimal string (units of `quote` per 1 `base`). */

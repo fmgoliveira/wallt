@@ -1,5 +1,6 @@
 import { SYNC_TABLES, type SyncTable } from "@wallt/sync";
 import type { Db } from "../database";
+import type { FileStore } from "../files/store";
 
 /** A device unseen this long no longer holds a purge back (it is stale, or lost). */
 export const STALE_DEVICE_MS = 90 * 24 * 60 * 60 * 1000;
@@ -24,7 +25,12 @@ const q = (name: string) => `"${name}"`;
  *
  * This is what makes "delete all data" actually remove the content from the server; older backups still contain it.
  */
-export function purgeDeletedRows(db: Db, userId: string, nowMs: number): PurgeResult {
+export function purgeDeletedRows(
+  db: Db,
+  userId: string,
+  nowMs: number,
+  files?: FileStore,
+): PurgeResult {
   const devices = db
     .prepare(
       "SELECT name, last_seen_at AS lastSeenAt, created_at AS createdAt, last_pull_seq AS pulled FROM devices WHERE user_id = ? AND revoked_at IS NULL",
@@ -45,8 +51,18 @@ export function purgeDeletedRows(db: Db, userId: string, nowMs: number): PurgeRe
   let total = 0;
   let remaining = 0;
   let newest = 0;
+  const orphaned: string[] = [];
   db.transaction(() => {
     for (const table of SYNC_TABLES) {
+      if (table === "attachments") {
+        // the files behind the attachment rows about to be purged: removed from disk once the rows are gone
+        const doomed = db
+          .prepare(
+            "SELECT id FROM attachments WHERE user_id = ? AND deleted_at IS NOT NULL AND server_seq IS NOT NULL AND server_seq <= ?",
+          )
+          .all(userId, watermark) as { id: string }[];
+        orphaned.push(...doomed.map((d) => d.id));
+      }
       const r = db
         .prepare(
           `DELETE FROM ${q(table)} WHERE user_id = ? AND deleted_at IS NOT NULL AND server_seq IS NOT NULL AND server_seq <= ?`,
@@ -65,6 +81,8 @@ export function purgeDeletedRows(db: Db, userId: string, nowMs: number): PurgeRe
       newest = Math.max(newest, left.newest);
     }
   })();
+  // after the commit: a file left behind by a crash here is harmless, a missing one for a live row is not
+  for (const id of orphaned) files?.remove(userId, id);
 
   const waitingFor =
     remaining === 0
@@ -76,7 +94,7 @@ export function purgeDeletedRows(db: Db, userId: string, nowMs: number): PurgeRe
 }
 
 /** Purges every user (the nightly job). Returns the total number of rows removed. */
-export function purgeAllUsers(db: Db, nowMs: number): number {
+export function purgeAllUsers(db: Db, nowMs: number, files?: FileStore): number {
   const users = db.prepare("SELECT id FROM users").all() as { id: string }[];
-  return users.reduce((n, u) => n + purgeDeletedRows(db, u.id, nowMs).total, 0);
+  return users.reduce((n, u) => n + purgeDeletedRows(db, u.id, nowMs, files).total, 0);
 }

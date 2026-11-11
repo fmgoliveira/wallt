@@ -98,8 +98,24 @@ describe("extra schemas", () => {
         transactionId: id,
         filePath: "a/b.pdf",
         mime: "application/pdf",
+        name: "receipt.pdf",
+        size: 1024,
+        sha256: "a".repeat(64),
       }).success,
     ).toBe(true);
+    const att = {
+      ...base,
+      transactionId: id,
+      filePath: "a.jpg",
+      mime: "image/jpeg",
+      name: "",
+      size: 0,
+      sha256: "0".repeat(64),
+    };
+    expect(attachmentSchema.safeParse(att).success).toBe(true);
+    expect(attachmentSchema.safeParse({ ...att, mime: "text/html" }).success).toBe(false);
+    expect(attachmentSchema.safeParse({ ...att, sha256: "xyz" }).success).toBe(false);
+    expect(attachmentSchema.safeParse({ ...att, size: 21 * 1024 * 1024 }).success).toBe(false);
   });
   it("fx rate keeps rate as decimal string", () => {
     const fx = { date: "2024-01-02", base: "EUR", quote: "USD", rate: "1.0837" };

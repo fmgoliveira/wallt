@@ -9,6 +9,8 @@ import {
   type SyncState,
 } from "@wallt/sync";
 import { create } from "zustand";
+import { getBlobStore } from "../attachments/blobs";
+import { flushUploads } from "../attachments/transfer";
 import { refreshModel } from "./ml";
 
 /** What the device registers once its database is open (see `repositoryFromDatabase`). */
@@ -139,6 +141,7 @@ export async function configureSyncSession(session: SyncSession | null) {
     schemaVersion: SCHEMA_VERSION,
   });
   let lastSeen: number | null = null;
+  const store = runtime.store;
   unsubscribe = next.subscribe((state) => {
     useSyncUi.setState({ engine: state });
     if (!state.syncing && state.lastSyncedAt !== lastSeen) {
@@ -152,6 +155,7 @@ export async function configureSyncSession(session: SyncSession | null) {
           onPulled?.();
         });
       void refreshFxRates(session);
+      void flushUploads(session, store, getBlobStore()).catch(() => undefined);
       void refreshCategoryModel(session);
     }
   });

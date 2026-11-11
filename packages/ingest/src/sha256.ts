@@ -1,4 +1,4 @@
-/** Synchronous SHA-256 (FIPS 180-4) over a string's UTF-8 bytes, as lowercase hex. Pure: no crypto globals. */
+/** Synchronous SHA-256 (FIPS 180-4) over bytes or a string's UTF-8 bytes, as lowercase hex. Pure: no crypto globals. */
 
 const K = Uint32Array.from([
   0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
@@ -33,14 +33,25 @@ function utf8(s: string): number[] {
 const rotr = (x: number, n: number) => (x >>> n) | (x << (32 - n));
 
 export function sha256Hex(text: string): string {
-  const bytes = utf8(text);
-  const bitLen = bytes.length * 8;
-  bytes.push(0x80);
-  while (bytes.length % 64 !== 56) bytes.push(0);
+  return sha256Bytes(Uint8Array.from(utf8(text)));
+}
+
+/** SHA-256 of raw bytes (attachments, up to a few MB), as lowercase hex. */
+export function sha256Bytes(input: Uint8Array): string {
+  const bitLen = input.length * 8;
+  // message + 0x80 + zero padding + 8-byte big-endian bit length, to a multiple of 64
+  const bytes = new Uint8Array(Math.ceil((input.length + 9) / 64) * 64);
+  bytes.set(input);
+  bytes[input.length] = 0x80;
   const hi = Math.floor(bitLen / 0x100000000);
   const lo = bitLen >>> 0;
-  for (const word of [hi, lo])
-    bytes.push(word >>> 24, (word >>> 16) & 0xff, (word >>> 8) & 0xff, word & 0xff);
+  const end = bytes.length - 8;
+  for (const [i, word] of [hi, lo].entries()) {
+    bytes[end + i * 4] = word >>> 24;
+    bytes[end + i * 4 + 1] = (word >>> 16) & 0xff;
+    bytes[end + i * 4 + 2] = (word >>> 8) & 0xff;
+    bytes[end + i * 4 + 3] = word & 0xff;
+  }
 
   const h = Uint32Array.from([
     0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,

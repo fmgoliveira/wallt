@@ -38,6 +38,11 @@ export const yourData = {
     attachments: "Attachments",
     import_profiles: "Import formats",
   },
+  attachments: {
+    title: "Receipts",
+    hint: "Photos are shrunk before they are attached. Files are not part of the JSON export; they live in the server backup.",
+    limit: "Largest file",
+  },
   purge: {
     title: "Deleted data on the server",
     hint: "Deleted records stay on the server as empty markers until every device has synced. This removes them for good.",

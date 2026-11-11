@@ -33,6 +33,8 @@ import { useEffect, useRef, useState } from "react";
 import { Pressable, View } from "react-native";
 import { Easing, FadeInLeft, FadeInRight } from "react-native-reanimated";
 import { accountTypeIcon, accountTypeLabel } from "../accounts/meta";
+import { AttachmentsField, type PendingAttachment } from "../attachments/AttachmentsField";
+import { useAttachments, useAttachmentWriter } from "../attachments/hooks";
 import { categoryTint } from "../categories/color";
 import { categoryIcon } from "../categories/icons";
 import { categoryOptions } from "../categories/options";
@@ -310,6 +312,10 @@ function EditorForm({
   const updateTransfer = useUpdateTransfer();
   const remove = useDeleteTransaction();
   const createTag = useCreateTag();
+  const attachmentWriter = useAttachmentWriter();
+  const existingAttachments = useAttachments(existing?.id);
+  const [pendingFiles, setPendingFiles] = useState<PendingAttachment[]>([]);
+  const [removedFiles, setRemovedFiles] = useState<ReadonlySet<string>>(new Set());
   const editing = !!existing;
   const wasTransfer = existing?.kind === "transfer";
 
@@ -480,6 +486,18 @@ function EditorForm({
     }
   }
 
+  /** Receipts are written after the transaction itself; a failure here must not lose the saved transaction. */
+  async function saveAttachments(txId: string) {
+    try {
+      for (const att of existingAttachments.data ?? []) {
+        if (removedFiles.has(att.id)) await attachmentWriter.remove(att);
+      }
+      for (const p of pendingFiles) await attachmentWriter.add(txId, p.file);
+    } catch {
+      toast.error(t("transactions.editor.attachments.failed"));
+    }
+  }
+
   async function save() {
     setSubmitted(true);
     if (invalid || !account) {
@@ -515,8 +533,14 @@ function EditorForm({
           tagIds,
           ...shared,
         };
-        if (existing) await updateTx.mutateAsync({ id: existing.id, patch: fields });
-        else await createTx.mutateAsync(fields);
+        let savedId: string;
+        if (existing) {
+          await updateTx.mutateAsync({ id: existing.id, patch: fields });
+          savedId = existing.id;
+        } else {
+          savedId = (await createTx.mutateAsync(fields)).id;
+        }
+        await saveAttachments(savedId);
       }
       remember(accountId);
       toast.success(t(editing ? "transactions.editor.updated" : "transactions.editor.added"));
@@ -883,6 +907,16 @@ function EditorForm({
             placeholder={t("transactions.editor.notesPlaceholder")}
             multiline
           />
+
+          {transfer ? null : (
+            <AttachmentsField
+              existing={existingAttachments.data ?? []}
+              removedIds={removedFiles}
+              onRemoveExisting={(id) => setRemovedFiles((s) => new Set(s).add(id))}
+              pending={pendingFiles}
+              onPendingChange={setPendingFiles}
+            />
+          )}
 
           {transfer ? null : (
             <View className="gap-2">
