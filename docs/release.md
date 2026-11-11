@@ -32,7 +32,7 @@ Nothing here can be done by the pipeline itself.
    | `ANDROID_KEY_PASSWORD` | the key password |
 
    The keystore and passwords never enter the repository; the workflow writes the keystore to a temporary file on the runner and Gradle signs through [`.github/android/signing.init.gradle`](../.github/android/signing.init.gradle). Without the secrets the APK job fails early with a clear message and the rest of the release still goes out.
-4. **GHCR:** the first image is private to your account. Make it visible to your server by logging in there (`docker login ghcr.io` with a token that has `read:packages`) or by changing the package's visibility.
+4. **GHCR:** the first image is private to your account. For an open-source release, set the package visibility to **Public** (package page → Package settings → Danger zone), and link it to the repository so it inherits the repo permissions. Otherwise log in on the server (`docker login ghcr.io` with a token that has `read:packages`).
 
 ## In-app update notice (Android)
 When the app is signed in to your server and the server reports a newer version on `/health` than the installed app, a small "Update available: vX.Y.Z" chip appears next to the sync status and opens the release page (the APK is attached there). The check runs at most every six hours and calls only your own server, never GitHub, so no token is needed in the app. The web app is served by the server and is always current.

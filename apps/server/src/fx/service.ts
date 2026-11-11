@@ -9,7 +9,7 @@ export const ECB_URLS = {
   history: "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist.xml",
 } as const;
 
-/** Weekdays 16:30 in the server's TZ (late enough for Lisbon and CET), after the ECB has published. */
+/** Weekdays 16:30 in the server's TZ (late enough for Western and Central Europe), after the ECB has published. */
 export const FX_SCHEDULE = "30 16 * * 1-5";
 export const FX_JOB = "fx-rates";
 

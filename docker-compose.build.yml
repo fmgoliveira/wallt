@@ -1,0 +1,8 @@
+# Build the image from source instead of pulling it from GHCR (for development or forks):
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+services:
+  wallt:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    image: wallt:local

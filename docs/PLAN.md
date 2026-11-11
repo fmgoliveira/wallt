@@ -37,7 +37,7 @@ A self-hosted personal budget tracker with feature parity with Cashew, plus smar
 | Banks | No bank connections (owner decision). Statements come in through the universal **file import** |
 | Categorization | **Rules + local ML** (runs on your server, no data leaves it); low-confidence → review queue shown on app open |
 | Design | Modern, identical design language on Android and web |
-| Access | Public at **https://wallt.franciscoliveira.com** behind the host nginx (TLS terminated there); own auth with **mandatory 2FA (TOTP)** |
+| Access | Public at **https://wallt.example.com** behind the host nginx (TLS terminated there); own auth with **mandatory 2FA (TOTP)** |
 | Users | Single user in v1; **multi-user possibly later** → `user_id` on every row, every query scoped by it |
 | Attachments | Receipts/files per transaction **in v1, optional** |
 
@@ -263,7 +263,7 @@ Section number kept so existing references stay valid.
   - Schedule: daily 03:30 local time + before every migration. Retention: 14 daily, 8 weekly, 12 monthly (GFS), pruning on Drive.
   - `restore` CLI command: download → decrypt → verify integrity (`PRAGMA integrity_check`) → swap DB.
   - CI test: backup → restore → row counts match. Settings screen shows last backup time/status; notify on failure.
-- Exposure: public at `https://wallt.franciscoliveira.com` through the host nginx (TLS + `limit_req` on `/auth/*`); the container is published on 127.0.0.1 only. Security relies on app auth: mandatory TOTP 2FA, login rate limiting + lockout, secure tokens, CSP and security headers sent by the app. The app trusts `X-Real-IP` only from `TRUSTED_PROXIES`. No Cloudflare Access/Tunnel/WAF (owner decision in #12). See `docs/deploy.md`. **Ask before changing what is exposed.**
+- Exposure: public at `https://wallt.example.com` through the host nginx (TLS + `limit_req` on `/auth/*`); the container is published on 127.0.0.1 only. Security relies on app auth: mandatory TOTP 2FA, login rate limiting + lockout, secure tokens, CSP and security headers sent by the app. The app trusts `X-Real-IP` only from `TRUSTED_PROXIES`. No Cloudflare Access/Tunnel/WAF (owner decision in #12). See `docs/deploy.md`. **Ask before changing what is exposed.**
 
 ---
 
@@ -414,7 +414,7 @@ Each task = one GitHub issue = one PR (unless noted). Acceptance criteria (AC) m
 ## 13. Open questions for the owner (answer before the related phase)
 1. ~~App name~~ → **Wallt** (decided).
 2. ~~Banks~~ → ActivoBank + Trade Republic initially; configurable in-app (decided, #58).
-3. ~~Exposure~~ → public `wallt.franciscoliveira.com` behind host nginx + app auth with 2FA (#55; Cloudflare Tunnel dropped by owner in #12).
+3. ~~Exposure~~ → public `wallt.example.com` behind host nginx + app auth with 2FA (#55; Cloudflare Tunnel dropped by owner in #12).
 4. ~~Second user~~ → possibly later; scope everything by `user_id` (decided, #56).
 5. ~~Attachments~~ → v1, optional (decided, #57).
 
