@@ -1,6 +1,7 @@
 import { Card, IconTile, ListItem, useTheme } from "@wallt/ui";
 import { useRouter } from "expo-router";
 import { ChevronRight, FileSpreadsheet, ListFilter, Tags, UserRound } from "lucide-react-native";
+import { DataSetting } from "../../src/data-tools/DataSettings";
 import { useTranslation } from "../../src/i18n";
 import { LanguageSetting } from "../../src/i18n/LanguageSetting";
 import { NotificationSetting } from "../../src/notifications/NotificationSettings";
@@ -21,6 +22,7 @@ export default function SettingsScreen() {
       <PrivacySetting />
       <LockSetting />
       <CategorizationSettings />
+      <DataSetting />
       <Card className="p-0 tablet:p-0">
         <ListItem
           title={t("settings.categories")}

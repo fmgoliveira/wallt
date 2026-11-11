@@ -16,6 +16,7 @@ import { security } from "./en/security";
 import { shared } from "./en/shared";
 import { sync } from "./en/sync";
 import { transactions } from "./en/transactions";
+import { yourData } from "./en/yourData";
 
 /** English is the source catalogue; Portuguese must have exactly the same keys (enforced by its type). */
 export const en = {
@@ -70,6 +71,7 @@ export const en = {
   common,
   shared,
   onboarding,
+  yourData,
 } as const;
 
 export type Catalogue = typeof en;

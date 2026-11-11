@@ -177,16 +177,50 @@ describe("csv", () => {
 
 describe("eraseAll", () => {
   it("tombstones every row, queues them for sync and leaves nothing live", async () => {
+    // the device's default categories, as every device has
+    await seedDefaultCategories(
+      {
+        all: async (sql, params = []) =>
+          source.raw.prepare(sql).all(...(params as never[])) as never[],
+        run: async (sql, params = []) => void source.raw.prepare(sql).run(...(params as never[])),
+        transaction: async (fn) => fn(),
+      },
+      {
+        userId: "local",
+        newId: () => crypto.randomUUID(),
+        now: "2026-01-01T00:00:00.000Z",
+        hlc: "h0",
+      },
+    );
+    const defaultsBefore = (
+      source.raw
+        .prepare("SELECT COUNT(*) AS n FROM categories WHERE system_key IS NOT NULL")
+        .get() as { n: number }
+    ).n;
     const before = await source.repo.data.exportBundle("2026-11-11T00:00:00.000Z");
-    const total = SYNC_TABLES.reduce((n, t) => n + before.tables[t].length, 0);
+    const total = SYNC_TABLES.reduce((n, t) => n + before.tables[t].length, 0) - defaultsBefore;
     expect(await source.repo.data.eraseAll()).toBe(total);
     const after = await source.repo.data.exportBundle("2026-11-11T00:00:00.000Z");
-    expect(SYNC_TABLES.every((t) => after.tables[t].length === 0)).toBe(true);
+    expect(
+      SYNC_TABLES.every(
+        (t) => after.tables[t].length === (t === "categories" ? defaultsBefore : 0),
+      ),
+    ).toBe(true);
     expect(await source.repo.accounts.list()).toHaveLength(0);
     const queued = source.raw
       .prepare("SELECT COUNT(DISTINCT row_id) AS n FROM outbox WHERE table_name = 'transactions'")
       .get() as { n: number };
     expect(queued.n).toBe(2);
+    // the default categories survive
+    expect(
+      (
+        source.raw
+          .prepare(
+            "SELECT COUNT(*) AS n FROM categories WHERE system_key IS NOT NULL AND deleted_at IS NULL",
+          )
+          .get() as { n: number }
+      ).n,
+    ).toBe(defaultsBefore);
     // a second run finds nothing to delete
     expect(await source.repo.data.eraseAll()).toBe(0);
   });

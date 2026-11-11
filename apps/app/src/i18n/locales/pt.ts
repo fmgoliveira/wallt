@@ -17,6 +17,7 @@ import { security } from "./pt/security";
 import { shared } from "./pt/shared";
 import { sync } from "./pt/sync";
 import { transactions } from "./pt/transactions";
+import { yourData } from "./pt/yourData";
 
 export const pt: Widen<Catalogue> = {
   nav: {
@@ -70,4 +71,5 @@ export const pt: Widen<Catalogue> = {
   common,
   shared,
   onboarding,
+  yourData,
 };

@@ -91,6 +91,7 @@ export async function repositoryFromDatabase(db: SQLiteDatabase): Promise<Reposi
   registerSyncRuntime({
     dedupeCategories: () => repository.sync.dedupeSystemCategories(stamp),
     store: repository.sync,
+    data: repository.data,
     clock: stamper.clock,
     fx: repository.fx,
     deviceId: nodeId,

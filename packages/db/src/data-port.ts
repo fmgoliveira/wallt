@@ -40,8 +40,8 @@ export interface DataStore {
    */
   importBundle(bundle: unknown, userId: string): Promise<{ rows: number }>;
   /**
-   * Soft-deletes every live row (tombstones), so the deletion syncs to the server and the other devices. Returns the
-   * number of rows deleted.
+   * Soft-deletes every live row (tombstones), so the deletion syncs to the server and the other devices. The built-in
+   * default categories stay. Returns the number of rows deleted.
    */
   eraseAll(): Promise<number>;
 }
@@ -112,12 +112,18 @@ export function createDataStore(
         let deleted = 0;
         for (const table of [...SYNC_TABLES].reverse()) {
           const { now, hlc } = stamp();
+          // The built-in default categories are app furniture, not the user's data, and are only ever seeded
+          // once per device: they stay so the emptied ledger is usable straight away.
+          const where =
+            table === "categories"
+              ? "deleted_at IS NULL AND system_key IS NULL"
+              : "deleted_at IS NULL";
           const live = await exec.all<{ n: number }>(
-            `SELECT COUNT(*) AS n FROM ${q(table)} WHERE deleted_at IS NULL`,
+            `SELECT COUNT(*) AS n FROM ${q(table)} WHERE ${where}`,
           );
           deleted += Number(live[0]?.n ?? 0);
           await exec.run(
-            `UPDATE ${q(table)} SET deleted_at = ?, updated_at = ?, hlc = ? WHERE deleted_at IS NULL`,
+            `UPDATE ${q(table)} SET deleted_at = ?, updated_at = ?, hlc = ? WHERE ${where}`,
             [now, now, hlc],
           );
         }

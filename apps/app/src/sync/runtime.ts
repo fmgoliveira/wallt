@@ -1,4 +1,4 @@
-import type { FxRepository, SyncStore } from "@wallt/db";
+import type { DataStore, FxRepository, SyncStore } from "@wallt/db";
 import { SCHEMA_VERSION } from "@wallt/db";
 import {
   createHttpTransport,
@@ -14,6 +14,8 @@ import { refreshModel } from "./ml";
 /** What the device registers once its database is open (see `repositoryFromDatabase`). */
 export interface SyncRuntime {
   store: SyncStore;
+  /** Whole-ledger export, restore and erase. */
+  data: DataStore;
   clock: HlcClock;
   /** Local copy of the server's ECB rates, refreshed after syncs. */
   fx: FxRepository;
@@ -56,6 +58,12 @@ export function getDeviceId(): string {
 /** Device-local key/value storage (`sync_meta`: never synced, never leaves the device), once the database is open. */
 export function getDeviceMeta(): Pick<SyncStore, "getMeta" | "setMeta"> | null {
   return runtime?.store ?? null;
+}
+
+/** Export, restore and erase of the whole ledger, once the database is open. */
+export function getDataStore(): DataStore {
+  if (!runtime) throw new Error("Database is not open yet");
+  return runtime.data;
 }
 
 export function registerSyncRuntime(next: SyncRuntime) {
