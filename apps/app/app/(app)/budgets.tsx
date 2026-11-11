@@ -7,6 +7,7 @@ import { BudgetCard } from "../../src/budgets/BudgetCard";
 import { BudgetForm } from "../../src/budgets/BudgetForm";
 import { DataGate } from "../../src/data/DataGate";
 import { type BudgetWithStatus, useBudgetStatuses } from "../../src/data/hooks";
+import { useTranslation } from "../../src/i18n";
 import { Page } from "../../src/shell/Page";
 import { placeholderIcon } from "../../src/shell/placeholder";
 
@@ -17,6 +18,7 @@ function BudgetsContent({
   onAdd: () => void;
   onEdit: (item: BudgetWithStatus) => void;
 }) {
+  const { t } = useTranslation();
   const bp = useBreakpoint();
   const today = fromLocalDate(new Date());
   const statuses = useBudgetStatuses(today);
@@ -28,9 +30,9 @@ function BudgetsContent({
       <Card>
         <EmptyState
           icon={placeholderIcon(PiggyBank)}
-          title="No budgets yet"
-          description="Set a spending limit for a month, a week or any period, for everything or just some categories."
-          actionLabel="Add budget"
+          title={t("budgets.emptyTitle")}
+          description={t("budgets.emptyDescription")}
+          actionLabel={t("budgets.addBudget")}
           onAction={onAdd}
         />
       </Card>
@@ -56,15 +58,16 @@ function BudgetsContent({
 }
 
 export default function Budgets() {
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const [editing, setEditing] = useState<BudgetWithStatus | "new" | null>(null);
   return (
     <Page
-      title="Budgets"
-      subtitle="Spending limits and progress"
+      title={t("budgets.title")}
+      subtitle={t("budgets.subtitle")}
       actions={
         <Button
-          label="Add budget"
+          label={t("budgets.addBudget")}
           leading={<Plus size={18} color={colors.accentFg} strokeWidth={2} />}
           onPress={() => setEditing("new")}
           className="self-end"

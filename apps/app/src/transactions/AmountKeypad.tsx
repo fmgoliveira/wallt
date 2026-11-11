@@ -1,6 +1,7 @@
 import { MotionView, Text, usePressScale, useTheme } from "@wallt/ui";
 import { Delete } from "lucide-react-native";
 import { Pressable, View } from "react-native";
+import { useTranslation } from "../i18n";
 
 const MAX = 99_999_999_999; // 11 digits of minor units: far above any real balance, far below 2^53
 
@@ -61,6 +62,7 @@ export function AmountKeypad({
   hundreds?: boolean;
 }) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const rows = [
     ["1", "2", "3"],
     ["4", "5", "6"],
@@ -82,7 +84,11 @@ export function AmountKeypad({
           <View className="flex-1" />
         )}
         <Key label="0" onPress={() => onChange(pressDigits(value, "0"))} />
-        <Key label="⌫" hint="Delete" onPress={() => onChange(backspace(value))}>
+        <Key
+          label="⌫"
+          hint={t("transactions.keypad.delete")}
+          onPress={() => onChange(backspace(value))}
+        >
           <Delete size={22} color={colors.text} strokeWidth={1.6} />
         </Key>
       </View>

@@ -18,6 +18,7 @@ import { PanelLeftClose, PanelLeftOpen, Plus } from "lucide-react-native";
 import { type ReactNode, useEffect } from "react";
 import { Image, Platform, Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "../i18n";
 import { NotificationsRunner } from "../notifications/NotificationsRunner";
 import { ReviewPrompt } from "../review/ReviewPrompt";
 import { useSyncUi } from "../sync/runtime";
@@ -36,6 +37,7 @@ const icon = require("../../assets/icon.png");
  */
 function StatusRow() {
   const signedIn = useSyncUi((u) => u.session !== null);
+  const { t } = useTranslation();
   // Android without a server session has nothing to say: keep the P2 layout untouched.
   if (Platform.OS !== "web" && !signedIn) return null;
   return (
@@ -43,7 +45,7 @@ function StatusRow() {
       <View className="flex-row flex-wrap items-center gap-2">
         <SyncStatus />
         {Platform.OS === "web" && !signedIn ? (
-          <Chip tone="warning" label="Interim: web data stays in this browser only" />
+          <Chip tone="warning" label={t("common.shell.interim")} />
         ) : null}
       </View>
     </View>
@@ -102,13 +104,14 @@ function Brand({ showName }: { showName: boolean }) {
 function AddTabButton({ fill }: { fill?: boolean }) {
   const { scheme, colors } = useTheme();
   const press = usePressScale();
+  const { t } = useTranslation();
   return (
     <MotionView style={press.style}>
       <Pressable
         onPressIn={press.onPressIn}
         onPressOut={press.onPressOut}
         accessibilityRole="button"
-        accessibilityLabel="Add transaction"
+        accessibilityLabel={t("common.shell.addTransaction")}
         onPress={addTransaction}
         className={cn(
           "items-center justify-center overflow-hidden web:cursor-pointer web:outline-none web:focus-visible:outline web:focus-visible:outline-2 web:focus-visible:outline-offset-2 web:focus-visible:outline-data",
@@ -133,6 +136,7 @@ function AddTabButton({ fill }: { fill?: boolean }) {
 function SideNav({ wide }: { wide: boolean }) {
   const pathname = usePathname();
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const collapsed = useShellStore((s) => s.collapsed);
   const toggle = useShellStore((s) => s.toggleCollapsed);
   const expanded = wide && !collapsed;
@@ -145,7 +149,7 @@ function SideNav({ wide }: { wide: boolean }) {
         rounded="lg"
         className={cn("flex-1 gap-4 p-2", expanded ? "w-[232px]" : wide ? "w-[76px]" : "w-[92px]")}
       >
-        <View role="navigation" aria-label="Main" className="flex-1 gap-4">
+        <View role="navigation" aria-label={t("common.shell.mainNav")} className="flex-1 gap-4">
           <View className="px-1 pt-2">
             <Brand showName={expanded} />
           </View>
@@ -162,7 +166,7 @@ function SideNav({ wide }: { wide: boolean }) {
           <View className="flex-1" />
           {expanded ? (
             <Button
-              label="Add transaction"
+              label={t("common.shell.addTransaction")}
               kbd="N"
               leading={<Plus size={18} color={colors.accentFg} strokeWidth={2} />}
               onPress={addTransaction}
@@ -175,7 +179,9 @@ function SideNav({ wide }: { wide: boolean }) {
           {wide ? (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              accessibilityLabel={
+                collapsed ? t("common.shell.expandSidebar") : t("common.shell.collapseSidebar")
+              }
               onPress={toggle}
               className="min-h-touch items-center justify-center rounded-md web:cursor-pointer web:outline-none web:hover:bg-text/5 web:focus-visible:outline web:focus-visible:outline-2 web:focus-visible:outline-data"
             >
@@ -191,11 +197,16 @@ function SideNav({ wide }: { wide: boolean }) {
 function BottomBar() {
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const half = phoneItems.length / 2;
   return (
     <View style={{ marginBottom: Math.max(insets.bottom, 8) }} className="mx-3">
       <GlassSurface level="bar" rounded="xl" className="h-[60px] flex-row items-center px-1">
-        <View role="navigation" aria-label="Main" className="flex-1 flex-row items-center">
+        <View
+          role="navigation"
+          aria-label={t("common.shell.mainNav")}
+          className="flex-1 flex-row items-center"
+        >
           {phoneItems.slice(0, half).map((item) => (
             <NavButton key={item.key} item={item} active={isActive(item, pathname)} variant="bar" />
           ))}

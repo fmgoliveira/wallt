@@ -13,6 +13,7 @@ import {
 } from "../../src/data/hooks";
 import { todayDate } from "../../src/data/recurring";
 import { useDailyTotals, useReportEntries } from "../../src/data/reports";
+import { useTranslation } from "../../src/i18n";
 import {
   BudgetProgressCard,
   CashflowCard,
@@ -53,6 +54,7 @@ function Grid({ children }: { children: ReactNode[] }) {
 }
 
 function ReportsContent() {
+  const { t } = useTranslation();
   const today = todayDate();
   const [query, setQuery] = useState<ReportQuery>(defaultReportQuery);
   const range = useMemo(() => reportRange(query.period, today), [query.period, today]);
@@ -95,8 +97,8 @@ function ReportsContent() {
         <Card>
           <EmptyState
             icon={placeholderIcon(ChartColumn)}
-            title="Nothing to report yet"
-            description="Charts appear once you have transactions."
+            title={t("reports.emptyTitle")}
+            description={t("reports.emptyDescription")}
           />
         </Card>
       ) : (
@@ -118,8 +120,12 @@ function ReportsContent() {
 }
 
 export default function Reports() {
+  const { t } = useTranslation();
   return (
-    <Page title="Reports" subtitle={`Charts and trends in ${REPORT_CURRENCY}`}>
+    <Page
+      title={t("reports.title")}
+      subtitle={t("reports.subtitle", { currency: REPORT_CURRENCY })}
+    >
       <DataGate>
         <ReportsContent />
       </DataGate>

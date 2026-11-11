@@ -18,9 +18,11 @@ import { displayColor } from "../components/colors";
 import { ToggleChip } from "../components/ToggleChip";
 import { useCreateGoal, useDeleteGoal, useUpdateGoal } from "../data/goals";
 import { useAccounts } from "../data/hooks";
+import { useTranslation } from "../i18n";
 
 /** Create or edit a savings goal. Mount it only while open: it owns its field state. */
 export function GoalForm({ goal, onClose }: { goal?: Goal | undefined; onClose: () => void }) {
+  const { t } = useTranslation();
   const { scheme } = useTheme();
   const create = useCreateGoal();
   const update = useUpdateGoal();
@@ -35,8 +37,8 @@ export function GoalForm({ goal, onClose }: { goal?: Goal | undefined; onClose: 
   const [colorHex, setColorHex] = useState<string | null>(goal?.color ?? null);
   const [submitted, setSubmitted] = useState(false);
 
-  const nameError = submitted && name.trim() === "" ? "Name is required" : undefined;
-  const targetError = submitted && !target ? "Enter a target amount" : undefined;
+  const nameError = submitted && name.trim() === "" ? t("goals.nameRequired") : undefined;
+  const targetError = submitted && !target ? t("goals.goalForm.targetRequired") : undefined;
   const busy = create.isPending || update.isPending || remove.isPending;
   const usable = accounts.filter((a) => a.currency === currency);
 
@@ -54,14 +56,14 @@ export function GoalForm({ goal, onClose }: { goal?: Goal | undefined; onClose: 
     try {
       if (goal) {
         await update.mutateAsync({ id: goal.id, patch: values });
-        toast.success("Goal updated");
+        toast.success(t("goals.goalForm.updated"));
       } else {
         await create.mutateAsync(values);
-        toast.success("Goal added");
+        toast.success(t("goals.goalForm.added"));
       }
       onClose();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not save the goal");
+      toast.error(error instanceof Error ? error.message : t("goals.goalForm.saveFailed"));
     }
   }
 
@@ -69,40 +71,54 @@ export function GoalForm({ goal, onClose }: { goal?: Goal | undefined; onClose: 
     if (!goal) return;
     try {
       await remove.mutateAsync(goal.id);
-      toast.success("Goal deleted");
+      toast.success(t("goals.goalForm.deleted"));
       onClose();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not delete the goal");
+      toast.error(error instanceof Error ? error.message : t("goals.goalForm.deleteFailed"));
     }
   }
 
   return (
-    <Sheet visible onClose={onClose} title={goal ? "Edit goal" : "New goal"}>
+    <Sheet
+      visible
+      onClose={onClose}
+      title={goal ? t("goals.goalForm.titleEdit") : t("goals.goalForm.titleNew")}
+    >
       <Input
-        label="Name"
+        label={t("goals.goalForm.name")}
         value={name}
         onChangeText={setName}
-        placeholder="e.g. Holiday fund"
+        placeholder={t("goals.goalForm.namePlaceholder")}
         error={nameError}
         autoFocus={!goal}
       />
       <AmountInput
-        label="Target"
+        label={t("goals.goalForm.target")}
         value={target}
         onChangeValue={setTarget}
         currency={currency}
         placeholder="0,00"
         error={targetError}
       />
-      <Select label="Currency" options={currencyOptions} value={currency} onChange={setCurrency} />
-      <DatePicker label="Deadline (optional)" value={deadline} onChange={setDeadline} clearable />
+      <Select
+        label={t("goals.currency")}
+        options={currencyOptions}
+        value={currency}
+        onChange={setCurrency}
+      />
+      <DatePicker
+        label={t("goals.goalForm.deadline")}
+        value={deadline}
+        onChange={setDeadline}
+        clearable
+      />
       <View className="gap-1.5">
         <Text variant="small" tone="muted" weight="medium">
-          Accounts that hold this money
+          {t("goals.goalForm.accounts")}
         </Text>
         {usable.length === 0 ? (
           <Text variant="small" tone="muted">
-            No account in {currency} yet.
+            {t("goals.goalForm.noAccount", { currency })}
           </Text>
         ) : (
           <View className="flex-row flex-wrap gap-2">
@@ -124,13 +140,17 @@ export function GoalForm({ goal, onClose }: { goal?: Goal | undefined; onClose: 
           </View>
         )}
         <Text variant="small" tone="muted">
-          Progress is the combined balance of these accounts.
+          {t("goals.goalForm.progressNote")}
         </Text>
       </View>
       <ColorPicker value={colorHex} onChange={setColorHex} />
-      <Button label={goal ? "Save changes" : "Add goal"} loading={busy} onPress={save} />
-      {goal ? <Button label="Delete goal" variant="ghost" onPress={del} /> : null}
-      <Button label="Cancel" variant="ghost" onPress={onClose} />
+      <Button
+        label={goal ? t("goals.saveChanges") : t("goals.goalForm.add")}
+        loading={busy}
+        onPress={save}
+      />
+      {goal ? <Button label={t("goals.goalForm.delete")} variant="ghost" onPress={del} /> : null}
+      <Button label={t("goals.cancel")} variant="ghost" onPress={onClose} />
     </Sheet>
   );
 }

@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { FlatList, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { categoryIcon } from "../categories/icons";
+import { useTranslation } from "../i18n";
 import { dayLabel, type TxRow } from "./rows";
 
 type Item = { kind: "day"; key: string; date: string } | { kind: "tx"; key: string; row: TxRow };
@@ -18,6 +19,7 @@ export function TransactionList({
   onOpen: (row: TxRow) => void;
   onEndReached: () => void;
 }) {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const phone = useBreakpoint() === "phone";
   const items = useMemo(() => {
@@ -63,7 +65,7 @@ export function TransactionList({
             <ListItem
               divider={prev?.kind === "tx"}
               title={row.title}
-              subtitle={`${row.accountName} · ${row.transfer ? "Transfer" : (row.categoryName ?? "Uncategorised")}`}
+              subtitle={`${row.accountName} · ${row.transfer ? t("transactions.row.transfer") : (row.categoryName ?? t("transactions.row.uncategorised"))}`}
               subtitleLeading={
                 <View
                   style={{ width: 6, height: 6, borderRadius: 2, backgroundColor: row.accountTint }}
@@ -81,7 +83,9 @@ export function TransactionList({
                     currency={row.tx.currency}
                     tone={row.transfer ? "text" : "auto"}
                   />
-                  {row.tx.status === "pending" ? <Chip label="Pending" /> : null}
+                  {row.tx.status === "pending" ? (
+                    <Chip label={t("transactions.row.pending")} />
+                  ) : null}
                 </View>
               }
               onPress={() => onOpen(row)}

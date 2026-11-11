@@ -7,31 +7,20 @@ import type {
 } from "@wallt/ingest";
 import { Select, type SelectOption, Switch, Tabs, Text } from "@wallt/ui";
 import { View } from "react-native";
+import { useTranslation } from "../i18n";
 
 const NONE = "none";
 
-const dateFormats = [
-  { value: "dmy", label: "Day first · 31-12-2024" },
-  { value: "mdy", label: "Month first · 12-31-2024" },
-  { value: "ymd", label: "Year first · 2024-12-31" },
-  { value: "serial", label: "Excel serial number" },
-] as const;
-type DateChoice = (typeof dateFormats)[number]["value"];
+const DATE_FORMATS = ["dmy", "mdy", "ymd", "serial"] as const;
+type DateChoice = (typeof DATE_FORMATS)[number];
 
-const localeChoices = [
-  { value: "pt", label: "1.234,56 · comma decimals" },
-  { value: "en", label: "1,234.56 · point decimals" },
-  { value: "auto", label: "Detect per value" },
-] as const;
+const LOCALE_CHOICES = ["pt", "en", "auto"] as const;
 
 const dateChoiceOf = (f: DateFormat): DateChoice => (f.kind === "serial" ? "serial" : f.order);
 const dateFormatOf = (c: DateChoice): DateFormat =>
   c === "serial" ? { kind: "serial" } : { kind: "pattern", order: c };
 
-const amountModes = [
-  { value: "single", label: "One amount column" },
-  { value: "split", label: "Debit and credit" },
-] as const;
+const AMOUNT_MODES = ["single", "split"] as const;
 
 export interface MappingEditorProps {
   mapping: ImportMapping;
@@ -51,8 +40,21 @@ export function MappingEditor({
   columns,
   headerCandidates,
 }: MappingEditorProps) {
+  const { t } = useTranslation();
+  const dateFormats = DATE_FORMATS.map((value) => ({
+    value,
+    label: t(`importing.mapping.${value}`),
+  }));
+  const localeChoices = LOCALE_CHOICES.map((value) => ({
+    value,
+    label: t(`importing.mapping.${value}`),
+  }));
+  const amountModes = AMOUNT_MODES.map((value) => ({
+    value,
+    label: t(`importing.mapping.${value}`),
+  }));
   const options: SelectOption<string>[] = [
-    { value: NONE, label: "None" },
+    { value: NONE, label: t("importing.mapping.none") },
     ...columns.map((c) => ({ value: String(c.index), label: c.label })),
   ];
   const split = mapping.columns.debit !== undefined || mapping.columns.credit !== undefined;
@@ -66,7 +68,7 @@ export function MappingEditor({
   const pick = (role: ColumnRole, label: string, hint?: string) => (
     <Select
       key={role}
-      label={hint ? `${label} (${hint})` : label}
+      label={hint ? t("importing.mapping.withHint", { label, hint }) : label}
       options={options}
       value={mapping.columns[role] === undefined ? NONE : String(mapping.columns[role])}
       onChange={(v) => setColumn(role, v)}
@@ -89,56 +91,56 @@ export function MappingEditor({
     });
   };
   const headerOptions: SelectOption<string>[] = [
-    { value: NONE, label: "No header row" },
+    { value: NONE, label: t("importing.mapping.noHeader") },
     ...Array.from({ length: headerCandidates }, (_, i) => ({
       value: String(i),
-      label: `Row ${i + 1}`,
+      label: t("importing.mapping.row", { n: i + 1 }),
     })),
   ];
 
   return (
     <View className="gap-4">
       <Select
-        label="Header row"
+        label={t("importing.mapping.headerRow")}
         options={headerOptions}
         value={mapping.headerRow === null ? NONE : String(mapping.headerRow)}
         onChange={(v) => onChange({ ...mapping, headerRow: v === NONE ? null : Number(v) })}
       />
-      {pick("date", "Date")}
-      {pick("valueDate", "Value date", "optional")}
-      {pick("description", "Description")}
-      {pick("payee", "Payee", "optional")}
+      {pick("date", t("importing.mapping.date"))}
+      {pick("valueDate", t("importing.mapping.valueDate"), t("importing.mapping.optional"))}
+      {pick("description", t("importing.mapping.description"))}
+      {pick("payee", t("importing.mapping.payee"), t("importing.mapping.optional"))}
       <View className="gap-2">
         <Text variant="small" tone="muted" weight="medium">
-          Amounts
+          {t("importing.mapping.amounts")}
         </Text>
         <Tabs items={amountModes} value={split ? "split" : "single"} onChange={(v) => setMode(v)} />
       </View>
       {split ? (
         <>
-          {pick("debit", "Debit", "money out")}
-          {pick("credit", "Credit", "money in")}
+          {pick("debit", t("importing.mapping.debit"), t("importing.mapping.moneyOut"))}
+          {pick("credit", t("importing.mapping.credit"), t("importing.mapping.moneyIn"))}
         </>
       ) : (
         <>
-          {pick("amount", "Amount")}
+          {pick("amount", t("importing.mapping.amount"))}
           <Switch
-            label="Flip the sign"
-            description="Use when expenses are listed as positive numbers"
+            label={t("importing.mapping.flipSign")}
+            description={t("importing.mapping.flipSignHint")}
             value={mapping.invertSign}
             onValueChange={(v) => onChange({ ...mapping, invertSign: v })}
           />
         </>
       )}
-      {pick("balance", "Balance", "optional, checks the signs")}
+      {pick("balance", t("importing.mapping.balance"), t("importing.mapping.balanceHint"))}
       <Select
-        label="Date format"
+        label={t("importing.mapping.dateFormat")}
         options={dateFormats}
         value={dateChoiceOf(mapping.dateFormat)}
         onChange={(v) => onChange({ ...mapping, dateFormat: dateFormatOf(v) })}
       />
       <Select
-        label="Number format"
+        label={t("importing.mapping.numberFormat")}
         options={localeChoices}
         value={mapping.amountLocale}
         onChange={(v) => onChange({ ...mapping, amountLocale: v as AmountLocale })}

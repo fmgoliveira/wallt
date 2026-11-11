@@ -30,6 +30,7 @@ import { BudgetCard, useMoneyText } from "../budgets/BudgetCard";
 import { categoryTint } from "../categories/color";
 import { categoryOptions } from "../categories/options";
 import type { BudgetWithStatus } from "../data/hooks";
+import { useTranslation } from "../i18n";
 
 export interface ReportData {
   entries: readonly ReportEntry[];
@@ -67,8 +68,8 @@ export function ReportCard({
   );
 }
 
-const missing = (n: number) =>
-  n > 0 ? `${n} entries in a currency without a rate are left out.` : undefined;
+const missing = (t: (key: "reports.missingRate", opts: { n: number }) => string, n: number) =>
+  n > 0 ? t("reports.missingRate", { n }) : undefined;
 
 const labelOf = (date: string, bucket: "day" | "week" | "month") =>
   bucket === "month" ? date.slice(5, 7) : date.slice(5).replace("-", "/");
@@ -86,6 +87,7 @@ const tickLabel = (date: string, bucket: "day" | "week" | "month") =>
 /* ------------------------------------------------------------------ spending donut */
 
 export function SpendingCard({ data, loading }: { data: ReportData; loading: boolean }) {
+  const { t } = useTranslation();
   const { scheme, colors } = useTheme();
   const money = useMoneyText();
   const result = useMemo(
@@ -106,22 +108,26 @@ export function SpendingCard({ data, loading }: { data: ReportData; loading: boo
         );
   const name = (id: string | null) =>
     id === "__other"
-      ? "Other"
+      ? t("reports.other")
       : id === null
-        ? "Uncategorised"
-        : (data.categories.find((c) => c.id === id)?.name ?? "Unknown");
+        ? t("reports.uncategorised")
+        : (data.categories.find((c) => c.id === id)?.name ?? t("reports.unknown"));
 
   return (
-    <ReportCard title="Spending by category" loading={loading} note={missing(result.unconverted)}>
+    <ReportCard
+      title={t("reports.spendingTitle")}
+      loading={loading}
+      note={missing(t, result.unconverted)}
+    >
       {rows.length === 0 ? (
-        <Text tone="muted">No spending in this period.</Text>
+        <Text tone="muted">{t("reports.noSpending")}</Text>
       ) : (
         <View className="items-center gap-4">
           <DonutChart
             data={rows.map((r) => ({ value: r.total, color: tint(r.categoryId) }))}
             centerLabel={money(total, data.currency)}
-            centerCaption="spent"
-            accessibilityLabel={`Spending by category, ${money(total, data.currency)} in total`}
+            centerCaption={t("reports.spent")}
+            accessibilityLabel={t("reports.spendingLabel", { total: money(total, data.currency) })}
           />
           <View className="w-full gap-2">
             {rows.map((r) => (
@@ -153,6 +159,7 @@ export function SpendingCard({ data, loading }: { data: ReportData; loading: boo
 /* --------------------------------------------------------------- income vs expense */
 
 export function IncomeExpenseCard({ data, loading }: { data: ReportData; loading: boolean }) {
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const result = useMemo(
     () => incomeVsExpense(data.entries, data.table, data.currency, data.range, data.bucket),
@@ -161,17 +168,21 @@ export function IncomeExpenseCard({ data, loading }: { data: ReportData; loading
   const income = result.value.reduce((s, p) => s + p.income, 0);
   const expense = result.value.reduce((s, p) => s + p.expense, 0);
   return (
-    <ReportCard title="Income vs expenses" loading={loading} note={missing(result.unconverted)}>
+    <ReportCard
+      title={t("reports.incomeVsExpenses")}
+      loading={loading}
+      note={missing(t, result.unconverted)}
+    >
       <View className="flex-row justify-between">
         <View>
           <Text variant="small" tone="muted">
-            Income
+            {t("reports.income")}
           </Text>
           <Amount value={income} currency={data.currency} size="heading" />
         </View>
         <View className="items-end">
           <Text variant="small" tone="muted">
-            Expenses
+            {t("reports.expenses")}
           </Text>
           <Amount value={-expense} currency={data.currency} size="heading" tone="text" />
         </View>
@@ -182,11 +193,11 @@ export function IncomeExpenseCard({ data, loading }: { data: ReportData; loading
           a: p.income,
           b: p.expense,
         }))}
-        accessibilityLabel="Income and expenses per period"
+        accessibilityLabel={t("reports.incomeExpensesLabel")}
       />
       <View className="flex-row gap-4">
-        <Legend color={colors.positive} label="Income" />
-        <Legend color={colors.text} label="Expenses" />
+        <Legend color={colors.positive} label={t("reports.income")} />
+        <Legend color={colors.text} label={t("reports.expenses")} />
       </View>
     </ReportCard>
   );
@@ -206,6 +217,7 @@ function Legend({ color, label }: { color: string; label: string }) {
 /* ------------------------------------------------------------------------ cashflow */
 
 export function CashflowCard({ data, loading }: { data: ReportData; loading: boolean }) {
+  const { t } = useTranslation();
   const result = useMemo(
     () => incomeVsExpense(data.entries, data.table, data.currency, data.range, data.bucket),
     [data],
@@ -213,16 +225,20 @@ export function CashflowCard({ data, loading }: { data: ReportData; loading: boo
   const series = cashflowSeries(result.value);
   const net = series.at(-1)?.cumulative ?? 0;
   return (
-    <ReportCard title="Cashflow" loading={loading} note={missing(result.unconverted)}>
+    <ReportCard
+      title={t("reports.cashflow")}
+      loading={loading}
+      note={missing(t, result.unconverted)}
+    >
       <View>
         <Text variant="small" tone="muted">
-          Net over the period
+          {t("reports.netOverPeriod")}
         </Text>
         <Amount value={net} currency={data.currency} size="heading" />
       </View>
       <SeriesChart
         data={series.map((p) => ({ label: tickLabel(p.date, data.bucket), value: p.cumulative }))}
-        accessibilityLabel="Cumulative net cashflow over the period"
+        accessibilityLabel={t("reports.cashflowLabel")}
       />
     </ReportCard>
   );
@@ -231,6 +247,7 @@ export function CashflowCard({ data, loading }: { data: ReportData; loading: boo
 /* ----------------------------------------------------------------------- net worth */
 
 export function NetWorthCard({ data, loading }: { data: ReportData; loading: boolean }) {
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const result = useMemo(() => {
     const dates: CalendarDate[] = [];
@@ -264,15 +281,13 @@ export function NetWorthCard({ data, loading }: { data: ReportData; loading: boo
   const last = result.value.at(-1)?.value ?? 0;
   return (
     <ReportCard
-      title="Net worth"
+      title={t("reports.netWorth")}
       loading={loading}
-      note={
-        result.unconverted > 0 ? "Accounts in a currency without a rate are left out." : undefined
-      }
+      note={result.unconverted > 0 ? t("reports.accountsMissingRate") : undefined}
     >
       <View>
         <Text variant="small" tone="muted">
-          Now
+          {t("reports.now")}
         </Text>
         <Amount value={last} currency={data.currency} size="heading" />
       </View>
@@ -280,7 +295,7 @@ export function NetWorthCard({ data, loading }: { data: ReportData; loading: boo
         area
         color={colors.accent}
         data={result.value.map((p) => ({ label: tickLabel(p.date, "week"), value: p.value }))}
-        accessibilityLabel="Net worth over the period"
+        accessibilityLabel={t("reports.netWorthLabel")}
       />
     </ReportCard>
   );
@@ -295,13 +310,14 @@ export function BudgetProgressCard({
   budgets: BudgetWithStatus[] | undefined;
   loading: boolean;
 }) {
+  const { t } = useTranslation();
   const active = (budgets ?? []).filter(
     (b): b is BudgetWithStatus & { status: BudgetStatus } => b.status?.state === "active",
   );
   return (
-    <ReportCard title="Budget progress" loading={loading}>
+    <ReportCard title={t("reports.budgetProgress")} loading={loading}>
       {active.length === 0 ? (
-        <Text tone="muted">No active budgets.</Text>
+        <Text tone="muted">{t("reports.noActiveBudgets")}</Text>
       ) : (
         <View className="gap-5">
           {active.slice(0, 6).map((b) => (
@@ -316,6 +332,7 @@ export function BudgetProgressCard({
 /* ------------------------------------------------------------------ category trend */
 
 export function CategoryTrendCard({ data, loading }: { data: ReportData; loading: boolean }) {
+  const { t } = useTranslation();
   const { scheme } = useTheme();
   const options = categoryOptions(data.categories as never, "expense").filter((o) =>
     data.categories.some((c) => c.id === o.value && c.parentId === null),
@@ -336,15 +353,20 @@ export function CategoryTrendCard({ data, loading }: { data: ReportData; loading
   const category = data.categories.find((c) => c.id === categoryId);
   return (
     <ReportCard
-      title="Category trend"
+      title={t("reports.categoryTrend")}
       loading={loading}
-      note={trend ? missing(trend.unconverted) : undefined}
+      note={trend ? missing(t, trend.unconverted) : undefined}
     >
       {options.length === 0 ? (
-        <Text tone="muted">No expense categories yet.</Text>
+        <Text tone="muted">{t("reports.noExpenseCategories")}</Text>
       ) : (
         <>
-          <Select label="Category" options={options} value={categoryId} onChange={setPicked} />
+          <Select
+            label={t("reports.category")}
+            options={options}
+            value={categoryId}
+            onChange={setPicked}
+          />
           <SeriesChart
             area
             color={category ? categoryTint(category, data.categories as never, scheme) : undefined}
@@ -352,7 +374,9 @@ export function CategoryTrendCard({ data, loading }: { data: ReportData; loading
               label: tickLabel(p.date, data.bucket === "day" ? "week" : data.bucket),
               value: p.total,
             }))}
-            accessibilityLabel={`Spending in ${category?.name ?? "category"} over time`}
+            accessibilityLabel={t("reports.trendLabel", {
+              category: category?.name ?? t("reports.categoryFallback"),
+            })}
           />
         </>
       )}
@@ -363,6 +387,7 @@ export function CategoryTrendCard({ data, loading }: { data: ReportData; loading
 /* --------------------------------------------------------------------- heatmap */
 
 export function HeatmapCard({ data, loading }: { data: ReportData; loading: boolean }) {
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const result = useMemo(() => {
     // The heatmap shows at most the last 6 months of the period.
@@ -378,11 +403,15 @@ export function HeatmapCard({ data, loading }: { data: ReportData; loading: bool
   const shade = (level: number) =>
     level === 0 ? colors.border : `${colors.text}${["", "33", "59", "8c", "d9"][level]}`;
   return (
-    <ReportCard title="Spending calendar" loading={loading} note={missing(result.unconverted)}>
+    <ReportCard
+      title={t("reports.calendarTitle")}
+      loading={loading}
+      note={missing(t, result.unconverted)}
+    >
       <View
         accessible
         accessibilityRole="image"
-        accessibilityLabel="Calendar heatmap of daily spending, darker means more"
+        accessibilityLabel={t("reports.calendarLabel")}
         className="flex-row gap-[3px]"
       >
         {weeks.map((week) => (
@@ -403,7 +432,7 @@ export function HeatmapCard({ data, loading }: { data: ReportData; loading: bool
       </View>
       <View className="flex-row items-center gap-1.5">
         <Text variant="small" tone="muted">
-          Less
+          {t("reports.less")}
         </Text>
         {[0, 1, 2, 3, 4].map((l) => (
           <View
@@ -412,7 +441,7 @@ export function HeatmapCard({ data, loading }: { data: ReportData; loading: bool
           />
         ))}
         <Text variant="small" tone="muted">
-          More
+          {t("reports.more")}
         </Text>
       </View>
     </ReportCard>
@@ -422,13 +451,18 @@ export function HeatmapCard({ data, loading }: { data: ReportData; loading: bool
 /* ------------------------------------------------------------------- top payees */
 
 export function TopPayeesCard({ data, loading }: { data: ReportData; loading: boolean }) {
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const result = useMemo(() => topPayees(data.entries, data.table, data.currency, 8), [data]);
   const biggest = Math.max(1, ...result.value.map((p) => p.total));
   return (
-    <ReportCard title="Top payees" loading={loading} note={missing(result.unconverted)}>
+    <ReportCard
+      title={t("reports.topPayees")}
+      loading={loading}
+      note={missing(t, result.unconverted)}
+    >
       {result.value.length === 0 ? (
-        <Text tone="muted">No spending in this period.</Text>
+        <Text tone="muted">{t("reports.noSpending")}</Text>
       ) : (
         <View className="gap-3">
           {result.value.map((p) => (

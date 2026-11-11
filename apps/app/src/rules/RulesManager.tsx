@@ -13,6 +13,7 @@ import {
   toast,
   useTheme,
 } from "@wallt/ui";
+import type { TFunction } from "i18next";
 import { ChevronRight, ListFilter, Plus, Sparkles } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { View } from "react-native";
@@ -24,6 +25,7 @@ import {
   useRules,
   useTransaction,
 } from "../data/hooks";
+import { useTranslation } from "../i18n";
 import { placeholderIcon } from "../shell/placeholder";
 import { useAddSuggestedRules, useApplyRules } from "./data";
 import { type RuleDraft, RuleForm } from "./RuleForm";
@@ -32,22 +34,39 @@ import { type RuleDraft, RuleForm } from "./RuleForm";
 function describeCondition(
   c: RuleCondition,
   accountName: (id: string) => string | undefined,
+  t: TFunction,
 ): string {
   switch (c.field) {
-    case "payee":
+    case "payee": {
+      const value = String(c.value);
+      return c.op === "equals"
+        ? t("rules.cond.payeeEquals", { value })
+        : c.op === "regex"
+          ? t("rules.cond.payeeRegex", { value })
+          : t("rules.cond.payeeContains", { value });
+    }
     case "description": {
-      const what = c.field === "payee" ? "Payee" : "Description";
-      const how = c.op === "equals" ? "is" : c.op === "regex" ? "matches" : "contains";
-      return `${what} ${how} “${c.value}”`;
+      const value = String(c.value);
+      return c.op === "equals"
+        ? t("rules.cond.descriptionEquals", { value })
+        : c.op === "regex"
+          ? t("rules.cond.descriptionRegex", { value })
+          : t("rules.cond.descriptionContains", { value });
     }
     case "amount": {
-      const how = c.op === "gte" ? "at least" : c.op === "lte" ? "at most" : "exactly";
-      return `Amount ${how} ${(Number(c.value) / 100).toFixed(2)}`;
+      const value = (Number(c.value) / 100).toFixed(2);
+      return c.op === "gte"
+        ? t("rules.cond.amountGte", { value })
+        : c.op === "lte"
+          ? t("rules.cond.amountLte", { value })
+          : t("rules.cond.amountEquals", { value });
     }
     case "account":
-      return `Account is ${accountName(String(c.value)) ?? "unknown"}`;
+      return t("rules.cond.accountIs", {
+        name: accountName(String(c.value)) ?? t("rules.cond.unknown"),
+      });
     case "sign":
-      return c.value === "income" ? "Money in" : "Money out";
+      return c.value === "income" ? t("rules.cond.moneyIn") : t("rules.cond.moneyOut");
   }
 }
 
@@ -57,6 +76,7 @@ function describeCondition(
  * from a transaction ("always categorise Lidl as Groceries").
  */
 export function RulesManager({ fromTransaction }: { fromTransaction?: string | undefined }) {
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const rules = useRules();
   const categories = useCategories({ includeArchived: true });
@@ -77,7 +97,7 @@ export function RulesManager({ fromTransaction }: { fromTransaction?: string | u
     setOpened(fromTransaction);
     setForm({
       draft: {
-        name: tx.payee || tx.descriptionClean || "New rule",
+        name: tx.payee || tx.descriptionClean || t("rules.manager.defaultName"),
         conditions: conditionsFromTransaction({
           payee: tx.payee,
           description: tx.descriptionClean || tx.descriptionRaw,
@@ -86,7 +106,7 @@ export function RulesManager({ fromTransaction }: { fromTransaction?: string | u
         categoryId: tx.categoryId,
       },
     });
-  }, [fromTransaction, source.data, opened]);
+  }, [fromTransaction, source.data, opened, t]);
 
   if (rules.isPending) return <Skeleton className="h-40 w-full" />;
   const list = rules.data ?? [];
@@ -98,7 +118,7 @@ export function RulesManager({ fromTransaction }: { fromTransaction?: string | u
     try {
       toast.success(done(await action()));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Something went wrong");
+      toast.error(error instanceof Error ? error.message : t("rules.manager.wentWrong"));
     }
   };
 
@@ -108,16 +128,16 @@ export function RulesManager({ fromTransaction }: { fromTransaction?: string | u
         <Card>
           <EmptyState
             icon={placeholderIcon(ListFilter)}
-            title="No rules yet"
-            description="A rule says “when a transaction looks like this, put it in that category”. Rules run first on every import, before anything is guessed."
-            actionLabel="Add rule"
+            title={t("rules.manager.emptyTitle")}
+            description={t("rules.manager.emptyDescription")}
+            actionLabel={t("rules.manager.addRule")}
             onAction={() => setForm({})}
           />
         </Card>
       ) : (
         <View className="gap-2">
           <ListHeader
-            title="Rules, first match wins"
+            title={t("rules.manager.listHeader")}
             sorting={sorting}
             canReorder={list.length > 1}
             onToggle={() => setSorting((v) => !v)}
@@ -132,9 +152,12 @@ export function RulesManager({ fromTransaction }: { fromTransaction?: string | u
                 <ListItem
                   divider={index > 0}
                   title={rule.name}
-                  subtitle={`${rule.conditions.map((c) => describeCondition(c, accountName)).join(" · ")}${
-                    rule.action.payeeRename ? ` · rename to ${rule.action.payeeRename}` : ""
-                  }`}
+                  subtitle={[
+                    rule.conditions.map((c) => describeCondition(c, accountName, t)).join(" · "),
+                    ...(rule.action.payeeRename
+                      ? [t("rules.manager.renameTo", { name: rule.action.payeeRename })]
+                      : []),
+                  ].join(" · ")}
                   leading={
                     <IconTile>
                       <ListFilter size={18} color={colors.muted} strokeWidth={1.6} />
@@ -144,7 +167,11 @@ export function RulesManager({ fromTransaction }: { fromTransaction?: string | u
                     handle ?? (
                       <View className="flex-row items-center gap-2">
                         {rule.action.categoryId ? (
-                          <Chip label={categoryName(rule.action.categoryId) ?? "Category"} />
+                          <Chip
+                            label={
+                              categoryName(rule.action.categoryId) ?? t("rules.manager.category")
+                            }
+                          />
                         ) : null}
                         <ChevronRight size={16} color={colors.subtle} strokeWidth={1.6} />
                       </View>
@@ -160,12 +187,12 @@ export function RulesManager({ fromTransaction }: { fromTransaction?: string | u
 
       <View className="gap-3">
         <Button
-          label="Add rule"
+          label={t("rules.manager.addRule")}
           leading={<Plus size={18} color={colors.accentFg} strokeWidth={2} />}
           onPress={() => setForm({})}
         />
         <Button
-          label="Add common Portuguese merchants"
+          label={t("rules.manager.addMerchants")}
           variant="ghost"
           leading={<Sparkles size={16} color={colors.muted} strokeWidth={1.8} />}
           loading={suggested.isPending}
@@ -173,29 +200,26 @@ export function RulesManager({ fromTransaction }: { fromTransaction?: string | u
             run(
               () => suggested.mutateAsync(undefined),
               (n) =>
-                n === 0
-                  ? "Those rules are already there"
-                  : `Added ${n} rule${n === 1 ? "" : "s"}. Edit or delete any of them.`,
+                n === 0 ? t("rules.manager.alreadyThere") : t("rules.manager.added", { count: n }),
             )
           }
         />
         {list.length > 0 ? (
           <Button
-            label="Apply rules to existing transactions"
+            label={t("rules.manager.applyExisting")}
             variant="ghost"
             loading={apply.isPending}
             onPress={() =>
               run(
                 () => apply.mutateAsync(undefined),
-                (n) => `Updated ${n} transaction${n === 1 ? "" : "s"}`,
+                (n) => t("rules.manager.updated", { count: n }),
               )
             }
           />
         ) : null}
       </View>
       <Text variant="small" tone="muted">
-        Rules never change a category you chose yourself. Applying them to existing transactions
-        only sets categories; renames happen on new imports.
+        {t("rules.manager.note")}
       </Text>
       {form ? <RuleForm rule={form.rule} draft={form.draft} onClose={() => setForm(null)} /> : null}
     </View>

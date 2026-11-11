@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { View } from "react-native";
 import { queryKeys, useRepoQuery } from "../data/hooks";
+import { i18n, useTranslation } from "../i18n";
 import { refreshCategoryModel, type SyncSession, useSyncUi } from "../sync/runtime";
 
 /** How far back "auto-categorised" looks: recent behaviour matters more than the whole history. */
@@ -35,13 +36,15 @@ interface MlStatus {
 
 async function call<T>(session: SyncSession, path: string, method: "GET" | "POST"): Promise<T> {
   const token = await session.getAccessToken();
-  if (!token) throw new Error("Signed out");
+  if (!token) throw new Error(i18n.t("review.settings.signedOut"));
   const res = await fetch(`${session.baseUrl.replace(/\/+$/, "")}${path}`, {
     method,
     headers: { authorization: `Bearer ${token}` },
   });
   if (!res.ok)
-    throw new Error(res.status === 409 ? "Nothing to do right now" : `HTTP ${res.status}`);
+    throw new Error(
+      res.status === 409 ? i18n.t("review.settings.nothingToDo") : `HTTP ${res.status}`,
+    );
   return (await res.json()) as T;
 }
 
@@ -66,6 +69,7 @@ function Row({ label, value }: { label: string; value: string }) {
 
 /** Settings -> Categorisation (P6.5): how much Wallt categorises on its own, and how good its model is. */
 export function CategorizationSettings() {
+  const { t } = useTranslation();
   const router = useRouter();
   const client = useQueryClient();
   const session = useSyncUi((s) => s.session);
@@ -86,16 +90,18 @@ export function CategorizationSettings() {
     try {
       const out = await call<{ status?: string; version?: number }>(session, `/ml/${kind}`, "POST");
       if (kind === "train" && out.status === "skipped") {
-        toast.success("Not enough categorised transactions to learn from yet");
+        toast.success(t("review.settings.notEnough"));
       } else if (kind === "train" && out.status === "rejected") {
-        toast.success("Trained, but the new model was not better. Keeping the current one.");
+        toast.success(t("review.settings.notBetter"));
       } else {
-        toast.success(kind === "train" ? "Model retrained" : "Rolled back to the previous model");
+        toast.success(
+          kind === "train" ? t("review.settings.retrained") : t("review.settings.rolledBack"),
+        );
       }
       await client.invalidateQueries({ queryKey: ["ml-status"] });
       await refreshCategoryModel(session, true);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Something went wrong");
+      toast.error(error instanceof Error ? error.message : t("review.settings.wentWrong"));
     } finally {
       setBusy(null);
     }
@@ -107,28 +113,28 @@ export function CategorizationSettings() {
 
   return (
     <Card className="gap-4">
-      <Text variant="title">Categorisation</Text>
+      <Text variant="title">{t("review.settings.title")}</Text>
 
       {stats.isPending ? (
         <Skeleton className="h-16 w-full" />
       ) : s && s.total > 0 ? (
         <View className="gap-1.5">
           <Row
-            label={`Categorised automatically, last ${WINDOW_DAYS} days`}
+            label={t("review.settings.autoLastDays", { days: WINDOW_DAYS })}
             value={pct(auto / s.total)}
           />
-          <Row label="By your rules" value={String(s.methods.rule)} />
-          <Row label="By payees you categorised before" value={String(s.methods.payee_memory)} />
-          <Row label="By the model" value={String(s.methods.ml)} />
-          <Row label="By you" value={String(s.methods.user)} />
-          <Row label="Uncategorised" value={String(s.methods.none)} />
+          <Row label={t("review.settings.byRules")} value={String(s.methods.rule)} />
+          <Row label={t("review.settings.byPayees")} value={String(s.methods.payee_memory)} />
+          <Row label={t("review.settings.byModel")} value={String(s.methods.ml)} />
+          <Row label={t("review.settings.byYou")} value={String(s.methods.user)} />
+          <Row label={t("review.settings.uncategorised")} value={String(s.methods.none)} />
         </View>
       ) : (
-        <Text tone="muted">No transactions in the last {WINDOW_DAYS} days yet.</Text>
+        <Text tone="muted">{t("review.settings.noTransactions", { days: WINDOW_DAYS })}</Text>
       )}
       {s && s.needsReview > 0 ? (
         <Button
-          label={`${s.needsReview} waiting for review`}
+          label={t("review.settings.waiting", { n: s.needsReview })}
           variant="secondary"
           onPress={() => router.push("/review")}
         />
@@ -136,51 +142,61 @@ export function CategorizationSettings() {
 
       <View className="gap-1.5">
         <Text variant="label" tone="muted">
-          Model
+          {t("review.settings.model")}
         </Text>
         {!session ? (
-          <Text tone="muted">
-            Sign in to your server to train a model from your categorised transactions. Rules and
-            payee memory work without it.
-          </Text>
+          <Text tone="muted">{t("review.settings.signInHint")}</Text>
         ) : status.isPending ? (
           <Skeleton className="h-16 w-full" />
         ) : status.isError || !status.data ? (
-          <Text tone="muted">Could not reach the server.</Text>
+          <Text tone="muted">{t("review.settings.unreachable")}</Text>
         ) : m ? (
           <>
-            <Row label="Version" value={`v${m.version} · ${day(m.createdAt)}`} />
             <Row
-              label={`Accuracy on ${m.metrics.heldOut} held-out transactions`}
+              label={t("review.settings.version")}
+              value={`v${m.version} · ${day(m.createdAt)}`}
+            />
+            <Row
+              label={t("review.settings.accuracy", { n: m.metrics.heldOut })}
               value={pct(m.metrics.accuracy)}
             />
             <Row
-              label="Confident predictions (85% or more)"
-              value={`${pct(m.metrics.autoCoverage)} of cases, ${pct(m.metrics.autoPrecision)} right`}
+              label={t("review.settings.confident")}
+              value={t("review.settings.confidentValue", {
+                coverage: pct(m.metrics.autoCoverage),
+                precision: pct(m.metrics.autoPrecision),
+              })}
             />
-            <Row label="Learned from" value={`${m.trainedOnCount} of your categorisations`} />
+            <Row
+              label={t("review.settings.learnedFrom")}
+              value={t("review.settings.learnedFromValue", { n: m.trainedOnCount })}
+            />
             <Text variant="small" tone="muted">
-              {status.data.newSinceTraining} new since training. It retrains at night and after{" "}
-              {status.data.retrainAfter} changes, and keeps the old model if a new one is worse.
+              {t("review.settings.newSince", {
+                n: status.data.newSinceTraining,
+                after: status.data.retrainAfter,
+              })}
             </Text>
           </>
         ) : (
           <Text tone="muted">
-            Not trained yet. It needs at least {status.data.minExamples} transactions you have
-            categorised yourself; you have {status.data.labelled}.
+            {t("review.settings.notTrained", {
+              min: status.data.minExamples,
+              have: status.data.labelled,
+            })}
           </Text>
         )}
         {session && status.data ? (
           <View className="flex-row gap-2 pt-1">
             <Button
-              label="Retrain now"
+              label={t("review.settings.retrain")}
               variant="secondary"
               loading={busy === "train"}
               onPress={() => act("train")}
             />
             {status.data.previous ? (
               <Button
-                label={`Roll back to v${status.data.previous.version}`}
+                label={t("review.settings.rollBack", { version: status.data.previous.version })}
                 variant="ghost"
                 loading={busy === "rollback"}
                 onPress={() => act("rollback")}

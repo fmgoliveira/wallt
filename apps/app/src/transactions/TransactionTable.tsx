@@ -1,6 +1,7 @@
 import { Amount, Card, Text, useTheme } from "@wallt/ui";
 import { ArrowDown, ArrowUp, Check } from "lucide-react-native";
 import { FlatList, Pressable, View, type ViewStyle } from "react-native";
+import { useTranslation } from "../i18n";
 import type { TxQuery } from "./filters";
 import type { TxRow } from "./rows";
 
@@ -65,6 +66,7 @@ function HeaderCell({
   right?: boolean;
 }) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const active = by !== undefined && sort.by === by;
   const Arrow = sort.dir === "asc" ? ArrowUp : ArrowDown;
   const content = (
@@ -82,7 +84,7 @@ function HeaderCell({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Sort by ${label}`}
+      accessibilityLabel={t("transactions.table.sortBy", { label })}
       onPress={() => onSort(by)}
       className="web:cursor-pointer web:outline-none web:hover:opacity-70"
       style={style}
@@ -118,6 +120,7 @@ export function TransactionTable({
   onEndReached: () => void;
 }) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.id));
   const fixed = (width: number): ViewStyle => ({ width, flexShrink: 0 });
 
@@ -128,13 +131,39 @@ export function TransactionTable({
         className="flex-row items-center border-b border-border"
         style={{ height: ROW_HEIGHT }}
       >
-        <Box checked={allSelected} onPress={onToggleAll} label="Select all loaded transactions" />
-        <HeaderCell label="Date" by="date" sort={sort} onSort={onSort} style={fixed(COL.date)} />
-        <HeaderCell label="Payee" by="payee" sort={sort} onSort={onSort} style={{ flex: 1 }} />
-        <HeaderCell label="Category" sort={sort} onSort={onSort} style={fixed(COL.category)} />
-        <HeaderCell label="Account" sort={sort} onSort={onSort} style={fixed(COL.account)} />
+        <Box
+          checked={allSelected}
+          onPress={onToggleAll}
+          label={t("transactions.table.selectAll")}
+        />
         <HeaderCell
-          label="Amount"
+          label={t("transactions.table.date")}
+          by="date"
+          sort={sort}
+          onSort={onSort}
+          style={fixed(COL.date)}
+        />
+        <HeaderCell
+          label={t("transactions.table.payee")}
+          by="payee"
+          sort={sort}
+          onSort={onSort}
+          style={{ flex: 1 }}
+        />
+        <HeaderCell
+          label={t("transactions.table.category")}
+          sort={sort}
+          onSort={onSort}
+          style={fixed(COL.category)}
+        />
+        <HeaderCell
+          label={t("transactions.table.account")}
+          sort={sort}
+          onSort={onSort}
+          style={fixed(COL.account)}
+        />
+        <HeaderCell
+          label={t("transactions.table.amount")}
           by="amount"
           sort={sort}
           onSort={onSort}
@@ -178,7 +207,7 @@ export function TransactionTable({
               <Box
                 checked={isSelected}
                 onPress={() => onToggle(row.id)}
-                label={`Select ${row.title}`}
+                label={t("transactions.table.select", { title: row.title })}
               />
               <Text tone="muted" style={fixed(COL.date)} numberOfLines={1}>
                 {row.tx.bookingDate}
@@ -189,7 +218,7 @@ export function TransactionTable({
                 </Text>
                 {row.tx.status === "pending" ? (
                   <Text variant="small" tone="muted">
-                    Pending
+                    {t("transactions.row.pending")}
                   </Text>
                 ) : null}
               </View>
@@ -205,7 +234,9 @@ export function TransactionTable({
                   />
                 ) : null}
                 <Text tone="muted" numberOfLines={1} className="shrink">
-                  {row.transfer ? "Transfer" : (row.categoryName ?? "Uncategorised")}
+                  {row.transfer
+                    ? t("transactions.row.transfer")
+                    : (row.categoryName ?? t("transactions.row.uncategorised"))}
                 </Text>
               </View>
               <View className="flex-row items-center gap-2 pr-3" style={fixed(COL.account)}>

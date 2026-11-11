@@ -2,18 +2,21 @@ import { type AuthClientError, describeSync, normalizeServerUrl } from "@wallt/s
 import { Button, Card, Input, Sheet, Text, toast } from "@wallt/ui";
 import { useState } from "react";
 import { Platform, View } from "react-native";
+import { useTranslation } from "../i18n";
 import { syncNow, useSyncUi } from "./runtime";
 import { authClientFor, completeSignIn, signOut } from "./session";
 
-const MESSAGES: Record<string, string> = {
-  invalid_credentials: "Wrong email or password.",
-  invalid_code: "That code did not work. Try the next one from your authenticator.",
-  locked: "Too many attempts. Wait a few minutes and try again.",
-  rate_limited: "Too many attempts from this device. Wait a few minutes.",
-  expired: "That took too long. Enter your password again.",
-  offline: "Could not reach the server. Check the address and your connection.",
-  server: "The server answered with an error.",
-};
+const ERROR_KINDS = [
+  "invalid_credentials",
+  "invalid_code",
+  "locked",
+  "rate_limited",
+  "expired",
+  "offline",
+  "server",
+] as const;
+type ErrorKind = (typeof ERROR_KINDS)[number];
+const isErrorKind = (k: unknown): k is ErrorKind => ERROR_KINDS.includes(k as ErrorKind);
 
 const defaultServer = () =>
   Platform.OS === "web" && typeof location !== "undefined" ? location.origin : "";
@@ -27,6 +30,7 @@ function SignInSheet({ onClose }: { onClose: () => void }) {
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const { t } = useTranslation();
 
   async function run(fn: () => Promise<void>) {
     setBusy(true);
@@ -35,7 +39,13 @@ function SignInSheet({ onClose }: { onClose: () => void }) {
       await fn();
     } catch (e) {
       const kind = (e as AuthClientError).kind;
-      setError(MESSAGES[kind ?? ""] ?? (e instanceof Error ? e.message : "Something went wrong"));
+      setError(
+        isErrorKind(kind)
+          ? t(`sync.errors.${kind}`)
+          : e instanceof Error
+            ? e.message
+            : t("sync.errors.generic"),
+      );
       if (kind === "expired") setChallenge(null);
     } finally {
       setBusy(false);
@@ -46,12 +56,10 @@ function SignInSheet({ onClose }: { onClose: () => void }) {
 
   const step1 = () =>
     run(async () => {
-      if (!baseUrl) throw new Error("Enter the server address (https://…).");
+      if (!baseUrl) throw new Error(t("sync.errors.enterServer"));
       const res = await authClientFor(baseUrl).login(email.trim(), password);
       if (res.status === "enrol_required") {
-        throw new Error(
-          "Finish two-factor setup on the server's web app first, then sign in here.",
-        );
+        throw new Error(t("sync.errors.enrolRequired"));
       }
       setChallenge(res.challengeToken);
       setPassword("");
@@ -63,7 +71,7 @@ function SignInSheet({ onClose }: { onClose: () => void }) {
       const proof = useRecovery ? { recoveryCode: code.trim() } : { code: code.trim() };
       const session = await authClientFor(baseUrl).verify(challenge, proof);
       await completeSignIn(session);
-      toast.success("Signed in. Syncing…");
+      toast.success(t("sync.signIn.done"));
       onClose();
     });
 
@@ -71,12 +79,12 @@ function SignInSheet({ onClose }: { onClose: () => void }) {
     <Sheet
       visible
       onClose={onClose}
-      title={challenge ? "Two-factor code" : "Sign in to your server"}
+      title={challenge ? t("sync.signIn.titleCode") : t("sync.signIn.titleServer")}
     >
       {challenge ? (
         <>
           <Input
-            label={useRecovery ? "Recovery code" : "6-digit code"}
+            label={useRecovery ? t("sync.signIn.recoveryCode") : t("sync.signIn.sixDigitCode")}
             value={code}
             onChangeText={setCode}
             autoFocus
@@ -84,9 +92,13 @@ function SignInSheet({ onClose }: { onClose: () => void }) {
             keyboardType={useRecovery ? "default" : "number-pad"}
             error={error ?? undefined}
           />
-          <Button label={busy ? "Checking…" : "Sign in"} onPress={step2} disabled={busy || !code} />
           <Button
-            label={useRecovery ? "Use authenticator code" : "Use a recovery code"}
+            label={busy ? t("sync.signIn.checking") : t("sync.signIn.submit")}
+            onPress={step2}
+            disabled={busy || !code}
+          />
+          <Button
+            label={useRecovery ? t("sync.signIn.useAuthenticator") : t("sync.signIn.useRecovery")}
             variant="ghost"
             onPress={() => {
               setUseRecovery(!useRecovery);
@@ -98,16 +110,16 @@ function SignInSheet({ onClose }: { onClose: () => void }) {
       ) : (
         <>
           <Input
-            label="Server address"
+            label={t("sync.signIn.serverAddress")}
             value={server}
             onChangeText={setServer}
             autoCapitalize="none"
             autoCorrect={false}
             keyboardType="url"
-            placeholder="https://wallt.example.com"
+            placeholder={t("sync.signIn.serverPlaceholder")}
           />
           <Input
-            label="Email"
+            label={t("sync.signIn.email")}
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
@@ -116,7 +128,7 @@ function SignInSheet({ onClose }: { onClose: () => void }) {
             autoComplete="email"
           />
           <Input
-            label="Password"
+            label={t("sync.signIn.password")}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -124,13 +136,13 @@ function SignInSheet({ onClose }: { onClose: () => void }) {
             error={error ?? undefined}
           />
           <Button
-            label={busy ? "Checking…" : "Continue"}
+            label={busy ? t("sync.signIn.checking") : t("sync.signIn.continue")}
             onPress={step1}
             disabled={busy || !email || !password}
           />
         </>
       )}
-      <Button label="Cancel" variant="ghost" onPress={onClose} />
+      <Button label={t("sync.signIn.cancel")} variant="ghost" onPress={onClose} />
     </Sheet>
   );
 }
@@ -140,29 +152,38 @@ export function SyncSetting() {
   const session = useSyncUi((u) => u.session);
   const engine = useSyncUi((u) => u.engine);
   const [open, setOpen] = useState(false);
+  const { t } = useTranslation();
   const status = describeSync(session ? engine : null, Date.now());
 
   return (
     <Card className="gap-3">
       <View className="gap-1">
-        <Text variant="title">Sync</Text>
+        <Text variant="title">{t("sync.settings.title")}</Text>
         <Text variant="small" tone="muted">
           {session
-            ? `Signed in as ${session.email} on ${session.baseUrl}. ${status.label}.`
-            : "Keep this device in step with your server and your other devices. Works offline; changes sync when you are back online."}
+            ? t("sync.settings.signedIn", {
+                email: session.email,
+                server: session.baseUrl,
+                status: status.label,
+              })
+            : t("sync.settings.signedOut")}
         </Text>
       </View>
       {session ? (
         <>
-          <Button label="Sync now" variant="secondary" onPress={() => void syncNow()} />
           <Button
-            label="Sign out of this device"
+            label={t("sync.settings.syncNow")}
+            variant="secondary"
+            onPress={() => void syncNow()}
+          />
+          <Button
+            label={t("sync.settings.signOut")}
             variant="ghost"
             onPress={() => void signOut().catch((e) => toast.error(String(e)))}
           />
         </>
       ) : (
-        <Button label="Sign in to sync" onPress={() => setOpen(true)} />
+        <Button label={t("sync.settings.signInToSync")} onPress={() => setOpen(true)} />
       )}
       {open ? <SignInSheet onClose={() => setOpen(false)} /> : null}
     </Card>

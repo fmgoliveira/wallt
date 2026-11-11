@@ -2,6 +2,7 @@ import { AUTO_LOCK_OPTIONS, isValidPin } from "@wallt/core";
 import { Button, Card, Input, Select, Sheet, Tabs, Text, toast, usePrivacyStore } from "@wallt/ui";
 import { useEffect, useState } from "react";
 import { View } from "react-native";
+import { useTranslation } from "../i18n";
 import {
   biometricsAvailable,
   checkPin,
@@ -13,10 +14,20 @@ import {
   useSecurityStore,
 } from "./securityStore";
 
-const onOff = [
-  { value: "off", label: "Off" },
-  { value: "on", label: "On" },
-] as const;
+function useOnOff() {
+  const { t } = useTranslation();
+  return [
+    { value: "off", label: t("security.off") },
+    { value: "on", label: t("security.on") },
+  ] as const;
+}
+
+const AUTO_LOCK_KEYS = {
+  0: "immediately",
+  60000: "min1",
+  300000: "min5",
+  900000: "min15",
+} as const;
 
 type Flow = null | "enable" | "disable" | "change-verify" | "change-new";
 
@@ -36,11 +47,12 @@ function PinSheet({
   const [pin, setPin] = useState("");
   const [again, setAgain] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const { t } = useTranslation();
 
   async function go() {
     if (confirmNew) {
-      if (!isValidPin(pin)) return setError("Use 4 to 8 digits");
-      if (pin !== again) return setError("The two PINs do not match");
+      if (!isValidPin(pin)) return setError(t("security.pinSheet.invalidLength"));
+      if (pin !== again) return setError(t("security.pinSheet.mismatch"));
     }
     setError(await onSubmit(pin));
   }
@@ -48,7 +60,7 @@ function PinSheet({
   return (
     <Sheet visible onClose={onClose} title={title}>
       <Input
-        label={confirmNew ? "New PIN (4 to 8 digits)" : "PIN"}
+        label={confirmNew ? t("security.pinSheet.newLabel") : t("security.pinSheet.pinLabel")}
         value={pin}
         onChangeText={(v) => setPin(v.replace(/\D/g, "").slice(0, 8))}
         secureTextEntry
@@ -58,7 +70,7 @@ function PinSheet({
       />
       {confirmNew ? (
         <Input
-          label="Repeat PIN"
+          label={t("security.pinSheet.repeat")}
           value={again}
           onChangeText={(v) => setAgain(v.replace(/\D/g, "").slice(0, 8))}
           secureTextEntry
@@ -66,8 +78,8 @@ function PinSheet({
           error={error ?? undefined}
         />
       ) : null}
-      <Button label="Continue" onPress={go} />
-      <Button label="Cancel" variant="ghost" onPress={onClose} />
+      <Button label={t("security.pinSheet.continue")} onPress={go} />
+      <Button label={t("security.pinSheet.cancel")} variant="ghost" onPress={onClose} />
     </Sheet>
   );
 }
@@ -75,13 +87,14 @@ function PinSheet({
 /** Privacy mode: hides every amount in the app, on all platforms. Remembered between launches. */
 export function PrivacySetting() {
   const hidden = usePrivacyStore((s) => s.hidden);
+  const { t } = useTranslation();
+  const onOff = useOnOff();
   return (
     <Card className="gap-3">
       <View className="gap-1">
-        <Text variant="title">Privacy mode</Text>
+        <Text variant="title">{t("security.privacy.title")}</Text>
         <Text variant="small" tone="muted">
-          Replaces every amount with dots. Handy in public; you can also toggle it with the eye in
-          the page header.
+          {t("security.privacy.hint")}
         </Text>
       </View>
       <Tabs
@@ -98,6 +111,8 @@ export function LockSetting() {
   const { lockEnabled, timeoutMs, biometrics } = useSecurityStore();
   const [flow, setFlow] = useState<Flow>(null);
   const [bioOk, setBioOk] = useState(false);
+  const { t } = useTranslation();
+  const onOff = useOnOff();
 
   useEffect(() => {
     void biometricsAvailable().then(setBioOk);
@@ -106,25 +121,24 @@ export function LockSetting() {
   if (!lockSupported) {
     return (
       <Card className="gap-1">
-        <Text variant="title">App lock</Text>
+        <Text variant="title">{t("security.appLock.title")}</Text>
         <Text variant="small" tone="muted">
-          Available in the Android app. On the web, your browser and device sign-in protect the
-          session.
+          {t("security.appLock.unsupported")}
         </Text>
       </Card>
     );
   }
 
   const close = () => setFlow(null);
-  const fail = (e: unknown) => toast.error(e instanceof Error ? e.message : "Something went wrong");
+  const fail = (e: unknown) =>
+    toast.error(e instanceof Error ? e.message : t("security.appLock.genericError"));
 
   return (
     <Card className="gap-4">
       <View className="gap-1">
-        <Text variant="title">App lock</Text>
+        <Text variant="title">{t("security.appLock.title")}</Text>
         <Text variant="small" tone="muted">
-          Ask for your PIN{bioOk ? " or fingerprint/face" : ""} when you open Wallt after it has
-          been in the background.
+          {bioOk ? t("security.appLock.hintBiometrics") : t("security.appLock.hint")}
         </Text>
       </View>
       <Tabs
@@ -135,15 +149,21 @@ export function LockSetting() {
       {lockEnabled ? (
         <>
           <Select
-            label="Lock the app"
-            options={AUTO_LOCK_OPTIONS.map((o) => ({ value: String(o.ms), label: o.label }))}
+            label={t("security.appLock.lockAfter")}
+            options={AUTO_LOCK_OPTIONS.map((o) => {
+              const key = AUTO_LOCK_KEYS[o.ms as keyof typeof AUTO_LOCK_KEYS];
+              return {
+                value: String(o.ms),
+                label: key ? t(`security.appLock.autoLock.${key}`) : o.label,
+              };
+            })}
             value={String(timeoutMs)}
             onChange={(v) => void setAutoLock(Number(v))}
           />
           {bioOk ? (
             <View className="gap-1.5">
               <Text variant="small" tone="muted" weight="medium">
-                Fingerprint or face
+                {t("security.appLock.biometricsLabel")}
               </Text>
               <Tabs
                 items={onOff}
@@ -154,7 +174,7 @@ export function LockSetting() {
           ) : null}
           <View className="flex-row">
             <Button
-              label="Change PIN"
+              label={t("security.appLock.changePin")}
               variant="secondary"
               onPress={() => setFlow("change-verify")}
             />
@@ -164,43 +184,43 @@ export function LockSetting() {
 
       {flow === "enable" ? (
         <PinSheet
-          title="Choose a PIN"
+          title={t("security.appLock.choosePin")}
           confirmNew
           onClose={close}
           onSubmit={async (pin) => {
             try {
               await enableLock(pin);
               close();
-              toast.success("App lock is on");
+              toast.success(t("security.appLock.enabled"));
               return null;
             } catch (e) {
               fail(e);
-              return "Could not save the PIN";
+              return t("security.appLock.saveFailed");
             }
           }}
         />
       ) : null}
       {flow === "disable" ? (
         <PinSheet
-          title="Enter your PIN to turn the lock off"
+          title={t("security.appLock.disableTitle")}
           confirmNew={false}
           onClose={close}
           onSubmit={async (pin) => {
-            if (!checkPin(pin)) return "Wrong PIN";
+            if (!checkPin(pin)) return t("security.lock.wrongPin");
             await disableLock();
             close();
-            toast.success("App lock is off");
+            toast.success(t("security.appLock.disabled"));
             return null;
           }}
         />
       ) : null}
       {flow === "change-verify" ? (
         <PinSheet
-          title="Enter your current PIN"
+          title={t("security.appLock.currentPin")}
           confirmNew={false}
           onClose={close}
           onSubmit={async (pin) => {
-            if (!checkPin(pin)) return "Wrong PIN";
+            if (!checkPin(pin)) return t("security.lock.wrongPin");
             setFlow("change-new");
             return null;
           }}
@@ -208,18 +228,18 @@ export function LockSetting() {
       ) : null}
       {flow === "change-new" ? (
         <PinSheet
-          title="Choose a new PIN"
+          title={t("security.appLock.chooseNewPin")}
           confirmNew
           onClose={close}
           onSubmit={async (pin) => {
             try {
               await enableLock(pin);
               close();
-              toast.success("PIN changed");
+              toast.success(t("security.appLock.pinChanged"));
               return null;
             } catch (e) {
               fail(e);
-              return "Could not save the PIN";
+              return t("security.appLock.saveFailed");
             }
           }}
         />

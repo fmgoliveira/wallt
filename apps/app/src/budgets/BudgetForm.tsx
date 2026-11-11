@@ -26,17 +26,7 @@ import {
   useTags,
   useUpdateBudget,
 } from "../data/hooks";
-
-const periods = [
-  { value: "month", label: "Monthly" },
-  { value: "week", label: "Weekly" },
-  { value: "custom", label: "Custom" },
-] as const;
-
-const rolloverItems = [
-  { value: "no", label: "Off" },
-  { value: "yes", label: "On" },
-] as const;
+import { useTranslation } from "../i18n";
 
 const toggle = (list: string[], id: string) =>
   list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
@@ -49,7 +39,17 @@ export function BudgetForm({
   budget?: Budget | undefined;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const { scheme } = useTheme();
+  const periods = [
+    { value: "month", label: t("budgets.periodMonth") },
+    { value: "week", label: t("budgets.periodWeek") },
+    { value: "custom", label: t("budgets.periodCustom") },
+  ] as const;
+  const rolloverItems = [
+    { value: "no", label: t("budgets.rolloverOff") },
+    { value: "yes", label: t("budgets.rolloverOn") },
+  ] as const;
   const create = useCreateBudget();
   const update = useUpdateBudget();
   const remove = useDeleteBudget();
@@ -70,13 +70,13 @@ export function BudgetForm({
   const [accountIds, setAccountIds] = useState<string[]>(budget?.scope.accountIds ?? []);
   const [submitted, setSubmitted] = useState(false);
 
-  const nameError = submitted && name.trim() === "" ? "Name is required" : undefined;
-  const amountError = submitted && amount === null ? "Enter an amount" : undefined;
+  const nameError = submitted && name.trim() === "" ? t("budgets.nameRequired") : undefined;
+  const amountError = submitted && amount === null ? t("budgets.enterAmount") : undefined;
   const endError =
     submitted && period === "custom" && end === ""
-      ? "A custom period needs an end date"
+      ? t("budgets.customNeedsEnd")
       : submitted && end !== "" && end < start
-        ? "End is before the start"
+        ? t("budgets.endBeforeStart")
         : undefined;
   const busy = create.isPending || update.isPending || remove.isPending;
   const cats = categoryOptions(categories, "expense");
@@ -99,14 +99,14 @@ export function BudgetForm({
     try {
       if (budget) {
         await update.mutateAsync({ id: budget.id, patch: values });
-        toast.success("Budget updated");
+        toast.success(t("budgets.updated"));
       } else {
         await create.mutateAsync(values);
-        toast.success("Budget added");
+        toast.success(t("budgets.added"));
       }
       onClose();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not save the budget");
+      toast.error(error instanceof Error ? error.message : t("budgets.saveFailed"));
     }
   }
 
@@ -114,32 +114,40 @@ export function BudgetForm({
     if (!budget) return;
     try {
       await remove.mutateAsync(budget.id);
-      toast.success("Budget deleted");
+      toast.success(t("budgets.deleted"));
       onClose();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not delete the budget");
+      toast.error(error instanceof Error ? error.message : t("budgets.deleteFailed"));
     }
   }
 
   return (
-    <Sheet visible onClose={onClose} title={budget ? "Edit budget" : "New budget"}>
+    <Sheet
+      visible
+      onClose={onClose}
+      title={budget ? t("budgets.editBudget") : t("budgets.newBudget")}
+    >
       <Input
-        label="Name"
+        label={t("budgets.name")}
         value={name}
         onChangeText={setName}
-        placeholder="e.g. Groceries"
+        placeholder={t("budgets.namePlaceholder")}
         error={nameError}
         autoFocus
       />
       <View className="gap-1.5">
         <Text variant="small" tone="muted" weight="medium">
-          Period
+          {t("budgets.period")}
         </Text>
         <Tabs items={periods} value={period} onChange={setPeriod} />
       </View>
       <AmountInput
         label={
-          period === "week" ? "Amount per week" : period === "month" ? "Amount per month" : "Amount"
+          period === "week"
+            ? t("budgets.amountPerWeek")
+            : period === "month"
+              ? t("budgets.amountPerMonth")
+              : t("budgets.amount")
         }
         value={amount}
         onChangeValue={setAmount}
@@ -147,10 +155,15 @@ export function BudgetForm({
         placeholder="0,00"
         error={amountError}
       />
-      <Select label="Currency" options={currencyOptions} value={currency} onChange={setCurrency} />
-      <DatePicker label="Starts" value={start} onChange={setStart} />
+      <Select
+        label={t("budgets.currency")}
+        options={currencyOptions}
+        value={currency}
+        onChange={setCurrency}
+      />
+      <DatePicker label={t("budgets.starts")} value={start} onChange={setStart} />
       <DatePicker
-        label={period === "custom" ? "Ends" : "Ends (optional)"}
+        label={period === "custom" ? t("budgets.ends") : t("budgets.endsOptional")}
         value={end}
         onChange={setEnd}
         clearable={period !== "custom"}
@@ -159,7 +172,7 @@ export function BudgetForm({
       {period === "custom" ? null : (
         <View className="gap-1.5">
           <Text variant="small" tone="muted" weight="medium">
-            Carry unspent money over to the next period
+            {t("budgets.rollover")}
           </Text>
           <Tabs items={rolloverItems} value={rollover} onChange={setRollover} />
         </View>
@@ -167,7 +180,7 @@ export function BudgetForm({
 
       <View className="gap-1.5">
         <Text variant="small" tone="muted" weight="medium">
-          Categories (none = all spending)
+          {t("budgets.categories")}
         </Text>
         <View className="flex-row flex-wrap gap-2">
           {cats.map((c) => (
@@ -188,15 +201,15 @@ export function BudgetForm({
       {tags.length > 0 ? (
         <View className="gap-1.5">
           <Text variant="small" tone="muted" weight="medium">
-            Tags
+            {t("budgets.tags")}
           </Text>
           <View className="flex-row flex-wrap gap-2">
-            {tags.map((t) => (
+            {tags.map((tag) => (
               <ToggleChip
-                key={t.id}
-                label={t.name}
-                selected={tagIds.includes(t.id)}
-                onPress={() => setTagIds(toggle(tagIds, t.id))}
+                key={tag.id}
+                label={tag.name}
+                selected={tagIds.includes(tag.id)}
+                onPress={() => setTagIds(toggle(tagIds, tag.id))}
               />
             ))}
           </View>
@@ -205,7 +218,7 @@ export function BudgetForm({
       {accounts.length > 1 ? (
         <View className="gap-1.5">
           <Text variant="small" tone="muted" weight="medium">
-            Accounts
+            {t("budgets.accounts")}
           </Text>
           <View className="flex-row flex-wrap gap-2">
             {accounts.map((a) => (
@@ -221,9 +234,13 @@ export function BudgetForm({
         </View>
       ) : null}
 
-      <Button label={budget ? "Save changes" : "Add budget"} loading={busy} onPress={save} />
-      {budget ? <Button label="Delete budget" variant="ghost" onPress={del} /> : null}
-      <Button label="Cancel" variant="ghost" onPress={onClose} />
+      <Button
+        label={budget ? t("budgets.saveChanges") : t("budgets.addBudget")}
+        loading={busy}
+        onPress={save}
+      />
+      {budget ? <Button label={t("budgets.deleteBudget")} variant="ghost" onPress={del} /> : null}
+      <Button label={t("budgets.cancel")} variant="ghost" onPress={onClose} />
     </Sheet>
   );
 }

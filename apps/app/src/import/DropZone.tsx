@@ -1,11 +1,9 @@
 import { Text, useTheme } from "@wallt/ui";
 import { FileUp } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Platform, Pressable, View } from "react-native";
+import { useTranslation } from "../i18n";
 import { FileTooLargeError, type PickedFile, pickFile, readWebFile } from "./files";
-
-const messageOf = (e: unknown) =>
-  e instanceof FileTooLargeError ? e.message : "That file could not be read.";
 
 export interface DropZoneProps {
   onFile: (file: PickedFile) => void;
@@ -19,6 +17,14 @@ export interface DropZoneProps {
  */
 export function DropZone({ onFile, onError, disabled }: DropZoneProps) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
+  const messageOf = useCallback(
+    (e: unknown) =>
+      e instanceof FileTooLargeError
+        ? t("importing.drop.tooLarge")
+        : t("importing.drop.unreadable"),
+    [t],
+  );
   const [el, setEl] = useState<HTMLElement | null>(null);
   const [over, setOver] = useState(false);
 
@@ -54,7 +60,7 @@ export function DropZone({ onFile, onError, disabled }: DropZoneProps) {
       el.removeEventListener("dragleave", leave);
       el.removeEventListener("drop", drop);
     };
-  }, [el, disabled, onFile, onError]);
+  }, [el, disabled, onFile, onError, messageOf]);
 
   const choose = () => {
     pickFile()
@@ -66,7 +72,7 @@ export function DropZone({ onFile, onError, disabled }: DropZoneProps) {
     <View ref={(node) => setEl(node as unknown as HTMLElement | null)}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Choose a bank export file"
+        accessibilityLabel={t("importing.drop.choose")}
         disabled={disabled}
         onPress={choose}
         className="items-center gap-3 px-6 py-12 web:cursor-pointer web:outline-none web:transition-colors web:duration-150"
@@ -86,14 +92,13 @@ export function DropZone({ onFile, onError, disabled }: DropZoneProps) {
         </View>
         <Text variant="title" className="text-center">
           {over
-            ? "Drop to import"
+            ? t("importing.drop.over")
             : Platform.OS === "web"
-              ? "Drop a file here, or click to choose"
-              : "Choose a file"}
+              ? t("importing.drop.web")
+              : t("importing.drop.native")}
         </Text>
         <Text tone="muted" className="max-w-[380px] text-center">
-          CSV, Excel (XLS, XLSX), ODS, OFX/QFX or CAMT XML from your bank. Nothing is uploaded; the
-          file is read on this device.
+          {t("importing.drop.hint")}
         </Text>
       </Pressable>
     </View>

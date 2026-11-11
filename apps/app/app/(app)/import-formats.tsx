@@ -1,10 +1,12 @@
 import { DataGate } from "../../src/data/DataGate";
+import { useTranslation } from "../../src/i18n";
 import { FormatsManager } from "../../src/import/FormatsManager";
 import { Page } from "../../src/shell/Page";
 
 export default function ImportFormatsScreen() {
+  const { t } = useTranslation();
   return (
-    <Page title="Import formats" subtitle="How each bank's export is read">
+    <Page title={t("importing.page.formatsTitle")} subtitle={t("importing.page.formatsSubtitle")}>
       <DataGate>
         <FormatsManager />
       </DataGate>

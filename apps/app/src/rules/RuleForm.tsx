@@ -1,6 +1,7 @@
 import { previewRule, validateCondition } from "@wallt/categorize";
 import type { Rule, RuleCondition } from "@wallt/core";
 import { AmountInput, Button, Input, Select, Sheet, Tabs, Text, toast, useTheme } from "@wallt/ui";
+import type { TFunction } from "i18next";
 import { Plus, Trash2 } from "lucide-react-native";
 import { useMemo, useState } from "react";
 import { Pressable, View } from "react-native";
@@ -12,43 +13,44 @@ import {
   useDeleteRule,
   useUpdateRule,
 } from "../data/hooks";
+import { useTranslation } from "../i18n";
 import { useRuleHistory } from "./data";
 
 type Field = RuleCondition["field"];
 type Op = RuleCondition["op"];
 
-const FIELDS: { value: Field; label: string }[] = [
-  { value: "payee", label: "Payee" },
-  { value: "description", label: "Description" },
-  { value: "amount", label: "Amount" },
-  { value: "account", label: "Account" },
-  { value: "sign", label: "Money" },
+const fieldOptions = (t: TFunction): { value: Field; label: string }[] => [
+  { value: "payee", label: t("rules.field.payee") },
+  { value: "description", label: t("rules.field.description") },
+  { value: "amount", label: t("rules.field.amount") },
+  { value: "account", label: t("rules.field.account") },
+  { value: "sign", label: t("rules.field.sign") },
 ];
 
-const OPS: Record<Field, { value: Op; label: string }[]> = {
-  payee: [
-    { value: "contains", label: "contains" },
-    { value: "equals", label: "is exactly" },
-    { value: "regex", label: "matches pattern" },
-  ],
-  description: [
-    { value: "contains", label: "contains" },
-    { value: "equals", label: "is exactly" },
-    { value: "regex", label: "matches pattern" },
-  ],
-  amount: [
-    { value: "gte", label: "is at least" },
-    { value: "lte", label: "is at most" },
-    { value: "equals", label: "is exactly" },
-  ],
-  account: [{ value: "equals", label: "is" }],
-  sign: [{ value: "equals", label: "is" }],
+const opOptions = (t: TFunction): Record<Field, { value: Op; label: string }[]> => {
+  const text = [
+    { value: "contains", label: t("rules.op.contains") },
+    { value: "equals", label: t("rules.op.equals") },
+    { value: "regex", label: t("rules.op.regex") },
+  ] satisfies { value: Op; label: string }[];
+  return {
+    payee: text,
+    description: text,
+    amount: [
+      { value: "gte", label: t("rules.op.gte") },
+      { value: "lte", label: t("rules.op.lte") },
+      { value: "equals", label: t("rules.op.equals") },
+    ],
+    account: [{ value: "equals", label: t("rules.op.is") }],
+    sign: [{ value: "equals", label: t("rules.op.is") }],
+  };
 };
 
-const SIGNS = [
-  { value: "expense", label: "Money out" },
-  { value: "income", label: "Money in" },
-] as const;
+const signOptions = (t: TFunction) =>
+  [
+    { value: "expense", label: t("rules.sign.expense") },
+    { value: "income", label: t("rules.sign.income") },
+  ] as const;
 
 /** A condition while it is being edited: the value may be empty. */
 interface Draft {
@@ -72,7 +74,8 @@ const toDraft = (c: RuleCondition): Draft => ({ ...c, key: nextKey++ });
 const blank = (): Draft => ({ key: nextKey++, field: "payee", op: "contains", value: "" });
 
 function defaultsFor(field: Field): Pick<Draft, "op" | "value"> {
-  const op = (OPS[field][0] as { value: Op }).value;
+  const op: Op =
+    field === "amount" ? "gte" : field === "account" || field === "sign" ? "equals" : "contains";
   return { op, value: field === "amount" ? null : field === "sign" ? "expense" : "" };
 }
 
@@ -86,6 +89,7 @@ export function RuleForm({
   draft?: RuleDraft | undefined;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const create = useCreateRule();
   const update = useUpdateRule();
@@ -106,19 +110,22 @@ export function RuleForm({
   const [submitted, setSubmitted] = useState(false);
 
   const currency = accounts[0]?.currency ?? "EUR";
+  const fields = fieldOptions(t);
+  const ops = opOptions(t);
+  const signs = signOptions(t);
   const options = useMemo(
     () => [
       ...categoryOptions(categories, "expense", categoryId),
       ...categoryOptions(categories, "income", categoryId).map((o) => ({
         ...o,
-        label: `Income › ${o.label}`,
+        label: t("rules.form.incomePrefix", { label: o.label }),
       })),
     ],
-    [categories, categoryId],
+    [categories, categoryId, t],
   );
 
   const errors = conditions.map((c) => {
-    if (c.field === "amount" && c.value === null) return "Enter an amount";
+    if (c.field === "amount" && c.value === null) return t("rules.form.enterAmount");
     return validateCondition({ field: c.field, op: c.op, value: c.value ?? "" } as RuleCondition);
   });
   const allValid = errors.every((e) => e === null);
@@ -135,11 +142,9 @@ export function RuleForm({
     setConditions((all) => all.map((c) => (c.key === key ? { ...c, ...change } : c)));
 
   const busy = create.isPending || update.isPending || remove.isPending;
-  const nameError = submitted && name.trim() === "" ? "Name is required" : undefined;
+  const nameError = submitted && name.trim() === "" ? t("rules.form.nameRequired") : undefined;
   const actionError =
-    submitted && !categoryId && rename.trim() === ""
-      ? "Pick a category or a new payee name"
-      : undefined;
+    submitted && !categoryId && rename.trim() === "" ? t("rules.form.actionRequired") : undefined;
 
   async function save() {
     setSubmitted(true);
@@ -155,18 +160,18 @@ export function RuleForm({
           id: rule.id,
           patch: { name: name.trim(), conditions: toConditions(conditions), action },
         });
-        toast.success("Rule updated");
+        toast.success(t("rules.form.updated"));
       } else {
         await create.mutateAsync({
           name: name.trim(),
           conditions: toConditions(conditions),
           action,
         });
-        toast.success("Rule added");
+        toast.success(t("rules.form.added"));
       }
       onClose();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not save");
+      toast.error(error instanceof Error ? error.message : t("rules.form.couldNotSave"));
     }
   }
 
@@ -174,35 +179,39 @@ export function RuleForm({
     if (!rule) return;
     try {
       await remove.mutateAsync(rule.id);
-      toast.success("Rule deleted");
+      toast.success(t("rules.form.deleted"));
       onClose();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not delete");
+      toast.error(error instanceof Error ? error.message : t("rules.form.couldNotDelete"));
     }
   }
 
   return (
-    <Sheet visible onClose={onClose} title={rule ? "Edit rule" : "New rule"}>
+    <Sheet
+      visible
+      onClose={onClose}
+      title={rule ? t("rules.form.editTitle") : t("rules.form.newTitle")}
+    >
       <Input
-        label="Name"
+        label={t("rules.form.name")}
         value={name}
         onChangeText={setName}
-        placeholder="e.g. Lidl"
+        placeholder={t("rules.form.exampleLidl")}
         error={nameError}
         autoFocus={!rule}
       />
 
       <View className="gap-3">
         <Text variant="label" tone="muted">
-          When all of these are true
+          {t("rules.form.when")}
         </Text>
         {conditions.map((c, i) => (
           <View key={c.key} className="gap-2 rounded-2xl border border-border p-3">
             <View className="flex-row items-end gap-2">
               <View className="flex-1">
                 <Select
-                  label="Field"
-                  options={FIELDS}
+                  label={t("rules.form.field")}
+                  options={fields}
                   value={c.field}
                   onChange={(field) => patch(c.key, { field, ...defaultsFor(field) })}
                 />
@@ -210,7 +219,7 @@ export function RuleForm({
               {conditions.length > 1 ? (
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel="Remove condition"
+                  accessibilityLabel={t("rules.form.removeCondition")}
                   onPress={() => setConditions((all) => all.filter((x) => x.key !== c.key))}
                   className="h-11 w-11 items-center justify-center web:cursor-pointer web:hover:opacity-70"
                 >
@@ -218,14 +227,16 @@ export function RuleForm({
                 </Pressable>
               ) : null}
             </View>
-            {OPS[c.field].length > 1 ? (
-              <Select options={OPS[c.field]} value={c.op} onChange={(op) => patch(c.key, { op })} />
+            {ops[c.field].length > 1 ? (
+              <Select options={ops[c.field]} value={c.op} onChange={(op) => patch(c.key, { op })} />
             ) : null}
             {c.field === "payee" || c.field === "description" ? (
               <Input
                 value={String(c.value ?? "")}
                 onChangeText={(value) => patch(c.key, { value })}
-                placeholder={c.op === "regex" ? "e.g. ^PINGO\\s+DOCE" : "e.g. continente"}
+                placeholder={
+                  c.op === "regex" ? t("rules.form.regexExample") : t("rules.form.textExample")
+                }
                 error={submitted ? (errors[i] ?? undefined) : undefined}
               />
             ) : null}
@@ -240,7 +251,7 @@ export function RuleForm({
             ) : null}
             {c.field === "account" ? (
               <Select
-                placeholder="Pick an account"
+                placeholder={t("rules.form.pickAccount")}
                 options={accounts.map((a) => ({ value: a.id, label: a.name }))}
                 value={typeof c.value === "string" && c.value !== "" ? c.value : null}
                 onChange={(value) => patch(c.key, { value })}
@@ -249,7 +260,7 @@ export function RuleForm({
             ) : null}
             {c.field === "sign" ? (
               <Tabs
-                items={SIGNS}
+                items={signs}
                 value={c.value === "income" ? "income" : "expense"}
                 onChange={(value) => patch(c.key, { value })}
               />
@@ -257,7 +268,7 @@ export function RuleForm({
           </View>
         ))}
         <Button
-          label="Add condition"
+          label={t("rules.form.addCondition")}
           variant="ghost"
           leading={<Plus size={16} color={colors.muted} strokeWidth={2} />}
           onPress={() => setConditions((all) => [...all, blank()])}
@@ -266,46 +277,51 @@ export function RuleForm({
 
       <View className="gap-3">
         <Text variant="label" tone="muted">
-          Then
+          {t("rules.form.thenLabel")}
         </Text>
         <Select
-          label="Set category"
-          placeholder="Leave the category alone"
+          label={t("rules.form.setCategory")}
+          placeholder={t("rules.form.leaveCategory")}
           options={options}
           value={categoryId}
           onChange={setCategoryId}
           error={actionError}
         />
         <Input
-          label="Rename payee to (optional)"
+          label={t("rules.form.renameTo")}
           value={rename}
           onChangeText={setRename}
-          placeholder="e.g. Lidl"
+          placeholder={t("rules.form.exampleLidl")}
         />
       </View>
 
       <View className="gap-1 rounded-2xl bg-bg p-3">
         {!allValid ? (
-          <Text tone="muted">Complete the conditions to see what this rule would match.</Text>
+          <Text tone="muted">{t("rules.form.completeConditions")}</Text>
         ) : preview === null ? (
-          <Text tone="muted">Checking your history…</Text>
+          <Text tone="muted">{t("rules.form.checking")}</Text>
         ) : (
           <>
-            <Text weight="medium">
-              Would match {preview.matches} transaction{preview.matches === 1 ? "" : "s"}
-            </Text>
+            <Text weight="medium">{t("rules.form.wouldMatch", { count: preview.matches })}</Text>
             <Text variant="small" tone="muted">
               {categoryId
-                ? `${preview.wouldChange} would get this category. ${preview.protectedByUser} you categorised yourself stay as they are.`
-                : "Without a category it only renames the payee on new imports."}
+                ? t("rules.form.previewCategory", {
+                    changed: preview.wouldChange,
+                    protected: preview.protectedByUser,
+                  })
+                : t("rules.form.previewRename")}
             </Text>
           </>
         )}
       </View>
 
-      <Button label={rule ? "Save changes" : "Add rule"} loading={busy} onPress={save} />
-      {rule ? <Button label="Delete" variant="ghost" onPress={del} /> : null}
-      <Button label="Cancel" variant="ghost" onPress={onClose} />
+      <Button
+        label={rule ? t("rules.form.saveChanges") : t("rules.form.addRule")}
+        loading={busy}
+        onPress={save}
+      />
+      {rule ? <Button label={t("rules.form.delete")} variant="ghost" onPress={del} /> : null}
+      <Button label={t("rules.form.cancel")} variant="ghost" onPress={onClose} />
     </Sheet>
   );
 }

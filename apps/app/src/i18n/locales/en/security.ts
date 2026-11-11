@@ -1,1 +1,61 @@
-export const security = {} as const;
+export const security = {
+  off: "Off",
+  on: "On",
+  lock: {
+    title: "Wallt is locked",
+    wrongPin: "Wrong PIN",
+    blocked: "Too many attempts. Wait.",
+    retryIn: "Try again in {{seconds}} s",
+    prompt: "Enter your PIN to continue",
+    biometrics: "Use fingerprint or face",
+  },
+  pad: {
+    digitsEntered_one: "{{count}} digit entered",
+    digitsEntered_other: "{{count}} digits entered",
+    delete: "Delete",
+    confirm: "Confirm PIN",
+  },
+  privacyToggle: {
+    show: "Show amounts",
+    hide: "Hide amounts",
+  },
+  pinSheet: {
+    invalidLength: "Use 4 to 8 digits",
+    mismatch: "The two PINs do not match",
+    newLabel: "New PIN (4 to 8 digits)",
+    pinLabel: "PIN",
+    repeat: "Repeat PIN",
+    continue: "Continue",
+    cancel: "Cancel",
+  },
+  privacy: {
+    title: "Privacy mode",
+    hint: "Replaces every amount with dots. Handy in public; you can also toggle it with the eye in the page header.",
+  },
+  appLock: {
+    title: "App lock",
+    unsupported:
+      "Available in the Android app. On the web, your browser and device sign-in protect the session.",
+    hint: "Ask for your PIN when you open Wallt after it has been in the background.",
+    hintBiometrics:
+      "Ask for your PIN or fingerprint/face when you open Wallt after it has been in the background.",
+    lockAfter: "Lock the app",
+    autoLock: {
+      immediately: "Immediately",
+      min1: "After 1 minute",
+      min5: "After 5 minutes",
+      min15: "After 15 minutes",
+    },
+    biometricsLabel: "Fingerprint or face",
+    changePin: "Change PIN",
+    choosePin: "Choose a PIN",
+    disableTitle: "Enter your PIN to turn the lock off",
+    currentPin: "Enter your current PIN",
+    chooseNewPin: "Choose a new PIN",
+    enabled: "App lock is on",
+    disabled: "App lock is off",
+    pinChanged: "PIN changed",
+    saveFailed: "Could not save the PIN",
+    genericError: "Something went wrong",
+  },
+} as const;

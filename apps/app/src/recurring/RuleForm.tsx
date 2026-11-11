@@ -27,11 +27,7 @@ import {
   useDeleteRecurringRule,
   useUpdateRecurringRule,
 } from "../data/recurring";
-
-const directions = [
-  { value: "expense", label: "Expense" },
-  { value: "income", label: "Income" },
-] as const;
+import { useTranslation } from "../i18n";
 
 /** What the form starts from when it is not editing a saved rule (e.g. an accepted suggestion). */
 export interface RuleDraft {
@@ -58,6 +54,7 @@ export function RuleForm({
   draft?: RuleDraft | undefined;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const create = useCreateRecurringRule();
   const update = useUpdateRecurringRule();
   const remove = useDeleteRecurringRule();
@@ -83,17 +80,27 @@ export function RuleForm({
   const [active, setActive] = useState(rule?.active ?? true);
   const [submitted, setSubmitted] = useState(false);
 
+  const directions = [
+    { value: "expense", label: t("recurring.form.expense") },
+    { value: "income", label: t("recurring.form.income") },
+  ] as const;
   const account = accounts.find((a) => a.id === accountId);
   const cats = categoryOptions(categories, direction, categoryId);
   const busy = create.isPending || update.isPending || remove.isPending;
-  const payeeError = submitted && payee.trim() === "" ? "Name is required" : undefined;
+  const payeeError =
+    submitted && payee.trim() === "" ? t("recurring.form.nameRequired") : undefined;
   const amountError =
-    submitted && (amount === null || amount === 0) ? "Enter an amount" : undefined;
-  const accountError = submitted && !account ? "Pick an account" : undefined;
+    submitted && (amount === null || amount === 0) ? t("recurring.form.enterAmount") : undefined;
+  const accountError = submitted && !account ? t("recurring.form.pickAccount") : undefined;
 
   const presetOptions = [
     ...(initialPreset === null && start
-      ? [{ value: "keep" as const, label: describeRRule(start.rrule) ?? "Current schedule" }]
+      ? [
+          {
+            value: "keep" as const,
+            label: describeRRule(start.rrule) ?? t("recurring.form.currentSchedule"),
+          },
+        ]
       : []),
     ...RECURRENCE_PRESETS,
   ];
@@ -115,7 +122,7 @@ export function RuleForm({
     try {
       if (rule) {
         await update.mutateAsync({ id: rule.id, patch: { template, rrule, nextDate, active } });
-        toast.success("Recurring item updated");
+        toast.success(t("recurring.form.updated"));
       } else {
         await create.mutateAsync({
           template,
@@ -123,11 +130,11 @@ export function RuleForm({
           nextDate,
           autoDetected: draft?.autoDetected ?? false,
         });
-        toast.success("Recurring item added");
+        toast.success(t("recurring.form.added"));
       }
       onClose();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not save");
+      toast.error(error instanceof Error ? error.message : t("recurring.form.saveFailed"));
     }
   }
 
@@ -135,20 +142,24 @@ export function RuleForm({
     if (!rule) return;
     try {
       await remove.mutateAsync(rule.id);
-      toast.success("Recurring item deleted");
+      toast.success(t("recurring.form.deleted"));
       onClose();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not delete");
+      toast.error(error instanceof Error ? error.message : t("recurring.form.deleteFailed"));
     }
   }
 
   return (
-    <Sheet visible onClose={onClose} title={rule ? "Edit recurring item" : "New recurring item"}>
+    <Sheet
+      visible
+      onClose={onClose}
+      title={rule ? t("recurring.form.titleEdit") : t("recurring.form.titleNew")}
+    >
       <Input
-        label="Name"
+        label={t("recurring.form.name")}
         value={payee}
         onChangeText={setPayee}
-        placeholder="e.g. Netflix, Rent"
+        placeholder={t("recurring.form.namePlaceholder")}
         error={payeeError}
         autoFocus={!rule}
       />
@@ -161,7 +172,7 @@ export function RuleForm({
         }}
       />
       <AmountInput
-        label="Amount"
+        label={t("recurring.form.amount")}
         value={amount}
         onChangeValue={setAmount}
         currency={account?.currency ?? "EUR"}
@@ -169,39 +180,48 @@ export function RuleForm({
         error={amountError}
       />
       <Select
-        label="Account"
+        label={t("recurring.form.account")}
         options={accounts.map((a) => ({ value: a.id, label: a.name, description: a.currency }))}
         value={accountId}
         onChange={setAccountId}
         error={accountError}
       />
       <Select
-        label="Category"
-        placeholder="Uncategorised"
+        label={t("recurring.form.category")}
+        placeholder={t("recurring.form.uncategorised")}
         options={cats}
         value={categoryId}
         onChange={setCategoryId}
       />
-      <DatePicker label="Next due date" value={nextDate} onChange={setNextDate} />
-      <Select label="Repeats" options={presetOptions} value={preset} onChange={setPreset} />
+      <DatePicker label={t("recurring.form.nextDue")} value={nextDate} onChange={setNextDate} />
+      <Select
+        label={t("recurring.form.repeats")}
+        options={presetOptions}
+        value={preset}
+        onChange={setPreset}
+      />
       {rule ? (
         <View className="gap-1.5">
           <Text variant="small" tone="muted" weight="medium">
-            Status
+            {t("recurring.form.status")}
           </Text>
           <Tabs
             items={[
-              { value: "on", label: "Active" },
-              { value: "off", label: "Paused" },
+              { value: "on", label: t("recurring.form.active") },
+              { value: "off", label: t("recurring.form.paused") },
             ]}
             value={active ? "on" : "off"}
             onChange={(v) => setActive(v === "on")}
           />
         </View>
       ) : null}
-      <Button label={rule ? "Save changes" : "Add"} loading={busy} onPress={save} />
-      {rule ? <Button label="Delete" variant="ghost" onPress={del} /> : null}
-      <Button label="Cancel" variant="ghost" onPress={onClose} />
+      <Button
+        label={rule ? t("recurring.form.saveChanges") : t("recurring.form.add")}
+        loading={busy}
+        onPress={save}
+      />
+      {rule ? <Button label={t("recurring.form.delete")} variant="ghost" onPress={del} /> : null}
+      <Button label={t("recurring.cancel")} variant="ghost" onPress={onClose} />
     </Sheet>
   );
 }

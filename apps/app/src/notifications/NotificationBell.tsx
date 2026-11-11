@@ -3,10 +3,9 @@ import { Button, EmptyState, ListItem, Sheet, Text, useTheme } from "@wallt/ui";
 import { Bell } from "lucide-react-native";
 import { useState } from "react";
 import { Pressable, View } from "react-native";
+import { useTranslation } from "../i18n";
 import { placeholderIcon } from "../shell/placeholder";
 import { useNotificationStore } from "./store";
-
-const typeLabel = { budget: "Budget", bill: "Bill", review: "Review" } as const;
 
 const when = (iso: string) =>
   new Date(iso).toLocaleString(undefined, {
@@ -19,6 +18,7 @@ const when = (iso: string) =>
 /** Bell for page headers: unread count badge, opens the in-app notification center (the only surface on web). */
 export function NotificationBell() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const feed = useNotificationStore((s) => s.feed);
   const markAllRead = useNotificationStore((s) => s.markAllRead);
   const [open, setOpen] = useState(false);
@@ -33,7 +33,11 @@ export function NotificationBell() {
     <>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={unread > 0 ? `Notifications, ${unread} unread` : "Notifications"}
+        accessibilityLabel={
+          unread > 0
+            ? t("notifications.bell.labelUnread", { count: unread })
+            : t("notifications.bell.label")
+        }
         onPress={() => setOpen(true)}
         hitSlop={6}
         className="h-11 w-11 items-center justify-center rounded-md active:bg-text/5 web:cursor-pointer web:outline-none web:hover:bg-text/5 web:focus-visible:bg-text/5"
@@ -56,12 +60,12 @@ export function NotificationBell() {
         ) : null}
       </Pressable>
       {open ? (
-        <Sheet visible onClose={close} title="Notifications">
+        <Sheet visible onClose={close} title={t("notifications.bell.title")}>
           {feed.length === 0 ? (
             <EmptyState
               icon={placeholderIcon(Bell)}
-              title="Nothing yet"
-              description="Budget alerts, bills that are due and transactions to review show up here."
+              title={t("notifications.bell.emptyTitle")}
+              description={t("notifications.bell.emptyDescription")}
             />
           ) : (
             <View>
@@ -70,12 +74,18 @@ export function NotificationBell() {
                   key={n.key}
                   divider={i > 0}
                   title={n.title}
-                  subtitle={`${typeLabel[n.type]} · ${when(n.createdAt)}${n.read ? "" : " · new"}`}
+                  subtitle={t(
+                    n.read ? "notifications.bell.subtitle" : "notifications.bell.subtitleNew",
+                    {
+                      type: t(`notifications.type.${n.type}`),
+                      when: when(n.createdAt),
+                    },
+                  )}
                 />
               ))}
             </View>
           )}
-          <Button label="Close" variant="ghost" onPress={close} />
+          <Button label={t("notifications.bell.close")} variant="ghost" onPress={close} />
         </Sheet>
       ) : null}
     </>

@@ -22,10 +22,12 @@ import { displayColor } from "../../../src/components/colors";
 import { ListHeader } from "../../../src/components/ReorderToggle";
 import { DataGate } from "../../../src/data/DataGate";
 import { useAccountsWithBalances, useReorderAccounts } from "../../../src/data/hooks";
+import { useTranslation } from "../../../src/i18n";
 import { Page } from "../../../src/shell/Page";
 import { placeholderIcon } from "../../../src/shell/placeholder";
 
 function AccountsContent({ onAdd }: { onAdd: () => void }) {
+  const { t } = useTranslation();
   const router = useRouter();
   const { scheme, colors } = useTheme();
   const active = useAccountsWithBalances();
@@ -45,9 +47,9 @@ function AccountsContent({ onAdd }: { onAdd: () => void }) {
         <Card>
           <EmptyState
             icon={placeholderIcon(Wallet)}
-            title="No accounts yet"
-            description="Add your first account to start tracking balances."
-            actionLabel="Add account"
+            title={t("accounts.list.emptyTitle")}
+            description={t("accounts.list.emptyDesc")}
+            actionLabel={t("accounts.list.add")}
             onAction={onAdd}
           />
         </Card>
@@ -55,7 +57,7 @@ function AccountsContent({ onAdd }: { onAdd: () => void }) {
         <>
           <HeroCard>
             <Text variant="label" tone="onHero">
-              Net worth
+              {t("accounts.list.netWorth")}
             </Text>
             <View className="mt-2 gap-1">
               {totals.length === 0 ? (
@@ -76,7 +78,7 @@ function AccountsContent({ onAdd }: { onAdd: () => void }) {
 
           <View className="gap-2">
             <ListHeader
-              title="Your accounts"
+              title={t("accounts.list.yourAccounts")}
               sorting={sorting}
               canReorder={accounts.length > 1}
               onToggle={() => setSorting((s) => !s)}
@@ -126,7 +128,7 @@ function AccountsContent({ onAdd }: { onAdd: () => void }) {
       {archived.length > 0 ? (
         <View className="gap-2">
           <Text variant="label" tone="muted">
-            Archived
+            {t("accounts.archived")}
           </Text>
           <Card className="p-0 tablet:p-0">
             {archived.map((a, i) => (
@@ -135,7 +137,7 @@ function AccountsContent({ onAdd }: { onAdd: () => void }) {
                 divider={i > 0}
                 title={a.name}
                 subtitle={`${accountTypeLabel(a.type)} · ${a.currency}`}
-                trailing={<Chip label="Archived" />}
+                trailing={<Chip label={t("accounts.archived")} />}
                 onPress={() => open(a.id)}
               />
             ))}
@@ -147,14 +149,15 @@ function AccountsContent({ onAdd }: { onAdd: () => void }) {
 }
 
 export default function Accounts() {
+  const { t } = useTranslation();
   const [adding, setAdding] = useState(false);
   return (
     <Page
-      title="Accounts"
-      subtitle="Balances across all your accounts"
+      title={t("accounts.list.title")}
+      subtitle={t("accounts.list.subtitle")}
       actions={
         <Button
-          label="Add account"
+          label={t("accounts.list.add")}
           leading={<PlusIcon />}
           onPress={() => setAdding(true)}
           className="self-end"

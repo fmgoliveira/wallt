@@ -2,15 +2,22 @@ import { type BudgetLevel, formatAmount } from "@wallt/core";
 import { Amount, Card, Chip, Progress, Text, usePrivacyStore } from "@wallt/ui";
 import { Pressable, View } from "react-native";
 import type { BudgetWithStatus } from "../data/hooks";
+import { useTranslation } from "../i18n";
 
-const levelChip: Record<BudgetLevel, { tone: "neutral" | "warning" | "negative"; label: string }> =
-  {
-    ok: { tone: "neutral", label: "On track" },
-    warning: { tone: "warning", label: "Close to limit" },
-    over: { tone: "negative", label: "Over budget" },
-  };
+const levelChip = {
+  ok: { tone: "neutral", label: "budgets.levelOk" },
+  warning: { tone: "warning", label: "budgets.levelWarning" },
+  over: { tone: "negative", label: "budgets.levelOver" },
+} as const satisfies Record<
+  BudgetLevel,
+  { tone: "neutral" | "warning" | "negative"; label: string }
+>;
 
-const periodLabel = { month: "Monthly", week: "Weekly", custom: "Custom" } as const;
+const periodLabel = {
+  month: "budgets.periodMonth",
+  week: "budgets.periodWeek",
+  custom: "budgets.periodCustom",
+} as const;
 
 /** Money for a caption string, honouring privacy mode. */
 export function useMoneyText() {
@@ -30,9 +37,14 @@ export function BudgetCard({
   compact?: boolean;
 }) {
   const { budget, status } = item;
+  const { t } = useTranslation();
   const money = useMoneyText();
   if (!status) return null;
-  const caption = `${money(status.spent, budget.currency)} of ${money(status.allowance, budget.currency)} · ${status.percent}%`;
+  const caption = t("budgets.caption", {
+    spent: money(status.spent, budget.currency),
+    allowance: money(status.allowance, budget.currency),
+    percent: status.percent,
+  });
   const chip = levelChip[status.level];
   const body = (
     <View className="gap-3">
@@ -43,13 +55,13 @@ export function BudgetCard({
           </Text>
           {compact ? null : (
             <Text variant="small" tone="muted">
-              {periodLabel[budget.period]}
-              {status.state === "upcoming" ? " · starts soon" : ""}
-              {status.state === "ended" ? " · ended" : ""}
+              {t(periodLabel[budget.period])}
+              {status.state === "upcoming" ? ` · ${t("budgets.startsSoon")}` : ""}
+              {status.state === "ended" ? ` · ${t("budgets.ended")}` : ""}
             </Text>
           )}
         </View>
-        {status.level === "ok" ? null : <Chip tone={chip.tone} label={chip.label} />}
+        {status.level === "ok" ? null : <Chip tone={chip.tone} label={t(chip.label)} />}
       </View>
       <Progress
         value={status.allowance > 0 ? status.spent / status.allowance : status.spent > 0 ? 2 : 0}
@@ -59,7 +71,7 @@ export function BudgetCard({
       <View className="flex-row items-end justify-between gap-3">
         <View>
           <Text variant="small" tone="muted">
-            {status.remaining >= 0 ? "Left" : "Over by"}
+            {status.remaining >= 0 ? t("budgets.left") : t("budgets.overBy")}
           </Text>
           <Amount
             value={Math.abs(status.remaining)}
@@ -71,7 +83,7 @@ export function BudgetCard({
         {compact || status.state !== "active" ? null : (
           <View className="items-end">
             <Text variant="small" tone="muted">
-              {status.remaining > 0 ? "Safe to spend / day" : "No spending room left"}
+              {status.remaining > 0 ? t("budgets.safeToSpend") : t("budgets.noRoomLeft")}
             </Text>
             {status.remaining > 0 ? (
               <Amount
@@ -86,7 +98,7 @@ export function BudgetCard({
       </View>
       {compact || status.carry === 0 ? null : (
         <Text variant="small" tone="muted">
-          Includes {money(status.carry, budget.currency)} carried over
+          {t("budgets.carriedOver", { amount: money(status.carry, budget.currency) })}
         </Text>
       )}
     </View>
@@ -96,7 +108,7 @@ export function BudgetCard({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${budget.name}, ${status.percent}% spent`}
+      accessibilityLabel={t("budgets.cardLabel", { name: budget.name, percent: status.percent })}
       onPress={onPress}
       className="web:cursor-pointer web:outline-none"
     >

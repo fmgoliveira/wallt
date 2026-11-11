@@ -1,3 +1,91 @@
 import type { Catalogue, Widen } from "../en";
 
-export const review: Widen<Catalogue["review"]> = {};
+export const review: Widen<Catalogue["review"]> = {
+  page: {
+    title: "Revisão",
+    subtitle: "Transações que precisam de categoria",
+  },
+  prompt: {
+    title: "Precisa da sua atenção",
+    body_one:
+      "{{count}} transação precisa de categoria. Demora um minuto e cada resposta ensina o Wallt.",
+    body_other:
+      "{{count}} transações precisam de categoria. Demora um minuto e cada resposta ensina o Wallt.",
+    reviewNow: "Rever agora",
+    later: "Mais tarde",
+  },
+  settings: {
+    title: "Categorização",
+    signedOut: "Sessão terminada",
+    nothingToDo: "Nada a fazer neste momento",
+    notEnough: "Ainda não há transações categorizadas suficientes para aprender",
+    notBetter: "Treinado, mas o novo modelo não ficou melhor. O modelo atual mantém-se.",
+    retrained: "Modelo treinado de novo",
+    rolledBack: "Voltou ao modelo anterior",
+    wentWrong: "Algo correu mal",
+    autoLastDays: "Categorizadas automaticamente, últimos {{days}} dias",
+    byRules: "Pelas suas regras",
+    byPayees: "Por beneficiários que já categorizou",
+    byModel: "Pelo modelo",
+    byYou: "Por si",
+    uncategorised: "Sem categoria",
+    noTransactions: "Ainda não há transações nos últimos {{days}} dias.",
+    waiting: "{{n}} à espera de revisão",
+    model: "Modelo",
+    signInHint:
+      "Inicie sessão no seu servidor para treinar um modelo com as suas transações categorizadas. As regras e a memória de beneficiários funcionam sem ele.",
+    unreachable: "Não foi possível contactar o servidor.",
+    version: "Versão",
+    accuracy: "Precisão em {{n}} transações de teste",
+    confident: "Previsões confiantes (85% ou mais)",
+    confidentValue: "{{coverage}} dos casos, {{precision}} certas",
+    learnedFrom: "Aprendeu com",
+    learnedFromValue: "{{n}} das suas categorizações",
+    newSince:
+      "{{n}} novas desde o treino. Volta a treinar durante a noite e após {{after}} alterações, e mantém o modelo antigo se o novo for pior.",
+    notTrained:
+      "Ainda não treinado. Precisa de pelo menos {{min}} transações que tenha categorizado; tem {{have}}.",
+    retrain: "Treinar agora",
+    rollBack: "Voltar à v{{version}}",
+  },
+  queue: {
+    unknownCategory: "Categoria desconhecida",
+    thisPayee: "este beneficiário",
+    transaction: "Transação",
+    noSuggestion: "sem sugestão",
+    sourceRule: "Regra",
+    sourcePayeeMemory: "Já fez isto antes",
+    guessed: "Estimada {{pct}}%",
+    suggestedPct: "Sugerida {{pct}}%",
+    noSuggestionYet: "Ainda sem sugestão. Escolha uma categoria e o Wallt aprende com isso.",
+    anotherCategory: "Outra categoria",
+    choose: "Escolher…",
+    always: "Categorizar sempre “{{payee}}” assim",
+    alwaysHint: "Adiciona uma regra e corrige as outras transações que correspondam.",
+    skip: "Saltar",
+    keep: "Manter como está",
+    edit: "Editar",
+    accept: "Aceitar",
+    ruleAdded: "Regra adicionada: {{name}}",
+    ruleAddedFixed_one: "Regra adicionada: {{name}}. {{count}} outra transação corrigida.",
+    ruleAddedFixed_other: "Regra adicionada: {{name}}. {{count}} outras transações corrigidas.",
+    categorisedAs: "Categorizada como {{name}}",
+    couldNotSave: "Não foi possível guardar",
+    loadError: "Não foi possível carregar a fila de revisão.",
+    emptyTitle: "Nada para rever",
+    emptyDescription:
+      "Está tudo categorizado. As novas importações de que o Wallt não tenha certeza aparecem aqui.",
+    toReview_one: "{{count}} para rever",
+    toReview_other: "{{count}} para rever",
+    toReviewSkipped_one: "{{count}} para rever · {{first}} não saltadas",
+    toReviewSkipped_other: "{{count}} para rever · {{first}} não saltadas",
+    swipeHint:
+      "Deslize para a direita para aceitar a primeira sugestão, para a esquerda para saltar.",
+  },
+  keyHints: {
+    move: "mover",
+    pick: "escolher",
+    acceptFirst: "aceitar a primeira",
+    always: "sempre",
+  },
+};

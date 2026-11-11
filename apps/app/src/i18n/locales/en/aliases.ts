@@ -1,1 +1,44 @@
-export const aliases = {} as const;
+export const aliases = {
+  page: {
+    title: "Payee names",
+    subtitle: "Turn messy bank text into clean payees",
+  },
+  form: {
+    editTitle: "Edit payee name",
+    newTitle: "New payee name",
+    pattern: "When the description matches",
+    patternExample: "e.g. pingo\\s*doce",
+    patternRequired: "Enter some text or a pattern",
+    regexHint:
+      "Not case sensitive. Characters like . * + ( ) [ ] have a special meaning in patterns.",
+    textHint: "Not a valid pattern, so it matches this exact text anywhere in the description.",
+    payee: "Show the payee as",
+    payeeExample: "e.g. Pingo Doce",
+    payeeRequired: "Payee name is required",
+    typePattern: "Type a pattern to see what it matches.",
+    matches_one: "Matches {{count}} transaction",
+    matches_other: "Matches {{count}} transactions",
+    wouldRename: "{{n}} would be renamed when you apply it to existing transactions.",
+    updated: "Payee name updated",
+    added: "Payee name added",
+    deleted: "Payee name deleted",
+    couldNotSave: "Could not save",
+    couldNotDelete: "Could not delete",
+    saveChanges: "Save changes",
+    add: "Add",
+    delete: "Delete",
+    cancel: "Cancel",
+  },
+  manager: {
+    emptyTitle: "No payee names yet",
+    emptyDescription:
+      "Banks write the same shop in many ways. Teach Wallt that “PINGO DOCE LISBOA 4521” is just “Pingo Doce”, and every import will use the clean name.",
+    addPayeeName: "Add payee name",
+    listHeader: "First match wins, oldest first",
+    applyExisting: "Apply to existing transactions",
+    renamed_one: "Renamed {{count}} transaction",
+    renamed_other: "Renamed {{count}} transactions",
+    wentWrong: "Something went wrong",
+    note: "Imports also strip card numbers, dates and long reference numbers from descriptions before any of this runs. Rules then see the clean payee.",
+  },
+} as const;

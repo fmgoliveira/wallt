@@ -36,6 +36,7 @@ import {
   useTransactionCount,
   useTransactions,
 } from "../data/hooks";
+import { useTranslation } from "../i18n";
 import { placeholderIcon } from "../shell/placeholder";
 import { useEditorStore } from "../transactions/editorStore";
 import { type TxRow, useTxRows } from "../transactions/rows";
@@ -67,6 +68,7 @@ function SectionCard({
 }
 
 function NetWorth({ range }: { range: { from: string; to: string } }) {
+  const { t } = useTranslation();
   const router = useRouter();
   const accounts = useAccountsWithBalances();
   const flow = useCashflow(range);
@@ -85,13 +87,13 @@ function NetWorth({ range }: { range: { from: string; to: string } }) {
     return (
       <HeroCard>
         <Text variant="small" tone="onHero" weight="medium" className="opacity-60">
-          Net worth
+          {t("dashboard.netWorth")}
         </Text>
         <View className="my-1.5">
           <Amount value={0} size="display" tone="onHero" />
         </View>
         <View className="flex-row">
-          <Button label="Add an account" onPress={() => router.push("/accounts")} />
+          <Button label={t("dashboard.addAccount")} onPress={() => router.push("/accounts")} />
         </View>
       </HeroCard>
     );
@@ -99,7 +101,7 @@ function NetWorth({ range }: { range: { from: string; to: string } }) {
   return (
     <HeroCard>
       <Text variant="small" tone="onHero" weight="medium" className="opacity-60">
-        Net worth
+        {t("dashboard.netWorth")}
       </Text>
       <View className="my-1.5 gap-1">
         {totals.map((m) => (
@@ -122,7 +124,13 @@ function NetWorth({ range }: { range: { from: string; to: string } }) {
               key={f.currency}
               onHero={net >= 0}
               tone={net >= 0 ? "positive" : "negative"}
-              label={`${hidden ? "Hidden" : `${net >= 0 ? "+" : ""}${formatAmount({ amount: net, currency: f.currency })} this month`}`}
+              label={
+                hidden
+                  ? t("dashboard.hidden")
+                  : t("dashboard.netThisMonth", {
+                      amount: `${net >= 0 ? "+" : ""}${formatAmount({ amount: net, currency: f.currency })}`,
+                    })
+              }
             />
           );
         })}
@@ -132,13 +140,14 @@ function NetWorth({ range }: { range: { from: string; to: string } }) {
 }
 
 function Cashflow({ range, month }: { range: { from: string; to: string }; month: string }) {
+  const { t } = useTranslation();
   const flow = useCashflow(range);
   return (
-    <SectionCard title={`${month} cashflow`}>
+    <SectionCard title={t("dashboard.cashflowTitle", { month })}>
       {flow.isPending ? (
         <Skeleton className="h-16 w-full" />
       ) : (flow.data ?? []).length === 0 ? (
-        <Text tone="muted">Nothing recorded this month yet.</Text>
+        <Text tone="muted">{t("dashboard.cashflowEmpty")}</Text>
       ) : (
         flow.data?.map((f) => {
           const spent = -f.expense;
@@ -148,13 +157,13 @@ function Cashflow({ range, month }: { range: { from: string; to: string }; month
               <View className="flex-row justify-between">
                 <View>
                   <Text variant="small" tone="muted">
-                    Income
+                    {t("dashboard.income")}
                   </Text>
                   <Amount value={f.income} currency={f.currency} size="heading" />
                 </View>
                 <View className="items-end">
                   <Text variant="small" tone="muted">
-                    Spending
+                    {t("dashboard.spending")}
                   </Text>
                   <Amount value={f.expense} currency={f.currency} size="heading" tone="text" />
                 </View>
@@ -162,7 +171,7 @@ function Cashflow({ range, month }: { range: { from: string; to: string }; month
               <FlowBar income={f.income / top} spent={spent / top} />
               <View className="flex-row items-center justify-between">
                 <Text variant="small" tone="muted">
-                  Net
+                  {t("dashboard.net")}
                 </Text>
                 <Amount value={f.income + f.expense} currency={f.currency} />
               </View>
@@ -175,10 +184,14 @@ function Cashflow({ range, month }: { range: { from: string; to: string }; month
 }
 
 function FlowBar({ income, spent }: { income: number; spent: number }) {
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const bar = (share: number, color: string, label: string) => (
     <View
-      accessibilityLabel={`${label} ${Math.round(share * 100)}% of the larger side`}
+      accessibilityLabel={t("dashboard.flowBarLabel", {
+        label,
+        percent: Math.round(share * 100),
+      })}
       style={{ height: 8, borderRadius: 4, backgroundColor: colors.border }}
     >
       <View
@@ -193,13 +206,14 @@ function FlowBar({ income, spent }: { income: number; spent: number }) {
   );
   return (
     <View className="gap-1.5">
-      {bar(income, colors.positive, "Income")}
-      {bar(spent, colors.text, "Spending")}
+      {bar(income, colors.positive, t("dashboard.income"))}
+      {bar(spent, colors.text, t("dashboard.spending"))}
     </View>
   );
 }
 
 function TopSpending({ range }: { range: { from: string; to: string } }) {
+  const { t } = useTranslation();
   const { scheme, colors } = useTheme();
   const spending = useSpendingByCategory(range);
   const categories = useCategories({ includeArchived: true }).data ?? [];
@@ -220,11 +234,11 @@ function TopSpending({ range }: { range: { from: string; to: string } }) {
   const biggest = Math.max(1, ...rows.map((r) => -r.total));
 
   return (
-    <SectionCard title="Top spending">
+    <SectionCard title={t("dashboard.topSpending")}>
       {spending.isPending ? (
         <Skeleton className="h-24 w-full" />
       ) : rows.length === 0 ? (
-        <Text tone="muted">No spending this month.</Text>
+        <Text tone="muted">{t("dashboard.topSpendingEmpty")}</Text>
       ) : (
         rows.map((r) => {
           const cat = categories.find((c) => c.id === r.id);
@@ -235,7 +249,7 @@ function TopSpending({ range }: { range: { from: string; to: string } }) {
               <View className="flex-row items-center gap-2">
                 <Icon size={16} color={tint} strokeWidth={1.6} />
                 <Text className="flex-1" numberOfLines={1}>
-                  {cat?.name ?? "Uncategorised"}
+                  {cat?.name ?? t("dashboard.uncategorised")}
                 </Text>
                 <Amount value={r.total} currency={r.currency} tone="text" />
               </View>
@@ -258,6 +272,7 @@ function TopSpending({ range }: { range: { from: string; to: string } }) {
 }
 
 function Recent() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { colors } = useTheme();
   const recent = useTransactions({ limit: 8 });
@@ -267,7 +282,7 @@ function Recent() {
   return (
     <Card className="gap-1 p-0">
       <View className="flex-row items-center justify-between px-4 pt-4 pb-2 tablet:px-5">
-        <Text variant="title">Recent</Text>
+        <Text variant="title">{t("dashboard.recent")}</Text>
         <Pressable
           accessibilityRole="link"
           onPress={() => router.push("/transactions")}
@@ -275,7 +290,7 @@ function Recent() {
           className="py-1 web:cursor-pointer web:outline-none web:hover:opacity-70 active:opacity-60"
         >
           <Text variant="small" weight="medium" tone="muted">
-            See all
+            {t("dashboard.seeAll")}
           </Text>
         </Pressable>
       </View>
@@ -287,9 +302,9 @@ function Recent() {
       ) : rows.length === 0 ? (
         <EmptyState
           icon={placeholderIcon(Receipt)}
-          title="No transactions yet"
-          description="Add your first one to see it here."
-          actionLabel="Add transaction"
+          title={t("dashboard.recentEmptyTitle")}
+          description={t("dashboard.recentEmptyDescription")}
+          actionLabel={t("dashboard.addTransaction")}
           onAction={() => useEditorStore.getState().openNew()}
         />
       ) : (
@@ -328,6 +343,7 @@ function Recent() {
 
 /** Slot for the categorisation review queue (P5): shows how many need review, or that all is clear. */
 function ReviewSlot({ className }: { className?: string }) {
+  const { t } = useTranslation();
   const router = useRouter();
   const { colors } = useTheme();
   const count = useTransactionCount({ needsReview: true });
@@ -338,15 +354,19 @@ function ReviewSlot({ className }: { className?: string }) {
         <CircleCheck size={18} color={n > 0 ? colors.warning : colors.positive} strokeWidth={1.6} />
       </IconTile>
       <View className="flex-1">
-        <Text weight="medium">{n > 0 ? `${n} to review` : "Nothing to review"}</Text>
+        <Text weight="medium">
+          {n > 0 ? t("dashboard.toReview", { n }) : t("dashboard.nothingToReview")}
+        </Text>
         <Text variant="small" tone="muted">
-          {n > 0
-            ? "Check the categories we suggested."
-            : "New transactions that need a look appear here."}
+          {n > 0 ? t("dashboard.reviewHint") : t("dashboard.reviewEmptyHint")}
         </Text>
       </View>
       {n > 0 ? (
-        <Button label="Review" variant="secondary" onPress={() => router.push("/review")} />
+        <Button
+          label={t("dashboard.review")}
+          variant="secondary"
+          onPress={() => router.push("/review")}
+        />
       ) : null}
     </Card>
   );
@@ -354,6 +374,7 @@ function ReviewSlot({ className }: { className?: string }) {
 
 /** Budgets snapshot: the three budgets closest to (or over) their limit. */
 function BudgetsSlot({ className }: { className?: string }) {
+  const { t } = useTranslation();
   const router = useRouter();
   const { colors } = useTheme();
   const budgets = useBudgetStatuses(fromLocalDate(new Date()));
@@ -369,18 +390,22 @@ function BudgetsSlot({ className }: { className?: string }) {
           <PiggyBank size={18} color={colors.muted} strokeWidth={1.6} />
         </IconTile>
         <View className="flex-1">
-          <Text weight="medium">Budgets</Text>
+          <Text weight="medium">{t("dashboard.budgets")}</Text>
           <Text variant="small" tone="muted">
-            Set a spending limit to follow your progress here.
+            {t("dashboard.budgetsEmpty")}
           </Text>
         </View>
-        <Button label="Add" variant="secondary" onPress={() => router.push("/budgets")} />
+        <Button
+          label={t("dashboard.add")}
+          variant="secondary"
+          onPress={() => router.push("/budgets")}
+        />
       </Card>
     );
   }
   return (
     <SectionCard
-      title="Budgets"
+      title={t("dashboard.budgets")}
       action={
         <Pressable
           accessibilityRole="link"
@@ -389,7 +414,7 @@ function BudgetsSlot({ className }: { className?: string }) {
           className="py-1 web:cursor-pointer web:outline-none web:hover:opacity-70 active:opacity-60"
         >
           <Text variant="small" weight="medium" tone="muted">
-            See all
+            {t("dashboard.seeAll")}
           </Text>
         </Pressable>
       }

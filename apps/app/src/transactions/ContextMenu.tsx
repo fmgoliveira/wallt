@@ -1,6 +1,7 @@
 import { Portal, Text, useTheme } from "@wallt/ui";
 import { useEffect } from "react";
 import { Pressable, View, type ViewStyle } from "react-native";
+import { useTranslation } from "../i18n";
 
 export interface MenuItem {
   label: string;
@@ -21,6 +22,7 @@ export function ContextMenu({
   onClose: () => void;
 }) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -41,7 +43,11 @@ export function ContextMenu({
 
   return (
     <Portal>
-      <Pressable accessibilityLabel="Close menu" onPress={onClose} style={scrim} />
+      <Pressable
+        accessibilityLabel={t("transactions.menu.close")}
+        onPress={onClose}
+        style={scrim}
+      />
       <View
         role="menu"
         style={[

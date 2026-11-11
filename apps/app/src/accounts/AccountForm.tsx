@@ -4,12 +4,8 @@ import { useState } from "react";
 import { View } from "react-native";
 import { ColorPicker } from "../components/ColorPicker";
 import { useCreateAccount, useUpdateAccount } from "../data/hooks";
+import { useTranslation } from "../i18n";
 import { type AccountType, accountTypes, currencyOptions } from "./meta";
-
-const include = [
-  { value: "yes", label: "Included" },
-  { value: "no", label: "Excluded" },
-] as const;
 
 /** Create or edit an account (sheet on phone, dialog on desktop). Mount it only while open: it owns its field state. */
 export function AccountForm({
@@ -19,6 +15,7 @@ export function AccountForm({
   account?: AccountWithBalance | undefined;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const create = useCreateAccount();
   const update = useUpdateAccount();
   const editing = !!account;
@@ -33,8 +30,13 @@ export function AccountForm({
   );
   const [submitted, setSubmitted] = useState(false);
 
-  const nameError = submitted && name.trim() === "" ? "Name is required" : undefined;
-  const openingError = submitted && opening === null ? "Enter an opening balance" : undefined;
+  const include = [
+    { value: "yes", label: t("accounts.form.included") },
+    { value: "no", label: t("accounts.form.excluded") },
+  ] as const;
+  const nameError = submitted && name.trim() === "" ? t("accounts.form.nameRequired") : undefined;
+  const openingError =
+    submitted && opening === null ? t("accounts.form.openingRequired") : undefined;
   const currencyLocked = !!account && account.transactionCount > 0;
   const busy = create.isPending || update.isPending;
 
@@ -52,29 +54,33 @@ export function AccountForm({
     try {
       if (account) {
         await update.mutateAsync({ id: account.id, patch: values });
-        toast.success("Account updated");
+        toast.success(t("accounts.form.updated"));
       } else {
         await create.mutateAsync(values);
-        toast.success("Account added");
+        toast.success(t("accounts.form.added"));
       }
       onClose();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not save the account");
+      toast.error(error instanceof Error ? error.message : t("accounts.form.saveFailed"));
     }
   }
 
   return (
-    <Sheet visible onClose={onClose} title={editing ? "Edit account" : "New account"}>
+    <Sheet
+      visible
+      onClose={onClose}
+      title={editing ? t("accounts.form.titleEdit") : t("accounts.form.titleNew")}
+    >
       <Input
-        label="Name"
+        label={t("accounts.form.name")}
         value={name}
         onChangeText={setName}
-        placeholder="e.g. Main checking"
+        placeholder={t("accounts.form.namePlaceholder")}
         error={nameError}
         autoFocus
       />
       <Select
-        label="Type"
+        label={t("accounts.form.type")}
         options={accountTypes}
         value={type}
         onChange={(v) => setType(v as AccountType)}
@@ -82,23 +88,23 @@ export function AccountForm({
       {currencyLocked ? (
         <View className="gap-1.5">
           <Text variant="small" tone="muted" weight="medium">
-            Currency
+            {t("accounts.form.currency")}
           </Text>
           <Text>{currency}</Text>
           <Text variant="small" tone="muted">
-            Locked: this account has transactions.
+            {t("accounts.form.currencyLocked")}
           </Text>
         </View>
       ) : (
         <Select
-          label="Currency"
+          label={t("accounts.form.currency")}
           options={currencyOptions}
           value={currency}
           onChange={setCurrency}
         />
       )}
       <AmountInput
-        label="Opening balance"
+        label={t("accounts.form.openingBalance")}
         value={opening}
         onChangeValue={setOpening}
         currency={currency}
@@ -109,12 +115,16 @@ export function AccountForm({
       <ColorPicker value={colorHex} onChange={setColorHex} />
       <View className="gap-1.5">
         <Text variant="small" tone="muted" weight="medium">
-          Net worth
+          {t("accounts.form.netWorth")}
         </Text>
         <Tabs items={include} value={counts} onChange={setCounts} />
       </View>
-      <Button label={editing ? "Save changes" : "Add account"} loading={busy} onPress={save} />
-      <Button label="Cancel" variant="ghost" onPress={onClose} />
+      <Button
+        label={editing ? t("accounts.form.saveChanges") : t("accounts.form.add")}
+        loading={busy}
+        onPress={save}
+      />
+      <Button label={t("accounts.cancel")} variant="ghost" onPress={onClose} />
     </Sheet>
   );
 }

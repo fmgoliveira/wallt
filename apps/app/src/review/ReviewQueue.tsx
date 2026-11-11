@@ -14,11 +14,13 @@ import {
   toast,
   useBreakpoint,
 } from "@wallt/ui";
+import type { TFunction } from "i18next";
 import { CheckCheck } from "lucide-react-native";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Animated, PanResponder, Platform, View } from "react-native";
 import { categoryOptions } from "../categories/options";
 import { useAccounts, useCategories } from "../data/hooks";
+import { useTranslation } from "../i18n";
 import { placeholderIcon } from "../shell/placeholder";
 import { useEditorStore } from "../transactions/editorStore";
 import {
@@ -30,27 +32,21 @@ import {
 } from "./data";
 
 /** "Parent › Child" for a category id. */
-function labelOf(categories: readonly Category[], id: string): string {
+function labelOf(categories: readonly Category[], id: string, t: TFunction): string {
   const c = categories.find((x) => x.id === id);
-  if (!c) return "Unknown category";
+  if (!c) return t("review.queue.unknownCategory");
   const parent = c.parentId ? categories.find((x) => x.id === c.parentId) : undefined;
   return parent ? `${parent.name} › ${c.name}` : c.name;
 }
 
-const SOURCE_LABEL = {
-  rule: "Rule",
-  payee_memory: "You did this before",
-  ml: "Suggested",
-} as const;
-
 /** What can be picked with 1-9 / one tap: a tentative category already on the row first, then the suggestions. */
-function optionsOf(item: ReviewItem): { categoryId: string; hint: string }[] {
+function optionsOf(item: ReviewItem, t: TFunction): { categoryId: string; hint: string }[] {
   const out: { categoryId: string; hint: string }[] = [];
   const { tx } = item;
   if (tx.categoryId) {
     out.push({
       categoryId: tx.categoryId,
-      hint: `Guessed ${Math.round(tx.categorization.confidence * 100)}%`,
+      hint: t("review.queue.guessed", { pct: Math.round(tx.categorization.confidence * 100) }),
     });
   }
   for (const s of item.suggestions) {
@@ -59,8 +55,10 @@ function optionsOf(item: ReviewItem): { categoryId: string; hint: string }[] {
       categoryId: s.categoryId,
       hint:
         s.source === "ml"
-          ? `${SOURCE_LABEL.ml} ${Math.round(s.confidence * 100)}%`
-          : SOURCE_LABEL[s.source],
+          ? t("review.queue.suggestedPct", { pct: Math.round(s.confidence * 100) })
+          : s.source === "rule"
+            ? t("review.queue.sourceRule")
+            : t("review.queue.sourcePayeeMemory"),
     });
   }
   return out.slice(0, 9);
@@ -87,16 +85,17 @@ function ReviewDetail({
   actions: Actions;
   keyboard: boolean;
 }) {
+  const { t } = useTranslation();
   const { tx } = item;
   const [always, setAlways] = useState(false);
   const [other, setOther] = useState<string | null>(null);
-  const opts = optionsOf(item);
+  const opts = optionsOf(item, t);
   const account = accounts.find((a) => a.id === tx.accountId);
   const all = useMemo(
     () => categoryOptions(categories, tx.amount < 0 ? "expense" : "income"),
     [categories, tx.amount],
   );
-  const payee = tx.payee.trim() || tx.descriptionClean || "this payee";
+  const payee = tx.payee.trim() || tx.descriptionClean || t("review.queue.thisPayee");
 
   // 1-9 and Enter act on the shown options (desktop keyboard flow).
   const alwaysRef = useRef(always);
@@ -147,12 +146,12 @@ function ReviewDetail({
 
       <View className="gap-2">
         {opts.length === 0 ? (
-          <Text tone="muted">No suggestion yet. Pick a category and Wallt will learn from it.</Text>
+          <Text tone="muted">{t("review.queue.noSuggestionYet")}</Text>
         ) : (
           opts.map((o, i) => (
             <Button
               key={o.categoryId}
-              label={`${labelOf(categories, o.categoryId)} · ${o.hint}`}
+              label={`${labelOf(categories, o.categoryId, t)} · ${o.hint}`}
               variant={i === 0 ? "primary" : "secondary"}
               loading={actions.busy}
               {...(keyboard ? { kbd: String(i + 1) } : {})}
@@ -163,8 +162,8 @@ function ReviewDetail({
       </View>
 
       <Select
-        label="Another category"
-        placeholder="Choose…"
+        label={t("review.queue.anotherCategory")}
+        placeholder={t("review.queue.choose")}
         options={all}
         value={other}
         onChange={(id) => {
@@ -175,19 +174,19 @@ function ReviewDetail({
       <Switch
         value={always}
         onValueChange={setAlways}
-        label={`Always categorise “${payee}” this way`}
-        description="Adds a rule, and fixes the other transactions it matches."
+        label={t("review.queue.always", { payee })}
+        description={t("review.queue.alwaysHint")}
       />
       <View className="flex-row gap-2">
         <Button
-          label="Skip"
+          label={t("review.queue.skip")}
           variant="ghost"
           {...(keyboard ? { kbd: "S" } : {})}
           onPress={() => actions.skip(item)}
         />
-        <Button label="Keep as is" variant="ghost" onPress={() => actions.keep(item)} />
+        <Button label={t("review.queue.keep")} variant="ghost" onPress={() => actions.keep(item)} />
         <Button
-          label="Edit"
+          label={t("review.queue.edit")}
           variant="ghost"
           onPress={() => useEditorStore.getState().openEdit(tx.id)}
         />
@@ -198,12 +197,12 @@ function ReviewDetail({
 
 const SWIPE_DISTANCE = 110;
 
-const KEY_HINTS: readonly (readonly [string, string])[] = [
-  ["↑↓", "move"],
-  ["1", "pick"],
-  ["Enter", "accept first"],
-  ["A", "always"],
-];
+const KEY_HINTS = [
+  ["↑↓", "review.keyHints.move"],
+  ["1", "review.keyHints.pick"],
+  ["Enter", "review.keyHints.acceptFirst"],
+  ["A", "review.keyHints.always"],
+] as const;
 
 /** Phone: one card at a time. Swipe right to accept the first suggestion, left to skip; the buttons do the same. */
 function SwipeCard({
@@ -217,10 +216,11 @@ function SwipeCard({
   onSkip: () => void;
   children: React.ReactNode;
 }) {
+  const { t } = useTranslation();
   const x = useRef(new Animated.Value(0)).current;
   const handlers = useRef({ onAccept, onSkip });
   handlers.current = { onAccept, onSkip };
-  const canAccept = optionsOf(item).length > 0;
+  const canAccept = optionsOf(item, t).length > 0;
   const accept = useRef(canAccept);
   accept.current = canAccept;
 
@@ -279,12 +279,12 @@ function SwipeCard({
       <Card>
         <View className="absolute right-4 top-4 flex-row justify-between" pointerEvents="none">
           <Animated.View style={{ opacity: acceptOpacity }}>
-            <Chip tone="positive" label="Accept" />
+            <Chip tone="positive" label={t("review.queue.accept")} />
           </Animated.View>
         </View>
         <View className="absolute left-4 top-4" pointerEvents="none">
           <Animated.View style={{ opacity: skipOpacity }}>
-            <Chip label="Skip" />
+            <Chip label={t("review.queue.skip")} />
           </Animated.View>
         </View>
         {children}
@@ -299,6 +299,7 @@ function SwipeCard({
  * (↑↓ move, 1-9 pick, Enter accept the first, S skip, A toggle "always").
  */
 export function ReviewQueue() {
+  const { t } = useTranslation();
   const bp = useBreakpoint();
   const queue = useReviewQueue();
   const categories = useCategories({ includeArchived: true }).data ?? [];
@@ -325,33 +326,33 @@ export function ReviewQueue() {
     () => ({
       busy: assign.isPending || always.isPending || keep.isPending,
       choose: async (item, categoryId, wantsRule) => {
-        const name = labelOf(categories, categoryId);
+        const name = labelOf(categories, categoryId, t);
         try {
           if (wantsRule) {
             const others = await always.mutateAsync({ tx: item.tx, categoryId });
             toast.success(
               others > 0
-                ? `Rule added: ${name}. ${others} more transaction${others === 1 ? "" : "s"} fixed.`
-                : `Rule added: ${name}`,
+                ? t("review.queue.ruleAddedFixed", { name, count: others })
+                : t("review.queue.ruleAdded", { name }),
             );
           } else {
             await assign.mutateAsync({ id: item.tx.id, categoryId });
-            toast.success(`Categorised as ${name}`);
+            toast.success(t("review.queue.categorisedAs", { name }));
           }
         } catch (error) {
-          toast.error(error instanceof Error ? error.message : "Could not save");
+          toast.error(error instanceof Error ? error.message : t("review.queue.couldNotSave"));
         }
       },
       keep: async (item) => {
         try {
           await keep.mutateAsync(item.tx);
         } catch (error) {
-          toast.error(error instanceof Error ? error.message : "Could not save");
+          toast.error(error instanceof Error ? error.message : t("review.queue.couldNotSave"));
         }
       },
       skip: (item) => setSkipped((s) => (s.includes(item.tx.id) ? s : [...s, item.tx.id])),
     }),
-    [assign, always, keep, categories],
+    [assign, always, keep, categories, t],
   );
 
   // Desktop: ↑↓ / j k move through the list.
@@ -383,14 +384,14 @@ export function ReviewQueue() {
   }, [keyboard, move]);
 
   if (queue.isPending) return <Skeleton className="h-60 w-full" />;
-  if (queue.isError) return <Text tone="negative">Could not load the review queue.</Text>;
+  if (queue.isError) return <Text tone="negative">{t("review.queue.loadError")}</Text>;
   if (items.length === 0) {
     return (
       <Card>
         <EmptyState
           icon={placeholderIcon(CheckCheck)}
-          title="Nothing to review"
-          description="Everything is categorised. New imports that Wallt is unsure about will show up here."
+          title={t("review.queue.emptyTitle")}
+          description={t("review.queue.emptyDescription")}
         />
       </Card>
     );
@@ -400,12 +401,13 @@ export function ReviewQueue() {
 
   if (!wide) {
     const top = items[0] as ReviewItem;
-    const topOption = optionsOf(top)[0];
+    const topOption = optionsOf(top, t)[0];
     return (
       <View className="gap-4">
         <Text tone="muted">
-          {items.length} to review
-          {skipped.length > 0 ? ` · ${first} not skipped` : ""}
+          {skipped.length > 0
+            ? t("review.queue.toReviewSkipped", { count: items.length, first })
+            : t("review.queue.toReview", { count: items.length })}
         </Text>
         <SwipeCard
           key={top.tx.id}
@@ -422,7 +424,7 @@ export function ReviewQueue() {
           />
         </SwipeCard>
         <Text variant="small" tone="muted">
-          Swipe right to accept the first suggestion, left to skip.
+          {t("review.queue.swipeHint")}
         </Text>
       </View>
     );
@@ -432,18 +434,22 @@ export function ReviewQueue() {
     <View className="flex-row items-start gap-6">
       <View className="w-[42%] gap-2">
         <Text variant="label" tone="muted">
-          {items.length} to review
+          {t("review.queue.toReview", { count: items.length })}
         </Text>
         <Card className="p-0 tablet:p-0">
           {items.map((item, i) => {
-            const top = optionsOf(item)[0];
+            const top = optionsOf(item, t)[0];
             return (
               <ListItem
                 key={item.tx.id}
                 divider={i > 0}
                 selected={i === selected}
-                title={item.tx.payee.trim() || item.tx.descriptionClean || "Transaction"}
-                subtitle={`${item.tx.bookingDate}${top ? ` · ${labelOf(categories, top.categoryId)}` : " · no suggestion"}`}
+                title={
+                  item.tx.payee.trim() || item.tx.descriptionClean || t("review.queue.transaction")
+                }
+                subtitle={`${item.tx.bookingDate} · ${
+                  top ? labelOf(categories, top.categoryId, t) : t("review.queue.noSuggestion")
+                }`}
                 trailing={<Amount value={item.tx.amount} currency={item.tx.currency} />}
                 onPress={() => setSelected(i)}
               />
@@ -456,7 +462,7 @@ export function ReviewQueue() {
               <Fragment key={key}>
                 <Kbd>{key}</Kbd>
                 <Text variant="small" tone="muted">
-                  {what}
+                  {t(what)}
                 </Text>
               </Fragment>
             ))}
