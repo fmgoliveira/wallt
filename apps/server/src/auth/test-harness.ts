@@ -6,6 +6,7 @@ import { afterEach, vi } from "vitest";
 import { createApp } from "../app";
 import type { BackupService } from "../backup/service";
 import { openDatabase, runMigrations } from "../database";
+import { createFileStore } from "../files/store";
 import type { FxService } from "../fx/service";
 import type { MlService } from "../ml/service";
 import { deriveKeys } from "./crypto";
@@ -61,6 +62,7 @@ export async function harness(
     db,
     log,
     auth,
+    files: createFileStore(dir),
     clock: now,
     ...(opts.backup ? { backup: opts.backup(db, dir) } : {}),
     ...(opts.fx ? { fx: opts.fx(db) } : {}),
@@ -122,6 +124,7 @@ export async function harness(
   }
   return {
     app,
+    dir,
     db,
     call,
     post,

@@ -231,8 +231,15 @@ export const attachments = sqliteTable(
   {
     ...synced(),
     transactionId: text("transaction_id").notNull(),
+    /** Device-independent key of the file (`<id>.<ext>`); the server keeps it under `attachments/<user>/<id>`. */
     filePath: text("file_path").notNull(),
     mime: text("mime").notNull(),
+    /** Original file name, for display and sharing. */
+    name: text("name").notNull().default(""),
+    /** Bytes of the stored file. */
+    size: integer("size").notNull().default(0),
+    /** Hex SHA-256 of the stored file: the server checks uploads against it, devices check downloads. */
+    sha256: text("sha256").notNull().default(""),
   },
   (t) => [
     index("attachments_server_seq_idx").on(t.serverSeq),

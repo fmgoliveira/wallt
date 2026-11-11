@@ -5,6 +5,7 @@ import { createAuthService } from "./auth/service";
 import { configureBackups } from "./backup/setup";
 import { loadConfig } from "./config";
 import { openDatabase, runMigrations } from "./database";
+import { createFileStore } from "./files/store";
 import { createFxService } from "./fx/service";
 import { createLogger } from "./logger";
 import { createMlService } from "./ml/service";
@@ -31,6 +32,7 @@ if (!config.SETUP_TOKEN) {
   log.info("SETUP_TOKEN not set: first-user setup is disabled (ignored once a user exists)");
 }
 
+const files = createFileStore(config.DATA_DIR);
 const scheduler = createScheduler(db, log);
 const fx = createFxService({
   db,
@@ -43,7 +45,7 @@ ml.register(scheduler);
 scheduler.register({
   name: "purge-deleted",
   schedule: "15 4 * * *",
-  run: async () => ({ purged: purgeAllUsers(db, Date.now()) }),
+  run: async () => ({ purged: purgeAllUsers(db, Date.now(), files) }),
 });
 const backup = configureBackups({ config, db, log, keys, scheduler });
 const server = serve(
@@ -52,6 +54,7 @@ const server = serve(
       db,
       log,
       auth,
+      files,
       backup,
       fx,
       ml,

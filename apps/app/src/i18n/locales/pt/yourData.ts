@@ -40,6 +40,11 @@ export const yourData: Widen<Catalogue["yourData"]> = {
     attachments: "Anexos",
     import_profiles: "Formatos de importação",
   },
+  attachments: {
+    title: "Recibos",
+    hint: "As fotos são reduzidas antes de serem anexadas. Os ficheiros não fazem parte da exportação JSON; estão na cópia de segurança do servidor.",
+    limit: "Ficheiro máximo",
+  },
   purge: {
     title: "Dados eliminados no servidor",
     hint: "Os registos eliminados ficam no servidor como marcadores vazios até todos os dispositivos sincronizarem. Isto remove-os definitivamente.",

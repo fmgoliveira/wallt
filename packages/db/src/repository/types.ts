@@ -1,5 +1,6 @@
 import type {
   Account,
+  Attachment,
   Budget,
   BudgetEntry,
   Category,
@@ -426,7 +427,28 @@ export interface PayeeAliasesRepository {
   delete(id: string): Promise<void>;
 }
 
+export type NewAttachment = Pick<Attachment, "transactionId" | "mime" | "name" | "size" | "sha256">;
+
+/**
+ * Receipts and other files on a transaction (PLAN §1.3). Synced as rows; the bytes travel separately (ADR 0013).
+ * `create` only records the file: the caller stores the bytes under the returned `filePath`.
+ */
+export interface AttachmentsRepository {
+  /** Active attachments of one transaction, oldest first. */
+  listForTransaction(transactionId: string): Promise<Attachment[]>;
+  /** Active attachments of several transactions at once (list screens: paperclip badge). */
+  listForTransactions(transactionIds: readonly string[]): Promise<Attachment[]>;
+  /** Every active attachment (the file sync walks this). */
+  listAll(): Promise<Attachment[]>;
+  get(id: string): Promise<Attachment | null>;
+  /** The transaction must exist; `filePath` is derived from the new id and the mime type. */
+  create(input: NewAttachment): Promise<Attachment>;
+  /** Soft delete (tombstone); the server removes the file when the tombstone is purged. */
+  delete(id: string): Promise<void>;
+}
+
 export interface Repository {
+  attachments: AttachmentsRepository;
   accounts: AccountsRepository;
   categories: CategoriesRepository;
   tags: TagsRepository;

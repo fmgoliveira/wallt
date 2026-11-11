@@ -110,4 +110,12 @@ export const migrations: readonly { tag: string; statements: readonly string[] }
       "CREATE INDEX `transactions_booking_date_idx` ON `transactions` (`booking_date`);",
     ],
   },
+  {
+    tag: "0004_attachment_files",
+    statements: [
+      "ALTER TABLE `attachments` ADD `name` text DEFAULT '' NOT NULL;",
+      "ALTER TABLE `attachments` ADD `size` integer DEFAULT 0 NOT NULL;",
+      "ALTER TABLE `attachments` ADD `sha256` text DEFAULT '' NOT NULL;",
+    ],
+  },
 ];
