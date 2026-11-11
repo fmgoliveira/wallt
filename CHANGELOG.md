@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/fmgoliveira/wallt/compare/v1.1.0...v1.1.1) (2026-11-11)
+
+
+### Bug Fixes
+
+* **ci:** track .github/android/signing.init.gradle, which the android… ([#90](https://github.com/fmgoliveira/wallt/issues/90)) ([51c4347](https://github.com/fmgoliveira/wallt/commit/51c4347a063a72701dcd70888db9693c2c88bedf))
+
 ## [1.1.0](https://github.com/fmgoliveira/wallt/compare/v1.0.0...v1.1.0) (2026-11-11)
 
 
