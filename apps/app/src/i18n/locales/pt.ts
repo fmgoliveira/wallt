@@ -1,4 +1,4 @@
-import type { Catalogue } from "./en";
+import type { Catalogue, Widen } from "./en";
 import { accounts } from "./pt/accounts";
 import { aliases } from "./pt/aliases";
 import { budgets } from "./pt/budgets";
@@ -16,9 +16,7 @@ import { security } from "./pt/security";
 import { sync } from "./pt/sync";
 import { transactions } from "./pt/transactions";
 
-type Widen<T> = { [K in keyof T]: T[K] extends string ? string : Widen<T[K]> };
-
-export const pt: Catalogue = {
+export const pt: Widen<Catalogue> = {
   nav: {
     dashboard: "Painel",
     transactions: "Transações",

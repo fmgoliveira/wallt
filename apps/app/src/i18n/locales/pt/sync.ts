@@ -1,3 +1,3 @@
-import type { Catalogue } from "../en";
+import type { Catalogue, Widen } from "../en";
 
-export const sync: Catalogue["sync"] = {};
+export const sync: Widen<Catalogue["sync"]> = {};

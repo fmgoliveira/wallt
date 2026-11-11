@@ -69,3 +69,5 @@ export const en = {
 } as const;
 
 export type Catalogue = typeof en;
+/** Same shape as the catalogue with plain `string` leaves, so translations are not forced to equal English. */
+export type Widen<T> = { [K in keyof T]: T[K] extends string ? string : Widen<T[K]> };

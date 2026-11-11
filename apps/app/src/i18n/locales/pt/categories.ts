@@ -1,3 +1,3 @@
-import type { Catalogue } from "../en";
+import type { Catalogue, Widen } from "../en";
 
-export const categories: Catalogue["categories"] = {};
+export const categories: Widen<Catalogue["categories"]> = {};
