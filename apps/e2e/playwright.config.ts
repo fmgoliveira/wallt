@@ -26,7 +26,16 @@ export default defineConfig({
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  // CI uses the Google Chrome already on the runner image (E2E_CHANNEL=chrome): no browser or apt download there.
+  projects: [
+    {
+      name: "chromium",
+      use: {
+        ...devices["Desktop Chrome"],
+        ...(process.env.E2E_CHANNEL ? { channel: process.env.E2E_CHANNEL } : {}),
+      },
+    },
+  ],
   webServer: {
     command: "pnpm --filter @wallt/server start",
     cwd: root,
