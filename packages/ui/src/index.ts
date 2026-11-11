@@ -52,6 +52,14 @@ export { contrastRatio, relativeLuminance } from "./contrast";
 export { type AmountParts, amountParts } from "./format";
 export { type Breakpoint, breakpointForWidth, useBreakpoint } from "./hooks/useBreakpoint";
 export { usePrivacyStore } from "./privacy/store";
+export {
+  defaultUiStrings,
+  getUiLocale,
+  setUiLocale,
+  type UiStrings,
+  UiStringsProvider,
+  useUiStrings,
+} from "./strings";
 export { type Theme, useTheme } from "./theme/context";
 export { type SchemePreference, useThemeStore } from "./theme/store";
 export { ThemeProvider } from "./theme/ThemeProvider";

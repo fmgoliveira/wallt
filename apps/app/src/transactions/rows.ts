@@ -1,5 +1,5 @@
 import type { Transaction } from "@wallt/core";
-import { useTheme } from "@wallt/ui";
+import { getUiLocale, useTheme } from "@wallt/ui";
 import { useMemo } from "react";
 import { categoryTint } from "../categories/color";
 import { displayColor } from "../components/colors";
@@ -56,7 +56,7 @@ export function useTxRows(txs: readonly Transaction[]): TxRow[] {
 /** Day header text, e.g. "Mon, 4 Nov". `YYYY-MM-DD` is read as a calendar date, never shifted by time zone. */
 export function dayLabel(date: string): string {
   const [y = 0, m = 1, d = 1] = date.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
+  return new Date(y, m - 1, d).toLocaleDateString(getUiLocale(), {
     weekday: "short",
     day: "numeric",
     month: "short",

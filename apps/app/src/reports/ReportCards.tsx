@@ -17,6 +17,7 @@ import {
   Amount,
   Card,
   DonutChart,
+  getUiLocale,
   PairedBarChart,
   Select,
   SeriesChart,
@@ -76,7 +77,7 @@ const labelOf = (date: string, bucket: "day" | "week" | "month") =>
 
 const monthShort = (date: string) =>
   new Date(Number(date.slice(0, 4)), Number(date.slice(5, 7)) - 1, 1).toLocaleDateString(
-    undefined,
+    getUiLocale(),
     {
       month: "short",
     },

@@ -1,5 +1,5 @@
 import { type FeedItem, unreadCount } from "@wallt/core";
-import { Button, EmptyState, ListItem, Sheet, Text, useTheme } from "@wallt/ui";
+import { Button, EmptyState, getUiLocale, ListItem, Sheet, Text, useTheme } from "@wallt/ui";
 import { Bell } from "lucide-react-native";
 import { useState } from "react";
 import { Pressable, View } from "react-native";
@@ -9,7 +9,7 @@ import { placeholderIcon } from "../shell/placeholder";
 import { useNotificationStore } from "./store";
 
 const when = (iso: string) =>
-  new Date(iso).toLocaleString(undefined, {
+  new Date(iso).toLocaleString(getUiLocale(), {
     day: "numeric",
     month: "short",
     hour: "2-digit",

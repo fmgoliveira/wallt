@@ -44,6 +44,7 @@ export function ContextMenu({
   return (
     <Portal>
       <Pressable
+        accessibilityRole="button"
         accessibilityLabel={t("transactions.menu.close")}
         onPress={onClose}
         style={scrim}

@@ -1,3 +1,4 @@
+import { setUiLocale } from "@wallt/ui";
 import { getLocales } from "expo-localization";
 import i18n from "i18next";
 import { initReactI18next, useTranslation } from "react-i18next";
@@ -47,6 +48,11 @@ interface LanguageState {
 function apply(preference: LanguagePreference): Language {
   const lang = resolveLanguage(preference, deviceLocales());
   void i18n.changeLanguage(lang);
+  // keep the device's regional flavour (en-US dates vs en-GB) when it speaks the chosen language
+  const regional = deviceLocales().find((tag) => tag.toLowerCase().split(/[-_]/)[0] === lang);
+  setUiLocale(regional ?? (lang === "pt" ? "pt-PT" : "en-GB"));
+  // screen readers pick their voice from <html lang> on web
+  if (typeof document !== "undefined") document.documentElement.lang = lang;
   return lang;
 }
 

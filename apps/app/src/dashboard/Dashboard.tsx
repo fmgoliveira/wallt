@@ -11,6 +11,7 @@ import {
   Card,
   Chip,
   EmptyState,
+  getUiLocale,
   HeroCard,
   IconTile,
   ListItem,
@@ -44,7 +45,7 @@ import { ConvertedTotal } from "./ConvertedTotal";
 
 const monthName = (date: string) => {
   const [y = 0, m = 1] = date.split("-").map(Number);
-  return new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: "long" });
+  return new Date(y, m - 1, 1).toLocaleDateString(getUiLocale(), { month: "long" });
 };
 
 function SectionCard({

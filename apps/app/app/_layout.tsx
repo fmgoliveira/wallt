@@ -9,6 +9,7 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import { DataProvider } from "../src/data/RepositoryProvider";
 import { useLanguageStore } from "../src/i18n";
+import { UiStringsBridge } from "../src/i18n/UiStringsBridge";
 import { SecurityGate } from "../src/security/SecurityGate";
 
 // Navigation paints its own opaque background; make it transparent so our themed backdrop shows.
@@ -52,11 +53,13 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider>
-      <DataProvider>
-        <SecurityGate>
-          <ThemedStack />
-        </SecurityGate>
-      </DataProvider>
+      <UiStringsBridge>
+        <DataProvider>
+          <SecurityGate>
+            <ThemedStack />
+          </SecurityGate>
+        </DataProvider>
+      </UiStringsBridge>
     </ThemeProvider>
   );
 }

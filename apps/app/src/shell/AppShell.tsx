@@ -15,7 +15,7 @@ import {
 } from "@wallt/ui";
 import { usePathname } from "expo-router";
 import { PanelLeftClose, PanelLeftOpen, Plus } from "lucide-react-native";
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { Image, Platform, Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "../i18n";
@@ -226,6 +226,32 @@ function BottomBar() {
  * Responsive shell (plan §9.2): phone < 640 glass tab bar with the add button in the middle,
  * tablet 640-1023 rail, desktop >= 1024 collapsible sidebar. The content area is whatever the route renders.
  */
+function SkipLink() {
+  const { t } = useTranslation();
+  const [focused, setFocused] = useState(false);
+  if (Platform.OS !== "web") return null;
+  return (
+    <Pressable
+      accessibilityRole="link"
+      onPress={() => document.getElementById("main-content")?.focus()}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      // invisible until it receives keyboard focus (first Tab stop on the page)
+      style={{
+        position: "absolute",
+        top: 8,
+        left: 8,
+        zIndex: 100,
+        opacity: focused ? 1 : 0,
+        pointerEvents: focused ? "auto" : "none",
+      }}
+      className="rounded-md bg-surface px-3 py-2 web:outline-none web:focus-visible:outline web:focus-visible:outline-2 web:focus-visible:outline-data"
+    >
+      <Text weight="medium">{t("common.ui.skipToContent")}</Text>
+    </Pressable>
+  );
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const bp = useBreakpoint();
   useAddShortcut();
@@ -233,10 +259,19 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <View className="flex-1 flex-row">
+      <SkipLink />
       {bp === "phone" ? null : <SideNav wide={bp === "desktop"} />}
       <View className="flex-1">
         <StatusRow />
-        <View className="flex-1">{children}</View>
+        <View
+          role="main"
+          nativeID="main-content"
+          // focusable by script only, so the skip link can move keyboard focus past the navigation
+          {...(Platform.OS === "web" ? ({ tabIndex: -1 } as object) : {})}
+          className="flex-1 web:outline-none"
+        >
+          {children}
+        </View>
         {bp === "phone" ? (
           // Floats over the content so lists run full height and scroll behind the glass bar.
           <View pointerEvents="box-none" className="absolute right-0 bottom-0 left-0">
