@@ -10,6 +10,7 @@ import { createLogger } from "./logger";
 import { createMlService } from "./ml/service";
 import { parseTrustedProxies } from "./proxy";
 import { createScheduler } from "./scheduler";
+import { purgeAllUsers } from "./sync/purge";
 
 const config = loadConfig();
 const log = createLogger(config);
@@ -39,6 +40,11 @@ const fx = createFxService({
 fx.register(scheduler);
 const ml = createMlService({ db, log });
 ml.register(scheduler);
+scheduler.register({
+  name: "purge-deleted",
+  schedule: "15 4 * * *",
+  run: async () => ({ purged: purgeAllUsers(db, Date.now()) }),
+});
 const backup = configureBackups({ config, db, log, keys, scheduler });
 const server = serve(
   {

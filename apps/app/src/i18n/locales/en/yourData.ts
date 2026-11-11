@@ -38,6 +38,16 @@ export const yourData = {
     attachments: "Attachments",
     import_profiles: "Import formats",
   },
+  purge: {
+    title: "Deleted data on the server",
+    hint: "Deleted records stay on the server as empty markers until every device has synced. This removes them for good.",
+    action: "Remove deleted data from the server",
+    done_one: "Removed {{count}} deleted record from the server",
+    done_other: "Removed {{count}} deleted records from the server",
+    nothing: "Nothing to remove",
+    waiting: "Some deleted records stay on the server until these devices sync: {{names}}",
+    failed: "Could not reach the server",
+  },
   erase: {
     title: "Delete all data",
     hint: "Permanently removes your accounts, transactions and everything else from this device and, if you sync, from your server and other devices.",

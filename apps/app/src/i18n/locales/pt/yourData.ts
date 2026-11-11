@@ -40,6 +40,17 @@ export const yourData: Widen<Catalogue["yourData"]> = {
     attachments: "Anexos",
     import_profiles: "Formatos de importação",
   },
+  purge: {
+    title: "Dados eliminados no servidor",
+    hint: "Os registos eliminados ficam no servidor como marcadores vazios até todos os dispositivos sincronizarem. Isto remove-os definitivamente.",
+    action: "Remover dados eliminados do servidor",
+    done_one: "Removido {{count}} registo eliminado do servidor",
+    done_other: "Removidos {{count}} registos eliminados do servidor",
+    nothing: "Nada para remover",
+    waiting:
+      "Alguns registos eliminados ficam no servidor até estes dispositivos sincronizarem: {{names}}",
+    failed: "Não foi possível contactar o servidor",
+  },
   erase: {
     title: "Eliminar todos os dados",
     hint: "Remove definitivamente as suas contas, transações e tudo o resto deste dispositivo e, se sincronizar, do seu servidor e dos outros dispositivos.",

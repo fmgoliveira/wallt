@@ -26,6 +26,34 @@ async function backupFirst(session: SyncSession): Promise<"done" | "missing" | "
   }
 }
 
+interface PurgeResult {
+  total: number;
+  remaining: number;
+  waitingFor: { name: string }[];
+}
+
+/** `POST /sync/purge`: removes this user's deleted rows from the server once every device has applied them. */
+async function purgeServer(session: SyncSession): Promise<PurgeResult | null> {
+  try {
+    const token = await session.getAccessToken();
+    if (!token) return null;
+    const res = await fetch(`${session.baseUrl.replace(/\/+$/, "")}/sync/purge`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}` },
+    });
+    return res.ok ? ((await res.json()) as PurgeResult) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Syncs twice (the first sends the deletions, the second tells the server this device has applied them), then purges. */
+async function purgeAfterSync(session: SyncSession): Promise<PurgeResult | null> {
+  await syncNow();
+  await syncNow();
+  return purgeServer(session);
+}
+
 async function exportJson(): Promise<string> {
   const bundle = await getDataStore().exportBundle(new Date().toISOString());
   const name = `wallt-export-${today()}.json`;
@@ -57,9 +85,17 @@ function EraseSheet({ onClose }: { onClose: () => void }) {
       setBusy("erase");
       const deleted = await getDataStore().eraseAll();
       await client.invalidateQueries();
-      void syncNow(); // pushes the deletions to the server and, through it, to the other devices
       toast.success(t("yourData.erase.done", { count: deleted }));
       onClose();
+      if (session) {
+        // pushes the deletions to the server (and through it to the other devices), then removes them there
+        const purged = await purgeAfterSync(session);
+        if (purged && purged.remaining > 0) {
+          toast.show(
+            t("yourData.purge.waiting", { names: purged.waitingFor.map((d) => d.name).join(", ") }),
+          );
+        }
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("yourData.erase.failed"));
     } finally {
@@ -133,6 +169,19 @@ export function DataSetting() {
     await saveTextFile(name, "text/csv", tableToCsv(table, bundle.tables[table]));
     toast.success(t("yourData.exported", { name }));
   }, t("yourData.exportFailed"));
+
+  const onPurge = async () => {
+    if (!session) return;
+    await syncNow();
+    const r = await purgeServer(session);
+    if (!r) toast.error(t("yourData.purge.failed"));
+    else if (r.remaining > 0 && r.waitingFor.length > 0)
+      toast.show(
+        t("yourData.purge.waiting", { names: r.waitingFor.map((d) => d.name).join(", ") }),
+      );
+    else if (r.total > 0) toast.success(t("yourData.purge.done", { count: r.total }));
+    else toast.show(t("yourData.purge.nothing"));
+  };
 
   const onRestore = async () => {
     try {
@@ -210,6 +259,21 @@ export function DataSetting() {
           className="self-start"
         />
       </View>
+
+      {session ? (
+        <View className="gap-2">
+          <Text weight="medium">{t("yourData.purge.title")}</Text>
+          <Text variant="small" tone="muted">
+            {t("yourData.purge.hint")}
+          </Text>
+          <Button
+            label={t("yourData.purge.action")}
+            variant="secondary"
+            onPress={() => void onPurge()}
+            className="self-start"
+          />
+        </View>
+      ) : null}
 
       <View className="gap-2">
         <Text weight="medium" tone="negative">

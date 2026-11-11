@@ -30,6 +30,5 @@ Median of 3 runs (Node SQLite, one machine; indicative, not a device result):
 - Dashboard end-to-end time on a device (expo-sqlite) and on web (SQLite WASM): the query side is ~76 ms on Node; the rest is rendering.
 - Lighthouse ≥ 90 on the web build.
 
-## Recommendations (not done: they need an owner decision)
-- Several queries scan by date. An index on `transactions(booking_date)` would help the month queries and "recent". It is additive but a migration (schema version bump), so it was left for approval.
-- Search is a `LIKE` scan (~31 ms at 50k). Fine now; an FTS table would be a larger change.
+## Index (added after owner approval)
+Migration 0003 adds `transactions(booking_date)`. Same benchmark afterwards: dashboard queries sum to ~32 ms (was 76); cashflow 4.3 -> 0.3 ms, spending by category 29 -> 0.7 ms, recent 8 5 -> 0.5 ms. "Accounts with balances" (sums every transaction per account) is now the largest piece at ~25 ms; search (`LIKE`) stays a ~31 ms scan, fine at 50k (an FTS table would be a larger change).

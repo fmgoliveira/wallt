@@ -130,9 +130,7 @@
       "indexes": {
         "accounts_server_seq_idx": {
           "name": "accounts_server_seq_idx",
-          "columns": [
-            "server_seq"
-          ],
+          "columns": ["server_seq"],
           "isUnique": false
         }
       },
@@ -218,16 +216,12 @@
       "indexes": {
         "attachments_server_seq_idx": {
           "name": "attachments_server_seq_idx",
-          "columns": [
-            "server_seq"
-          ],
+          "columns": ["server_seq"],
           "isUnique": false
         },
         "attachments_tx_idx": {
           "name": "attachments_tx_idx",
-          "columns": [
-            "transaction_id"
-          ],
+          "columns": ["transaction_id"],
           "isUnique": false
         }
       },
@@ -348,9 +342,7 @@
       "indexes": {
         "budgets_server_seq_idx": {
           "name": "budgets_server_seq_idx",
-          "columns": [
-            "server_seq"
-          ],
+          "columns": ["server_seq"],
           "isUnique": false
         }
       },
@@ -471,24 +463,17 @@
       "indexes": {
         "categories_server_seq_idx": {
           "name": "categories_server_seq_idx",
-          "columns": [
-            "server_seq"
-          ],
+          "columns": ["server_seq"],
           "isUnique": false
         },
         "categories_parent_idx": {
           "name": "categories_parent_idx",
-          "columns": [
-            "parent_id"
-          ],
+          "columns": ["parent_id"],
           "isUnique": false
         },
         "categories_user_system_key_idx": {
           "name": "categories_user_system_key_idx",
-          "columns": [
-            "user_id",
-            "system_key"
-          ],
+          "columns": ["user_id", "system_key"],
           "isUnique": false
         }
       },
@@ -588,9 +573,7 @@
       "indexes": {
         "debts_server_seq_idx": {
           "name": "debts_server_seq_idx",
-          "columns": [
-            "server_seq"
-          ],
+          "columns": ["server_seq"],
           "isUnique": false
         }
       },
@@ -635,11 +618,7 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {
         "fx_rates_date_base_quote_pk": {
-          "columns": [
-            "date",
-            "base",
-            "quote"
-          ],
+          "columns": ["date", "base", "quote"],
           "name": "fx_rates_date_base_quote_pk"
         }
       },
@@ -744,9 +723,7 @@
       "indexes": {
         "goals_server_seq_idx": {
           "name": "goals_server_seq_idx",
-          "columns": [
-            "server_seq"
-          ],
+          "columns": ["server_seq"],
           "isUnique": false
         }
       },
@@ -846,9 +823,7 @@
       "indexes": {
         "import_profiles_server_seq_idx": {
           "name": "import_profiles_server_seq_idx",
-          "columns": [
-            "server_seq"
-          ],
+          "columns": ["server_seq"],
           "isUnique": false
         }
       },
@@ -927,9 +902,7 @@
       "indexes": {
         "payee_aliases_server_seq_idx": {
           "name": "payee_aliases_server_seq_idx",
-          "columns": [
-            "server_seq"
-          ],
+          "columns": ["server_seq"],
           "isUnique": false
         }
       },
@@ -1029,16 +1002,12 @@
       "indexes": {
         "recurring_rules_server_seq_idx": {
           "name": "recurring_rules_server_seq_idx",
-          "columns": [
-            "server_seq"
-          ],
+          "columns": ["server_seq"],
           "isUnique": false
         },
         "recurring_rules_next_date_idx": {
           "name": "recurring_rules_next_date_idx",
-          "columns": [
-            "next_date"
-          ],
+          "columns": ["next_date"],
           "isUnique": false
         }
       },
@@ -1131,17 +1100,12 @@
       "indexes": {
         "rules_server_seq_idx": {
           "name": "rules_server_seq_idx",
-          "columns": [
-            "server_seq"
-          ],
+          "columns": ["server_seq"],
           "isUnique": false
         },
         "rules_priority_idx": {
           "name": "rules_priority_idx",
-          "columns": [
-            "user_id",
-            "priority"
-          ],
+          "columns": ["user_id", "priority"],
           "isUnique": false
         }
       },
@@ -1220,9 +1184,7 @@
       "indexes": {
         "tags_server_seq_idx": {
           "name": "tags_server_seq_idx",
-          "columns": [
-            "server_seq"
-          ],
+          "columns": ["server_seq"],
           "isUnique": false
         }
       },
@@ -1315,16 +1277,12 @@
       "indexes": {
         "transaction_splits_server_seq_idx": {
           "name": "transaction_splits_server_seq_idx",
-          "columns": [
-            "server_seq"
-          ],
+          "columns": ["server_seq"],
           "isUnique": false
         },
         "transaction_splits_tx_idx": {
           "name": "transaction_splits_tx_idx",
-          "columns": [
-            "transaction_id"
-          ],
+          "columns": ["transaction_id"],
           "isUnique": false
         }
       },
@@ -1403,23 +1361,17 @@
       "indexes": {
         "transaction_tags_server_seq_idx": {
           "name": "transaction_tags_server_seq_idx",
-          "columns": [
-            "server_seq"
-          ],
+          "columns": ["server_seq"],
           "isUnique": false
         },
         "transaction_tags_tx_idx": {
           "name": "transaction_tags_tx_idx",
-          "columns": [
-            "transaction_id"
-          ],
+          "columns": ["transaction_id"],
           "isUnique": false
         },
         "transaction_tags_tag_idx": {
           "name": "transaction_tags_tag_idx",
-          "columns": [
-            "tag_id"
-          ],
+          "columns": ["tag_id"],
           "isUnique": false
         }
       },
@@ -1638,59 +1590,42 @@
       "indexes": {
         "transactions_server_seq_idx": {
           "name": "transactions_server_seq_idx",
-          "columns": [
-            "server_seq"
-          ],
+          "columns": ["server_seq"],
           "isUnique": false
         },
         "transactions_account_date_idx": {
           "name": "transactions_account_date_idx",
-          "columns": [
-            "account_id",
-            "booking_date"
-          ],
+          "columns": ["account_id", "booking_date"],
           "isUnique": false
         },
         "transactions_booking_date_idx": {
           "name": "transactions_booking_date_idx",
-          "columns": [
-            "booking_date"
-          ],
+          "columns": ["booking_date"],
           "isUnique": false
         },
         "transactions_dedup_hash_idx": {
           "name": "transactions_dedup_hash_idx",
-          "columns": [
-            "dedup_hash"
-          ],
+          "columns": ["dedup_hash"],
           "isUnique": false
         },
         "transactions_external_id_idx": {
           "name": "transactions_external_id_idx",
-          "columns": [
-            "external_id"
-          ],
+          "columns": ["external_id"],
           "isUnique": false
         },
         "transactions_needs_review_idx": {
           "name": "transactions_needs_review_idx",
-          "columns": [
-            "needs_review"
-          ],
+          "columns": ["needs_review"],
           "isUnique": false
         },
         "transactions_category_idx": {
           "name": "transactions_category_idx",
-          "columns": [
-            "category_id"
-          ],
+          "columns": ["category_id"],
           "isUnique": false
         },
         "transactions_debt_idx": {
           "name": "transactions_debt_idx",
-          "columns": [
-            "debt_id"
-          ],
+          "columns": ["debt_id"],
           "isUnique": false
         }
       },
@@ -1762,9 +1697,7 @@
       "indexes": {
         "backup_runs_started_idx": {
           "name": "backup_runs_started_idx",
-          "columns": [
-            "started_at"
-          ],
+          "columns": ["started_at"],
           "isUnique": false
         }
       },
@@ -1836,9 +1769,7 @@
       "indexes": {
         "devices_user_idx": {
           "name": "devices_user_idx",
-          "columns": [
-            "user_id"
-          ],
+          "columns": ["user_id"],
           "isUnique": false
         }
       },
@@ -1847,12 +1778,8 @@
           "name": "devices_user_id_users_id_fk",
           "tableFrom": "devices",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1917,10 +1844,7 @@
       "indexes": {
         "job_runs_job_started_idx": {
           "name": "job_runs_job_started_idx",
-          "columns": [
-            "job",
-            "started_at"
-          ],
+          "columns": ["job", "started_at"],
           "isUnique": false
         }
       },
@@ -1992,10 +1916,7 @@
       "indexes": {
         "ml_models_user_version_idx": {
           "name": "ml_models_user_version_idx",
-          "columns": [
-            "user_id",
-            "version"
-          ],
+          "columns": ["user_id", "version"],
           "isUnique": true
         }
       },
@@ -2004,12 +1925,8 @@
           "name": "ml_models_user_id_users_id_fk",
           "tableFrom": "ml_models",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2088,23 +2005,17 @@
       "indexes": {
         "refresh_tokens_hash_idx": {
           "name": "refresh_tokens_hash_idx",
-          "columns": [
-            "token_hash"
-          ],
+          "columns": ["token_hash"],
           "isUnique": true
         },
         "refresh_tokens_device_idx": {
           "name": "refresh_tokens_device_idx",
-          "columns": [
-            "device_id"
-          ],
+          "columns": ["device_id"],
           "isUnique": false
         },
         "refresh_tokens_family_idx": {
           "name": "refresh_tokens_family_idx",
-          "columns": [
-            "family_id"
-          ],
+          "columns": ["family_id"],
           "isUnique": false
         }
       },
@@ -2113,12 +2024,8 @@
           "name": "refresh_tokens_user_id_users_id_fk",
           "tableFrom": "refresh_tokens",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2126,12 +2033,8 @@
           "name": "refresh_tokens_device_id_devices_id_fk",
           "tableFrom": "refresh_tokens",
           "tableTo": "devices",
-          "columnsFrom": [
-            "device_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["device_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2219,9 +2122,7 @@
       "indexes": {
         "users_email_idx": {
           "name": "users_email_idx",
-          "columns": [
-            "email"
-          ],
+          "columns": ["email"],
           "isUnique": true
         }
       },
@@ -2294,10 +2195,7 @@
       "indexes": {
         "outbox_row_idx": {
           "name": "outbox_row_idx",
-          "columns": [
-            "table_name",
-            "row_id"
-          ],
+          "columns": ["table_name", "row_id"],
           "isUnique": true
         }
       },
