@@ -302,12 +302,18 @@ importers:
         specifier: 5.1.0
         version: 5.1.0(@types/react@19.3.0)(react@19.3.0)
     devDependencies:
+      '@babel/plugin-transform-react-jsx':
+        specifier: 7.28.6
+        version: 7.28.6(@babel/core@7.29.13(supports-color@8.1.1))(supports-color@8.1.1)
       '@types/react':
         specifier: ~19.3.0
         version: 19.3.0
       '@wallt/config':
         specifier: workspace:*
         version: link:../../packages/config
+      babel-preset-expo:
+        specifier: 58.0.24
+        version: 58.0.24(@babel/core@7.29.13(supports-color@8.1.1))(@babel/runtime@7.29.13)(expo@58.0.23)(react-refresh@0.14.2)(supports-color@8.1.1)
       typescript:
         specifier: 7.0.2
         version: 7.0.2
@@ -884,6 +890,12 @@ packages:
 
   '@babel/plugin-transform-react-jsx-source@7.29.7':
     resolution: {integrity: sha512-06IyK09H3wi4cGbhDBwp5gUGo0IKtnYa8tyTiephirPCK6fbobVGiXMMI5zLQ4aKEYP3wZ3ArU44o+8KMrSG/Q==}
+    engines: {node: '>=6.9.0'}
+    peerDependencies:
+      '@babel/core': ^7.0.0-0
+
+  '@babel/plugin-transform-react-jsx@7.28.6':
+    resolution: {integrity: sha512-61bxqhiRfAACulXSLd/GxqmAedUSrRZIu/cbaT18T1CetkTmtDN15it7i80ru4DVqRK1WMxQhXs+Lf9kajm5Ow==}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0-0
@@ -5262,6 +5274,17 @@ snapshots:
       '@babel/core': 7.29.13(supports-color@8.1.1)
       '@babel/helper-plugin-utils': 7.29.7
 
+  '@babel/plugin-transform-react-jsx@7.28.6(@babel/core@7.29.13(supports-color@8.1.1))(supports-color@8.1.1)':
+    dependencies:
+      '@babel/core': 7.29.13(supports-color@8.1.1)
+      '@babel/helper-annotate-as-pure': 7.29.7
+      '@babel/helper-module-imports': 7.29.7(supports-color@8.1.1)
+      '@babel/helper-plugin-utils': 7.29.7
+      '@babel/plugin-syntax-jsx': 7.29.7(@babel/core@7.29.13(supports-color@8.1.1))
+      '@babel/types': 7.29.11
+    transitivePeerDependencies:
+      - supports-color
+
   '@babel/plugin-transform-react-jsx@7.29.7(@babel/core@7.29.13(supports-color@8.1.1))(supports-color@8.1.1)':
     dependencies:
       '@babel/core': 7.29.13(supports-color@8.1.1)
@@ -6309,7 +6332,7 @@ snapshots:
       '@babel/plugin-transform-private-methods': 7.29.7(@babel/core@7.29.13(supports-color@8.1.1))(supports-color@8.1.1)
       '@babel/plugin-transform-private-property-in-object': 7.29.7(@babel/core@7.29.13(supports-color@8.1.1))(supports-color@8.1.1)
       '@babel/plugin-transform-react-display-name': 7.29.7(@babel/core@7.29.13(supports-color@8.1.1))
-      '@babel/plugin-transform-react-jsx': 7.29.7(@babel/core@7.29.13(supports-color@8.1.1))(supports-color@8.1.1)
+      '@babel/plugin-transform-react-jsx': 7.28.6(@babel/core@7.29.13(supports-color@8.1.1))(supports-color@8.1.1)
       '@babel/plugin-transform-react-jsx-self': 7.29.7(@babel/core@7.29.13(supports-color@8.1.1))
       '@babel/plugin-transform-react-jsx-source': 7.29.7(@babel/core@7.29.13(supports-color@8.1.1))
       '@babel/plugin-transform-regenerator': 7.29.8(@babel/core@7.29.13(supports-color@8.1.1))

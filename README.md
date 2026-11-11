@@ -34,3 +34,6 @@ Shared TS/Biome config lives in `packages/config`. Copy `.env.example` to `.env`
 ## End-to-end tests
 - **Web (Playwright, runs in CI):** `pnpm --filter @wallt/app build`, then `pnpm e2e` (first time: `pnpm --filter @wallt/e2e exec playwright install chromium`). The tests start the server serving the web export on port 3100 with a throw-away data directory; see `apps/e2e`.
 - **Android (Maestro, by hand):** install the app on an emulator or device, then `maestro test apps/e2e/maestro/smoke.yaml`.
+
+## Releases
+Tagged releases publish the server image to GHCR and a signed APK to the GitHub Release, driven by release-please. See [`docs/release.md`](docs/release.md) for the flow and the one-time setup (signing secrets).

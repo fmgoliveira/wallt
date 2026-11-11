@@ -28,6 +28,10 @@ export const common = {
     nextMonth: "Next month",
     skipToContent: "Skip to content",
   },
+  update: {
+    available: "Update available: v{{version}}",
+    openLabel: "Open the release page for version {{version}}",
+  },
   dataGate: {
     errorTitle: "Cannot open your data",
   },

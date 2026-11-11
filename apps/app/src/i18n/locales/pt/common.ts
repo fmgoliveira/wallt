@@ -30,6 +30,10 @@ export const common: Widen<Catalogue["common"]> = {
     nextMonth: "Mês seguinte",
     skipToContent: "Saltar para o conteúdo",
   },
+  update: {
+    available: "Atualização disponível: v{{version}}",
+    openLabel: "Abrir a página da versão {{version}}",
+  },
   dataGate: {
     errorTitle: "Não é possível abrir os seus dados",
   },

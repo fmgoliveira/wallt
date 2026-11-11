@@ -128,3 +128,16 @@ describe("scheduler", () => {
     db.close();
   });
 });
+
+describe("/health version", () => {
+  it("reports the release version when the build has one", async () => {
+    const dir = tmp();
+    const db = openDatabase(dir);
+    const app = createApp({ db, log, version: "1.2.3" });
+    expect(await (await app.request("/health")).json()).toMatchObject({
+      status: "ok",
+      version: "1.2.3",
+    });
+    db.close();
+  });
+});

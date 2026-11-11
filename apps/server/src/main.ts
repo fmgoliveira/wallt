@@ -50,6 +50,7 @@ const server = serve(
       fx,
       ml,
       ...(config.WEB_DIR ? { webDir: config.WEB_DIR } : {}),
+      ...(config.APP_VERSION ? { version: config.APP_VERSION } : {}),
       trustedProxies: parseTrustedProxies(config.TRUSTED_PROXIES),
     }).fetch,
     port: config.PORT,

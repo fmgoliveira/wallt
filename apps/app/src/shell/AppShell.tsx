@@ -25,6 +25,7 @@ import { useSyncUi } from "../sync/runtime";
 import { SyncStatus } from "../sync/SyncStatus";
 import { useEditorStore } from "../transactions/editorStore";
 import { TransactionEditorHost } from "../transactions/TransactionEditor";
+import { UpdateNotice } from "../update/UpdateNotice";
 import { NavButton } from "./NavButton";
 import { isActive, phoneItems, wideItems } from "./nav";
 import { hydrateShellStore, useShellStore } from "./store";
@@ -44,6 +45,7 @@ function StatusRow() {
     <View className="mx-auto w-full max-w-[1200px] px-4 pt-3 tablet:px-6 desktop:px-8">
       <View className="flex-row flex-wrap items-center gap-2">
         <SyncStatus />
+        <UpdateNotice />
         {Platform.OS === "web" && !signedIn ? (
           <Chip tone="warning" label={t("common.shell.interim")} />
         ) : null}
