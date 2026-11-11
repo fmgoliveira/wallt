@@ -7,6 +7,7 @@ import { dashboard } from "./en/dashboard";
 import { goals } from "./en/goals";
 import { importing } from "./en/importing";
 import { notifications } from "./en/notifications";
+import { onboarding } from "./en/onboarding";
 import { recurring } from "./en/recurring";
 import { reports } from "./en/reports";
 import { review } from "./en/review";
@@ -68,6 +69,7 @@ export const en = {
   sync,
   common,
   shared,
+  onboarding,
 } as const;
 
 export type Catalogue = typeof en;

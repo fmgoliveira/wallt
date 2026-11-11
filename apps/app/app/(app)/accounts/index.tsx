@@ -12,7 +12,7 @@ import {
   Text,
   useTheme,
 } from "@wallt/ui";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { ChevronRight, Plus, Wallet } from "lucide-react-native";
 import { useState } from "react";
 import { View } from "react-native";
@@ -150,7 +150,9 @@ function AccountsContent({ onAdd }: { onAdd: () => void }) {
 
 export default function Accounts() {
   const { t } = useTranslation();
-  const [adding, setAdding] = useState(false);
+  const params = useLocalSearchParams<{ add?: string }>();
+  // `?add=1` comes from onboarding: open the new-account form straight away
+  const [adding, setAdding] = useState(params.add === "1");
   return (
     <Page
       title={t("accounts.list.title")}

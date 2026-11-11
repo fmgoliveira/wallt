@@ -38,6 +38,7 @@ import {
   useTransactions,
 } from "../data/hooks";
 import { useTranslation } from "../i18n";
+import { Onboarding } from "../onboarding/Onboarding";
 import { placeholderIcon } from "../shell/placeholder";
 import { useEditorStore } from "../transactions/editorStore";
 import { type TxRow, useTxRows } from "../transactions/rows";
@@ -429,6 +430,15 @@ function BudgetsSlot({ className }: { className?: string }) {
 
 /** Dashboard v1. Phone: stacked. Tablet: two columns under the hero. Desktop: a 12-column grid (7 + 5). */
 export function Dashboard() {
+  return (
+    <View className="gap-4">
+      <Onboarding />
+      <DashboardGrid />
+    </View>
+  );
+}
+
+function DashboardGrid() {
   const bp = useBreakpoint();
   const today = fromLocalDate(new Date());
   const range = useMemo(() => ({ from: startOfMonth(today), to: endOfMonth(today) }), [today]);

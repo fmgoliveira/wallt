@@ -8,6 +8,7 @@ import { dashboard } from "./pt/dashboard";
 import { goals } from "./pt/goals";
 import { importing } from "./pt/importing";
 import { notifications } from "./pt/notifications";
+import { onboarding } from "./pt/onboarding";
 import { recurring } from "./pt/recurring";
 import { reports } from "./pt/reports";
 import { review } from "./pt/review";
@@ -68,4 +69,5 @@ export const pt: Widen<Catalogue> = {
   sync,
   common,
   shared,
+  onboarding,
 };
