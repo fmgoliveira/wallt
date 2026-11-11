@@ -39,7 +39,9 @@ jobs:
 
   e2e:
     name: web end-to-end (Playwright)
-    runs-on: ubuntu-latest
+    # Pinned: on the newest ubuntu-latest image the apt mirrors failed ("Temporary failure resolving") while
+    # Playwright installed the browser's system packages.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -50,6 +52,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       # The tests drive the server serving the static web export, so build that first.
       - run: pnpm --filter @wallt/app build
+      - run: sudo apt-get update
       - run: pnpm --filter @wallt/e2e exec playwright install --with-deps chromium
       - run: pnpm --filter @wallt/e2e e2e
       - name: Upload report
