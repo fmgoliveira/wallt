@@ -27,14 +27,11 @@ import {
 import { todayDate } from "../../src/data/recurring";
 import { DebtForm, RepaymentForm } from "../../src/goals/DebtForm";
 import { GoalForm } from "../../src/goals/GoalForm";
+import { useTranslation } from "../../src/i18n";
 import { Page } from "../../src/shell/Page";
 import { placeholderIcon } from "../../src/shell/placeholder";
 
 type Section = "goals" | "debts";
-const sections = [
-  { value: "goals", label: "Goals" },
-  { value: "debts", label: "Debts" },
-] as const;
 
 function useMoney() {
   const hidden = usePrivacyStore((s) => s.hidden);
@@ -42,6 +39,7 @@ function useMoney() {
 }
 
 function GoalsList({ onAdd, onEdit }: { onAdd: () => void; onEdit: (id: string) => void }) {
+  const { t } = useTranslation();
   const goals = useGoalsWithProgress(todayDate());
   const money = useMoney();
   if (goals.isPending) return <Skeleton className="h-32 w-full" />;
@@ -51,9 +49,9 @@ function GoalsList({ onAdd, onEdit }: { onAdd: () => void; onEdit: (id: string) 
       <Card>
         <EmptyState
           icon={placeholderIcon(Target)}
-          title="No goals yet"
-          description="Set a target, link the accounts that hold the money and follow your progress."
-          actionLabel="Add goal"
+          title={t("goals.list.emptyTitle")}
+          description={t("goals.list.emptyDesc")}
+          actionLabel={t("goals.screen.addGoal")}
           onAction={onAdd}
         />
       </Card>
@@ -65,7 +63,7 @@ function GoalsList({ onAdd, onEdit }: { onAdd: () => void; onEdit: (id: string) 
         <Pressable
           key={goal.id}
           accessibilityRole="button"
-          accessibilityLabel={`${goal.name}, ${p.percent}% saved`}
+          accessibilityLabel={t("goals.list.saved", { name: goal.name, percent: p.percent })}
           onPress={() => onEdit(goal.id)}
           className="web:cursor-pointer web:outline-none"
         >
@@ -74,25 +72,33 @@ function GoalsList({ onAdd, onEdit }: { onAdd: () => void; onEdit: (id: string) 
               <Text weight="medium" className="flex-1" numberOfLines={1}>
                 {goal.name}
               </Text>
-              {p.state === "reached" ? <Chip tone="positive" label="Reached" /> : null}
-              {p.state === "overdue" ? <Chip tone="negative" label="Past deadline" /> : null}
+              {p.state === "reached" ? (
+                <Chip tone="positive" label={t("goals.list.reached")} />
+              ) : null}
+              {p.state === "overdue" ? (
+                <Chip tone="negative" label={t("goals.list.overdue")} />
+              ) : null}
             </View>
             <Progress
               value={p.percent / 100}
               over={p.state === "overdue"}
-              caption={`${money(p.saved, goal.currency)} of ${money(goal.targetAmount, goal.currency)} · ${p.percent}%`}
+              caption={t("goals.list.progress", {
+                saved: money(p.saved, goal.currency),
+                target: money(goal.targetAmount, goal.currency),
+                percent: p.percent,
+              })}
             />
             <View className="flex-row flex-wrap justify-between gap-3">
               <View>
                 <Text variant="small" tone="muted">
-                  Left to save
+                  {t("goals.list.left")}
                 </Text>
                 <Amount value={p.remaining} currency={goal.currency} tone="text" size="title" />
               </View>
               {p.state === "active" && p.neededPerMonth > 0 ? (
                 <View className="items-end">
                   <Text variant="small" tone="muted">
-                    Needed per month
+                    {t("goals.list.neededPerMonth")}
                   </Text>
                   <Amount
                     value={p.neededPerMonth}
@@ -105,18 +111,19 @@ function GoalsList({ onAdd, onEdit }: { onAdd: () => void; onEdit: (id: string) 
             </View>
             {goal.deadline ? (
               <Text variant="small" tone="muted">
-                Deadline {goal.deadline}
-                {p.daysLeft !== null && p.daysLeft >= 0 ? ` · ${p.daysLeft} days left` : ""}
+                {p.daysLeft !== null && p.daysLeft >= 0
+                  ? t("goals.list.deadlineDays", { date: goal.deadline, n: p.daysLeft })
+                  : t("goals.list.deadline", { date: goal.deadline })}
               </Text>
             ) : null}
             {goal.accountIds.length === 0 ? (
               <Text variant="small" tone="muted">
-                Link an account to track progress.
+                {t("goals.list.linkAccount")}
               </Text>
             ) : null}
             {p.ignoredAccounts > 0 ? (
               <Text variant="small" tone="muted">
-                {p.ignoredAccounts} linked account(s) in another currency are not counted.
+                {t("goals.list.ignored", { n: p.ignoredAccounts })}
               </Text>
             ) : null}
           </Card>
@@ -135,6 +142,7 @@ function DebtsList({
   onEdit: (d: DebtWithProgress) => void;
   onRepay: (d: DebtWithProgress) => void;
 }) {
+  const { t } = useTranslation();
   const [showSettled, setShowSettled] = useState(false);
   const debts = useDebts({ includeSettled: showSettled });
   const update = useUpdateDebt();
@@ -146,9 +154,9 @@ function DebtsList({
       <Card>
         <EmptyState
           icon={placeholderIcon(Handshake)}
-          title="No open debts"
-          description="Track money you lent or borrowed and record repayments as they happen."
-          actionLabel="Add debt"
+          title={t("goals.debts.emptyTitle")}
+          description={t("goals.debts.emptyDesc")}
+          actionLabel={t("goals.screen.addDebt")}
           onAction={onAdd}
         />
       </Card>
@@ -157,9 +165,9 @@ function DebtsList({
   const settle = async (d: DebtWithProgress) => {
     try {
       await update.mutateAsync({ id: d.id, patch: { settled: true } });
-      toast.success("Marked as settled");
+      toast.success(t("goals.debts.settledToast"));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not update the debt");
+      toast.error(error instanceof Error ? error.message : t("goals.debts.updateFailed"));
     }
   };
   return (
@@ -177,18 +185,22 @@ function DebtsList({
                   {debt.person}
                 </Text>
                 <Text variant="small" tone="muted">
-                  {debt.direction === "lent" ? "They owe you" : "You owe them"}
+                  {debt.direction === "lent" ? t("goals.debts.theyOwe") : t("goals.debts.youOwe")}
                 </Text>
               </View>
-              {p.settled ? <Chip tone="positive" label="Settled" /> : null}
+              {p.settled ? <Chip tone="positive" label={t("goals.debts.settled")} /> : null}
             </View>
             <Progress
               value={p.percent / 100}
-              caption={`${money(p.repaid, debt.currency)} of ${money(debt.amount, debt.currency)} repaid · ${p.percent}%`}
+              caption={t("goals.debts.progress", {
+                repaid: money(p.repaid, debt.currency),
+                amount: money(debt.amount, debt.currency),
+                percent: p.percent,
+              })}
             />
             <View>
               <Text variant="small" tone="muted">
-                Outstanding
+                {t("goals.debts.outstanding")}
               </Text>
               <Amount value={p.outstanding} currency={debt.currency} tone="text" size="title" />
             </View>
@@ -196,15 +208,19 @@ function DebtsList({
           {p.settled ? null : (
             <View className="flex-row justify-end gap-2">
               {p.canSettle ? (
-                <Button label="Mark settled" variant="secondary" onPress={() => settle(debt)} />
+                <Button
+                  label={t("goals.debts.markSettled")}
+                  variant="secondary"
+                  onPress={() => settle(debt)}
+                />
               ) : null}
-              <Button label="Record repayment" onPress={() => onRepay(debt)} />
+              <Button label={t("goals.debts.recordRepayment")} onPress={() => onRepay(debt)} />
             </View>
           )}
         </Card>
       ))}
       <Button
-        label={showSettled ? "Hide settled debts" : "Show settled debts"}
+        label={showSettled ? t("goals.debts.hideSettled") : t("goals.debts.showSettled")}
         variant="ghost"
         onPress={() => setShowSettled((s) => !s)}
       />
@@ -213,8 +229,13 @@ function DebtsList({
 }
 
 export default function Goals() {
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const [section, setSection] = useState<Section>("goals");
+  const sections = [
+    { value: "goals", label: t("goals.screen.goals") },
+    { value: "debts", label: t("goals.screen.debts") },
+  ] as const;
   const goals = useGoalsWithProgress(todayDate());
   const debts = useDebts({ includeSettled: true });
   const [goalForm, setGoalForm] = useState<string | "new" | null>(null);
@@ -229,11 +250,11 @@ export default function Goals() {
 
   return (
     <Page
-      title="Goals & debts"
-      subtitle="Savings targets and money lent or borrowed"
+      title={t("goals.screen.title")}
+      subtitle={t("goals.screen.subtitle")}
       actions={
         <Button
-          label={section === "goals" ? "Add goal" : "Add debt"}
+          label={section === "goals" ? t("goals.screen.addGoal") : t("goals.screen.addDebt")}
           leading={<Plus size={18} color={colors.accentFg} strokeWidth={2} />}
           onPress={add}
           className="self-end"

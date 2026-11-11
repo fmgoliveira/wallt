@@ -9,12 +9,8 @@ import {
   useDeleteCategory,
   useUpdateCategory,
 } from "../data/hooks";
+import { useTranslation } from "../i18n";
 import { categoryIcon, categoryIconNames } from "./icons";
-
-const kinds = [
-  { value: "expense", label: "Expense" },
-  { value: "income", label: "Income" },
-] as const;
 
 /**
  * Create or edit a category or subcategory. Mount only while open (it owns its field state).
@@ -33,6 +29,7 @@ export function CategoryForm({
   typeLocked?: boolean;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const create = useCreateCategory();
   const update = useUpdateCategory();
@@ -48,6 +45,10 @@ export function CategoryForm({
   const [color, setColor] = useState<string | null>(category?.color ?? null);
   const [submitted, setSubmitted] = useState(false);
 
+  const kinds = [
+    { value: "expense", label: t("categories.expense") },
+    { value: "income", label: t("categories.income") },
+  ] as const;
   const list = all.data ?? [];
   const hasChildren = !!category && list.some((c) => c.parentId === category.id);
   // Only a top-level category without children of its own may become a subcategory (two levels).
@@ -55,7 +56,7 @@ export function CategoryForm({
     (c) => c.parentId === null && c.type === type && c.id !== category?.id,
   );
   const canHaveParent = !hasChildren;
-  const nameError = submitted && name.trim() === "" ? "Name is required" : undefined;
+  const nameError = submitted && name.trim() === "" ? t("categories.form.nameRequired") : undefined;
   const busy = create.isPending || update.isPending;
 
   async function save() {
@@ -71,14 +72,14 @@ export function CategoryForm({
     try {
       if (category) {
         await update.mutateAsync({ id: category.id, patch: values });
-        toast.success("Category updated");
+        toast.success(t("categories.form.updated"));
       } else {
         await create.mutateAsync(values);
-        toast.success("Category added");
+        toast.success(t("categories.form.added"));
       }
       onClose();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not save the category");
+      toast.error(error instanceof Error ? error.message : t("categories.form.saveFailed"));
     }
   }
 
@@ -86,10 +87,12 @@ export function CategoryForm({
     if (!category) return;
     try {
       await update.mutateAsync({ id: category.id, patch: { archived: !category.archived } });
-      toast.success(category.archived ? "Category restored" : "Category archived");
+      toast.success(
+        category.archived ? t("categories.form.restored") : t("categories.form.archivedToast"),
+      );
       onClose();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not update the category");
+      toast.error(error instanceof Error ? error.message : t("categories.form.updateFailed"));
     }
   }
 
@@ -97,11 +100,11 @@ export function CategoryForm({
     if (!category) return;
     try {
       await remove.mutateAsync(category.id);
-      toast.success("Category deleted");
+      toast.success(t("categories.form.deleted"));
       onClose();
     } catch (error) {
       setConfirmDelete(false);
-      toast.error(error instanceof Error ? error.message : "Could not delete the category");
+      toast.error(error instanceof Error ? error.message : t("categories.form.deleteFailed"));
     }
   }
 
@@ -114,25 +117,31 @@ export function CategoryForm({
     <Sheet
       visible
       onClose={onClose}
-      title={editing ? "Edit category" : parentId ? "New subcategory" : "New category"}
+      title={
+        editing
+          ? t("categories.form.titleEdit")
+          : parentId
+            ? t("categories.form.titleNewSub")
+            : t("categories.form.titleNew")
+      }
     >
       <Input
-        label="Name"
+        label={t("categories.form.name")}
         value={name}
         onChangeText={setName}
-        placeholder="e.g. Groceries"
+        placeholder={t("categories.form.namePlaceholder")}
         error={nameError}
         autoFocus
       />
       <View className="gap-1.5">
         <Text variant="small" tone="muted" weight="medium">
-          Type
+          {t("categories.form.type")}
         </Text>
         {typeLocked ? (
           <>
-            <Text>{type === "expense" ? "Expense" : "Income"}</Text>
+            <Text>{type === "expense" ? t("categories.expense") : t("categories.income")}</Text>
             <Text variant="small" tone="muted">
-              Locked: this category has transactions or subcategories.
+              {t("categories.form.typeLocked")}
             </Text>
           </>
         ) : (
@@ -141,9 +150,9 @@ export function CategoryForm({
       </View>
       {canHaveParent ? (
         <Select
-          label="Parent"
+          label={t("categories.form.parent")}
           options={[
-            { value: "none", label: "None (top level)" },
+            { value: "none", label: t("categories.form.parentNone") },
             ...parents.map((p) => ({ value: p.id, label: p.name })),
           ]}
           value={parentId ?? "none"}
@@ -152,7 +161,7 @@ export function CategoryForm({
       ) : null}
       <View className="gap-1.5">
         <Text variant="small" tone="muted" weight="medium">
-          Icon
+          {t("categories.form.icon")}
         </Text>
         <View className="flex-row flex-wrap" accessibilityRole="radiogroup">
           {categoryIconNames.map((n) => {
@@ -182,34 +191,43 @@ export function CategoryForm({
         </View>
       </View>
       <ColorPicker value={color} onChange={setColor} />
-      <Button label={editing ? "Save changes" : "Add category"} loading={busy} onPress={save} />
+      <Button
+        label={editing ? t("categories.form.saveChanges") : t("categories.form.add")}
+        loading={busy}
+        onPress={save}
+      />
       {category ? (
         <>
           <Button
-            label={category.archived ? "Restore" : "Archive"}
+            label={category.archived ? t("categories.form.restore") : t("categories.form.archive")}
             variant="secondary"
             onPress={toggleArchive}
           />
-          <Button label="Delete" variant="ghost" onPress={() => setConfirmDelete(true)} />
+          <Button
+            label={t("categories.delete")}
+            variant="ghost"
+            onPress={() => setConfirmDelete(true)}
+          />
         </>
       ) : null}
-      <Button label="Cancel" variant="ghost" onPress={onClose} />
+      <Button label={t("categories.cancel")} variant="ghost" onPress={onClose} />
       <Sheet
         visible={confirmDelete}
         onClose={() => setConfirmDelete(false)}
-        title="Delete category?"
+        title={t("categories.form.deleteTitle")}
       >
-        <Text tone="muted">
-          Subcategories move to the top level. A category with transactions cannot be deleted:
-          archive it instead.
-        </Text>
+        <Text tone="muted">{t("categories.form.deleteBody")}</Text>
         <Button
-          label="Delete"
+          label={t("categories.delete")}
           variant="destructive"
           loading={remove.isPending}
           onPress={doDelete}
         />
-        <Button label="Cancel" variant="ghost" onPress={() => setConfirmDelete(false)} />
+        <Button
+          label={t("categories.cancel")}
+          variant="ghost"
+          onPress={() => setConfirmDelete(false)}
+        />
       </Sheet>
     </Sheet>
   );

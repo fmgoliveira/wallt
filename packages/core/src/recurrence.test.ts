@@ -308,3 +308,15 @@ describe("presets", () => {
     expect(presetOf("nope", "2026-11-13")).toBeNull();
   });
 });
+
+describe("describeRRuleParts", () => {
+  it("exposes the structure behind describeRRule", async () => {
+    const { describeRRuleParts } = await import("./recurrence");
+    expect(describeRRuleParts("FREQ=WEEKLY;INTERVAL=2;BYDAY=FR")).toMatchObject({
+      freq: "WEEKLY",
+      interval: 2,
+      byDay: [4],
+    });
+    expect(describeRRuleParts("nonsense")).toBeNull();
+  });
+});

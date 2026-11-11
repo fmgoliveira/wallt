@@ -28,11 +28,13 @@ import {
   useTransactions,
   useUpdateAccount,
 } from "../../../src/data/hooks";
+import { useTranslation } from "../../../src/i18n";
 import { Page } from "../../../src/shell/Page";
 import { placeholderIcon } from "../../../src/shell/placeholder";
 import { useEditorStore } from "../../../src/transactions/editorStore";
 
 function AccountDetail({ id }: { id: string }) {
+  const { t } = useTranslation();
   const router = useRouter();
   const { scheme, colors } = useTheme();
   const query = useAccountWithBalance(id);
@@ -57,9 +59,9 @@ function AccountDetail({ id }: { id: string }) {
     return (
       <Card>
         <EmptyState
-          title="Account not found"
-          description="It may have been deleted."
-          actionLabel="Back to accounts"
+          title={t("accounts.detail.notFoundTitle")}
+          description={t("accounts.detail.notFoundDesc")}
+          actionLabel={t("accounts.detail.backToAccounts")}
           onAction={back}
         />
       </Card>
@@ -72,21 +74,23 @@ function AccountDetail({ id }: { id: string }) {
     if (!account) return;
     try {
       await update.mutateAsync({ id, patch: { archived: !account.archived } });
-      toast.success(account.archived ? "Account restored" : "Account archived");
+      toast.success(
+        account.archived ? t("accounts.detail.restored") : t("accounts.detail.archivedToast"),
+      );
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not update the account");
+      toast.error(error instanceof Error ? error.message : t("accounts.detail.updateFailed"));
     }
   }
 
   async function doDelete() {
     try {
       await remove.mutateAsync(id);
-      toast.success("Account deleted");
+      toast.success(t("accounts.detail.deleted"));
       setConfirmDelete(false);
       back();
     } catch (error) {
       setConfirmDelete(false);
-      toast.error(error instanceof Error ? error.message : "Could not delete the account");
+      toast.error(error instanceof Error ? error.message : t("accounts.detail.deleteFailed"));
     }
   }
 
@@ -94,7 +98,7 @@ function AccountDetail({ id }: { id: string }) {
     <View className="gap-6">
       <View className="flex-row">
         <Button
-          label="Accounts"
+          label={t("accounts.detail.back")}
           variant="ghost"
           leading={<ArrowLeft size={18} color={colors.muted} strokeWidth={1.6} />}
           onPress={back}
@@ -118,7 +122,7 @@ function AccountDetail({ id }: { id: string }) {
               {`${accountTypeLabel(account.type)} · ${account.currency}`}
             </Text>
           </View>
-          {account.archived ? <Chip label="Archived" /> : null}
+          {account.archived ? <Chip label={t("accounts.archived")} /> : null}
         </View>
         <View className="mt-3">
           <Amount
@@ -131,39 +135,39 @@ function AccountDetail({ id }: { id: string }) {
       </HeroCard>
 
       <Card className="gap-3">
-        <Text variant="title">Balance over time</Text>
+        <Text variant="title">{t("accounts.detail.chartTitle")}</Text>
         <Skeleton className="h-32 w-full" />
         <Text variant="small" tone="muted">
-          The balance chart arrives with the reports work (P4.4).
+          {t("accounts.detail.chartNote")}
         </Text>
       </Card>
 
       <View className="gap-2">
         <Text variant="label" tone="muted">
-          Recent transactions
+          {t("accounts.detail.recent")}
         </Text>
         <Card className="p-0 tablet:p-0">
           {recent.data && recent.data.length > 0 ? (
-            recent.data.map((t, i) => (
+            recent.data.map((tx, i) => (
               <ListItem
-                key={t.id}
+                key={tx.id}
                 divider={i > 0}
                 title={
-                  t.kind === "transfer"
-                    ? "Transfer"
-                    : t.payee || t.descriptionClean || "Transaction"
+                  tx.kind === "transfer"
+                    ? t("accounts.detail.transfer")
+                    : tx.payee || tx.descriptionClean || t("accounts.detail.transaction")
                 }
-                subtitle={t.bookingDate}
-                trailing={<Amount value={t.amount} currency={t.currency} />}
-                onPress={() => useEditorStore.getState().openEdit(t.id)}
+                subtitle={tx.bookingDate}
+                trailing={<Amount value={tx.amount} currency={tx.currency} />}
+                onPress={() => useEditorStore.getState().openEdit(tx.id)}
               />
             ))
           ) : (
             <EmptyState
               icon={placeholderIcon(Receipt)}
-              title="No transactions yet"
-              description="Transactions you add to this account show up here."
-              actionLabel="Add transaction"
+              title={t("accounts.detail.noTxTitle")}
+              description={t("accounts.detail.noTxDesc")}
+              actionLabel={t("accounts.detail.addTx")}
               onAction={() => useEditorStore.getState().openNew(id)}
             />
           )}
@@ -171,19 +175,25 @@ function AccountDetail({ id }: { id: string }) {
       </View>
 
       <Card className="p-0 tablet:p-0">
-        <ActionRow icon={Pencil} label="Edit account" onPress={() => setEditing(true)} />
+        <ActionRow
+          icon={Pencil}
+          label={t("accounts.detail.edit")}
+          onPress={() => setEditing(true)}
+        />
         <ActionRow
           divider
           icon={account.archived ? ArchiveRestore : Archive}
-          label={account.archived ? "Restore account" : "Archive account"}
-          hint={account.archived ? "Show it in your accounts again" : "Hide it, keep its history"}
+          label={account.archived ? t("accounts.detail.restore") : t("accounts.detail.archive")}
+          hint={
+            account.archived ? t("accounts.detail.restoreHint") : t("accounts.detail.archiveHint")
+          }
           disabled={update.isPending}
           onPress={toggleArchive}
         />
         <ActionRow
           divider
           icon={Trash2}
-          label="Delete account"
+          label={t("accounts.detail.deleteAction")}
           tone="negative"
           onPress={() => setConfirmDelete(true)}
         />
@@ -193,27 +203,30 @@ function AccountDetail({ id }: { id: string }) {
       <Sheet
         visible={confirmDelete}
         onClose={() => setConfirmDelete(false)}
-        title="Delete account?"
+        title={t("accounts.detail.deleteTitle")}
       >
-        <Text tone="muted">
-          {`"${account.name}" will be removed. Accounts with transactions cannot be deleted: archive them instead.`}
-        </Text>
+        <Text tone="muted">{t("accounts.detail.deleteBody", { name: account.name })}</Text>
         <Button
-          label="Delete"
+          label={t("accounts.delete")}
           variant="destructive"
           loading={remove.isPending}
           onPress={doDelete}
         />
-        <Button label="Cancel" variant="ghost" onPress={() => setConfirmDelete(false)} />
+        <Button
+          label={t("accounts.cancel")}
+          variant="ghost"
+          onPress={() => setConfirmDelete(false)}
+        />
       </Sheet>
     </View>
   );
 }
 
 export default function AccountScreen() {
+  const { t } = useTranslation();
   const { id } = useLocalSearchParams<{ id: string }>();
   return (
-    <Page title="Account">
+    <Page title={t("accounts.detail.pageTitle")}>
       <DataGate>{id ? <AccountDetail id={id} /> : null}</DataGate>
     </Page>
   );

@@ -12,13 +12,13 @@ import { useCallback, useMemo } from "react";
 
 export type PeriodKey = "all" | "month" | "last-month" | "30d" | "year" | "custom";
 
-export const periodOptions: { value: PeriodKey; label: string }[] = [
-  { value: "all", label: "All time" },
-  { value: "month", label: "This month" },
-  { value: "last-month", label: "Last month" },
-  { value: "30d", label: "Last 30 days" },
-  { value: "year", label: "This year" },
-  { value: "custom", label: "Custom range" },
+export const periodKeys: readonly PeriodKey[] = [
+  "all",
+  "month",
+  "last-month",
+  "30d",
+  "year",
+  "custom",
 ];
 
 /** Everything the transactions screen filters and sorts by. Lives in the URL (search params). */
@@ -36,7 +36,7 @@ export interface TxQuery {
   sort: TransactionSort;
 }
 
-const PERIODS = new Set<string>(periodOptions.map((p) => p.value));
+const PERIODS = new Set<string>(periodKeys);
 
 const list = (v: string | string[] | undefined): string[] => {
   const s = Array.isArray(v) ? v[0] : v;

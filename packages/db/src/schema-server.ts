@@ -38,6 +38,8 @@ export const devices = sqliteTable(
     createdAt: text("created_at").notNull(),
     lastSeenAt: text("last_seen_at"),
     revokedAt: text("revoked_at"),
+    /** Highest `server_seq` this device has told us it applied (its pull cursor); the purge of deleted rows waits on it. */
+    lastPullSeq: integer("last_pull_seq"),
   },
   (t) => [index("devices_user_idx").on(t.userId)],
 );

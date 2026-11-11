@@ -88,6 +88,8 @@ export const transactions = sqliteTable(
   (t) => [
     index("transactions_server_seq_idx").on(t.serverSeq),
     index("transactions_account_date_idx").on(t.accountId, t.bookingDate),
+    // month/period queries (dashboard, reports) and "newest first" lists filter and sort by date alone
+    index("transactions_booking_date_idx").on(t.bookingDate),
     index("transactions_dedup_hash_idx").on(t.dedupHash),
     index("transactions_external_id_idx").on(t.externalId),
     index("transactions_needs_review_idx").on(t.needsReview),

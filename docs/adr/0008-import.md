@@ -4,7 +4,7 @@
 - Plan: §5, §5.1, §5.2 · Builds on ADR 0005 (repository) and ADR 0007 (sync)
 
 ## Context
-PLAN §5 describes a pipeline shared by file import and (later) bank sync, and says imports run on the server. P5 builds
+PLAN §5 describes a pipeline shared by file import, and says imports run on the server. P5 builds
 the file side: decoding, tabularization, detection, OFX/CAMT, dedup, the wizard and the saved-format manager. This ADR
 records where the plan left room and where the implementation deliberately differs.
 
@@ -13,7 +13,7 @@ records where the plan left room and where the implementation deliberately diffe
    functions (bytes in, rows or a plan out; no React, no IO, no TextDecoder/crypto globals so they run on Hermes). The
    wizard parses locally for the live preview and commits through the existing repository, which already syncs. **There is no
    `/import` endpoint yet** (the plan's server upload): it would add auth/endpoint surface and need the server online, while
-   the local path works offline and reuses sync. Bank sync (P7) will call the same pipeline from the server.
+   the local path works offline and reuses sync.
 2. **SheetJS from the vendor tarball** (`https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz`) for XLS/XLSX/ODS. The npm
    `xlsx` package is stale and carries known advisories; the vendor build is the maintained one. Spreadsheet cells become
    text (dates as ISO `YYYY-MM-DD`, numbers as displayed) so CSV and workbooks share one detection path.
@@ -47,4 +47,4 @@ records where the plan left room and where the implementation deliberately diffe
 - Detection quality is covered by seeded golden tests over 12 synthetic layouts (`fixtures/`, no real bank data); a bank
   that is still misread is fixed in the app (adjust columns, save the format), not in code.
 - Large files are parsed on the UI thread (bank exports are kilobytes; a 20 MB guard rejects wrong files). Revisit with
-  a worker if 50k-row imports show jank (P8 performance).
+  a worker if 50k-row imports show jank (P7 performance).

@@ -4,6 +4,7 @@ import { Button, Input, Sheet, Text, toast } from "@wallt/ui";
 import { useMemo, useState } from "react";
 import { View } from "react-native";
 import { useCreatePayeeAlias, useDeletePayeeAlias, useUpdatePayeeAlias } from "../data/hooks";
+import { useTranslation } from "../i18n";
 import { useRuleHistory } from "../rules/data";
 
 /** Create or edit a payee alias, with a live count of the transactions it matches. */
@@ -14,6 +15,7 @@ export function AliasForm({
   alias?: PayeeAlias | undefined;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const create = useCreatePayeeAlias();
   const update = useUpdatePayeeAlias();
   const remove = useDeletePayeeAlias();
@@ -37,14 +39,14 @@ export function AliasForm({
     try {
       if (alias) {
         await update.mutateAsync({ id: alias.id, patch: { pattern, payee: payee.trim() } });
-        toast.success("Payee name updated");
+        toast.success(t("aliases.form.updated"));
       } else {
         await create.mutateAsync({ pattern, payee: payee.trim() });
-        toast.success("Payee name added");
+        toast.success(t("aliases.form.added"));
       }
       onClose();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not save");
+      toast.error(error instanceof Error ? error.message : t("aliases.form.couldNotSave"));
     }
   }
 
@@ -52,54 +54,60 @@ export function AliasForm({
     if (!alias) return;
     try {
       await remove.mutateAsync(alias.id);
-      toast.success("Payee name deleted");
+      toast.success(t("aliases.form.deleted"));
       onClose();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not delete");
+      toast.error(error instanceof Error ? error.message : t("aliases.form.couldNotDelete"));
     }
   }
 
   return (
-    <Sheet visible onClose={onClose} title={alias ? "Edit payee name" : "New payee name"}>
+    <Sheet
+      visible
+      onClose={onClose}
+      title={alias ? t("aliases.form.editTitle") : t("aliases.form.newTitle")}
+    >
       <Input
-        label="When the description matches"
+        label={t("aliases.form.pattern")}
         value={pattern}
         onChangeText={setPattern}
-        placeholder="e.g. pingo\s*doce"
-        error={submitted && pattern.trim() === "" ? "Enter some text or a pattern" : undefined}
+        placeholder={t("aliases.form.patternExample")}
+        error={submitted && pattern.trim() === "" ? t("aliases.form.patternRequired") : undefined}
         autoFocus={!alias}
       />
       {pattern.trim() !== "" ? (
         <Text variant="small" tone="muted">
           {aliasPatternKind(pattern) === "regex"
-            ? "Not case sensitive. Characters like . * + ( ) [ ] have a special meaning in patterns."
-            : "Not a valid pattern, so it matches this exact text anywhere in the description."}
+            ? t("aliases.form.regexHint")
+            : t("aliases.form.textHint")}
         </Text>
       ) : null}
       <Input
-        label="Show the payee as"
+        label={t("aliases.form.payee")}
         value={payee}
         onChangeText={setPayee}
-        placeholder="e.g. Pingo Doce"
-        error={submitted && payee.trim() === "" ? "Payee name is required" : undefined}
+        placeholder={t("aliases.form.payeeExample")}
+        error={submitted && payee.trim() === "" ? t("aliases.form.payeeRequired") : undefined}
       />
       <View className="gap-1 rounded-2xl bg-bg p-3">
         {preview === null ? (
-          <Text tone="muted">Type a pattern to see what it matches.</Text>
+          <Text tone="muted">{t("aliases.form.typePattern")}</Text>
         ) : (
           <>
-            <Text weight="medium">
-              Matches {preview.matches} transaction{preview.matches === 1 ? "" : "s"}
-            </Text>
+            <Text weight="medium">{t("aliases.form.matches", { count: preview.matches })}</Text>
             <Text variant="small" tone="muted">
-              {preview.wouldRename} would be renamed when you apply it to existing transactions.
+              {t("aliases.form.wouldRename", { n: preview.wouldRename })}
             </Text>
           </>
         )}
       </View>
-      <Button label={alias ? "Save changes" : "Add"} loading={busy} onPress={save} />
-      {alias ? <Button label="Delete" variant="ghost" onPress={del} /> : null}
-      <Button label="Cancel" variant="ghost" onPress={onClose} />
+      <Button
+        label={alias ? t("aliases.form.saveChanges") : t("aliases.form.add")}
+        loading={busy}
+        onPress={save}
+      />
+      {alias ? <Button label={t("aliases.form.delete")} variant="ghost" onPress={del} /> : null}
+      <Button label={t("aliases.form.cancel")} variant="ghost" onPress={onClose} />
     </Sheet>
   );
 }

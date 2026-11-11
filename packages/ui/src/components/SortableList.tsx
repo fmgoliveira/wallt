@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { PanResponder, View, type ViewStyle } from "react-native";
 import { useAnimatedStyle, useSharedValue } from "react-native-reanimated";
+import { useUiStrings } from "../strings";
 import { useTheme } from "../theme/context";
 import { radius } from "../tokens";
 import { MotionView } from "./primitives";
@@ -35,6 +36,7 @@ const gripStyle = {
 
 function Grip({ id, api }: { id: string; api: React.RefObject<DragApi> }) {
   const { colors } = useTheme();
+  const ui = useUiStrings();
   const responder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -49,7 +51,7 @@ function Grip({ id, api }: { id: string; api: React.RefObject<DragApi> }) {
   return (
     <View
       accessibilityRole="adjustable"
-      accessibilityLabel="Drag to reorder"
+      accessibilityLabel={ui.dragToReorder}
       style={gripStyle}
       {...responder.panHandlers}
     >

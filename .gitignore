@@ -21,3 +21,11 @@ coverage/
 *.pem
 *.key
 .DS_Store
+
+test-results/
+playwright-report/
+blob-report/
+
+# signing keys must never be committed
+*.keystore
+*.jks

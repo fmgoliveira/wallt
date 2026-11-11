@@ -107,7 +107,7 @@ export function Tabs<T extends string>({ items, value, onChange, className }: Ta
               accessibilityState={{ selected: active }}
               onPress={() => onChange(item.value)}
               className={cn(
-                "min-h-[34px] min-w-touch items-center justify-center px-4 web:cursor-pointer web:outline-none web:transition-colors web:duration-150 web:focus-visible:bg-text/5",
+                "min-h-touch tablet:min-h-[34px] min-w-touch items-center justify-center px-4 web:cursor-pointer web:outline-none web:transition-colors web:duration-150 web:focus-visible:bg-text/5",
                 !active && "web:hover:bg-text/5",
               )}
               style={{ borderRadius: radius.sm }}

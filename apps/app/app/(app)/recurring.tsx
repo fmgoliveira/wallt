@@ -1,4 +1,4 @@
-import { describeRRule, formatAmount, type RecurringRule, upcomingItems } from "@wallt/core";
+import { formatAmount, type RecurringRule, upcomingItems } from "@wallt/core";
 import {
   Amount,
   Button,
@@ -12,6 +12,7 @@ import {
   toast,
   useTheme,
 } from "@wallt/ui";
+import type { TFunction } from "i18next";
 import { Plus, Repeat } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import { View } from "react-native";
@@ -24,6 +25,8 @@ import {
   useRecurringSuggestions,
   useSkipOccurrence,
 } from "../../src/data/recurring";
+import { useTranslation } from "../../src/i18n";
+import { describeRRuleT } from "../../src/i18n/packages";
 import { useDismissedSuggestions } from "../../src/recurring/dismissed";
 import { type RuleDraft, RuleForm } from "../../src/recurring/RuleForm";
 import { Page } from "../../src/shell/Page";
@@ -31,11 +34,14 @@ import { placeholderIcon } from "../../src/shell/placeholder";
 
 const HORIZON_DAYS = 30;
 
-function dueLabel(inDays: number): { text: string; tone: "negative" | "warning" | "neutral" } {
-  if (inDays < 0) return { text: `${-inDays}d overdue`, tone: "negative" };
-  if (inDays === 0) return { text: "Due today", tone: "warning" };
-  if (inDays === 1) return { text: "Tomorrow", tone: "neutral" };
-  return { text: `In ${inDays} days`, tone: "neutral" };
+function dueLabel(
+  inDays: number,
+  t: TFunction,
+): { text: string; tone: "negative" | "warning" | "neutral" } {
+  if (inDays < 0) return { text: t("recurring.screen.overdue", { n: -inDays }), tone: "negative" };
+  if (inDays === 0) return { text: t("recurring.screen.dueToday"), tone: "warning" };
+  if (inDays === 1) return { text: t("recurring.screen.tomorrow"), tone: "neutral" };
+  return { text: t("recurring.screen.inDays", { n: inDays }), tone: "neutral" };
 }
 
 function Upcoming({
@@ -45,6 +51,7 @@ function Upcoming({
   rules: RecurringRule[];
   onEdit: (r: RecurringRule) => void;
 }) {
+  const { t: tr } = useTranslation();
   const today = todayDate();
   const post = usePostOccurrence();
   const skip = useSkipOccurrence();
@@ -54,17 +61,17 @@ function Upcoming({
       await action();
       toast.success(done);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Something went wrong");
+      toast.error(error instanceof Error ? error.message : tr("recurring.screen.errorGeneric"));
     }
   };
 
   if (items.length === 0) {
-    return <Text tone="muted">Nothing due in the next {HORIZON_DAYS} days.</Text>;
+    return <Text tone="muted">{tr("recurring.screen.nothingDue", { n: HORIZON_DAYS })}</Text>;
   }
   return (
     <Card className="p-0 tablet:p-0">
       {items.map((item, i) => {
-        const due = dueLabel(item.inDays);
+        const due = dueLabel(item.inDays, tr);
         const first = item.date === item.rule.nextDate;
         const t = item.rule.template;
         return (
@@ -72,7 +79,7 @@ function Upcoming({
             key={`${item.rule.id}:${item.date}`}
             divider={i > 0}
             title={t.payee}
-            subtitle={`${item.date} · ${describeRRule(item.rule.rrule) ?? ""}`}
+            subtitle={`${item.date} · ${describeRRuleT(tr, item.rule.rrule) ?? ""}`}
             leading={<Chip tone={due.tone} label={due.text} />}
             trailing={
               <View className="items-end gap-2">
@@ -80,15 +87,19 @@ function Upcoming({
                 {first ? (
                   <View className="flex-row gap-2">
                     <Button
-                      label="Skip"
+                      label={tr("recurring.screen.skip")}
                       variant="ghost"
                       loading={skip.isPending}
-                      onPress={() => run(() => skip.mutateAsync(item.rule), "Skipped")}
+                      onPress={() =>
+                        run(() => skip.mutateAsync(item.rule), tr("recurring.screen.skipped"))
+                      }
                     />
                     <Button
-                      label="Post"
+                      label={tr("recurring.screen.post")}
                       loading={post.isPending}
-                      onPress={() => run(() => post.mutateAsync(item.rule), "Posted")}
+                      onPress={() =>
+                        run(() => post.mutateAsync(item.rule), tr("recurring.screen.posted"))
+                      }
                     />
                   </View>
                 ) : null}
@@ -103,6 +114,7 @@ function Upcoming({
 }
 
 function Suggestions({ onAccept }: { onAccept: (draft: RuleDraft) => void }) {
+  const { t } = useTranslation();
   const today = todayDate();
   const suggestions = useRecurringSuggestions(today);
   const { keys, load, dismiss } = useDismissedSuggestions();
@@ -116,7 +128,7 @@ function Suggestions({ onAccept }: { onAccept: (draft: RuleDraft) => void }) {
   return (
     <View className="gap-2">
       <Text variant="label" tone="muted">
-        Looks recurring
+        {t("recurring.screen.looksRecurring")}
       </Text>
       <Card className="p-0 tablet:p-0">
         {shown.map((s, i) => (
@@ -124,14 +136,22 @@ function Suggestions({ onAccept }: { onAccept: (draft: RuleDraft) => void }) {
             key={s.key}
             divider={i > 0}
             title={s.payee}
-            subtitle={`${describeRRule(s.rrule) ?? ""} · seen ${s.occurrences} times · ${accounts.find((a) => a.id === s.accountId)?.name ?? ""}`}
+            subtitle={t("recurring.screen.seen", {
+              schedule: describeRRuleT(t, s.rrule) ?? "",
+              n: s.occurrences,
+              account: accounts.find((a) => a.id === s.accountId)?.name ?? "",
+            })}
             trailing={
               <View className="items-end gap-2">
                 <Text tabular>{formatAmount({ amount: s.amount, currency: s.currency })}</Text>
                 <View className="flex-row gap-2">
-                  <Button label="Dismiss" variant="ghost" onPress={() => dismiss(s.key)} />
                   <Button
-                    label="Review"
+                    label={t("recurring.screen.dismiss")}
+                    variant="ghost"
+                    onPress={() => dismiss(s.key)}
+                  />
+                  <Button
+                    label={t("recurring.screen.review")}
                     onPress={() =>
                       onAccept({
                         payee: s.payee,
@@ -164,6 +184,7 @@ function RecurringContent({
   onEdit: (r: RecurringRule) => void;
   onAccept: (d: RuleDraft) => void;
 }) {
+  const { t } = useTranslation();
   const rules = useRecurringRules({ includeInactive: true });
   if (rules.isPending) return <Skeleton className="h-40 w-full" />;
   const all = rules.data ?? [];
@@ -177,9 +198,9 @@ function RecurringContent({
         <Card>
           <EmptyState
             icon={placeholderIcon(Repeat)}
-            title="No recurring items yet"
-            description="Add rent, subscriptions or salary to see what is due next. Nothing is posted until you confirm it."
-            actionLabel="Add recurring item"
+            title={t("recurring.screen.emptyTitle")}
+            description={t("recurring.screen.emptyDesc")}
+            actionLabel={t("recurring.screen.emptyAction")}
             onAction={onAdd}
           />
         </Card>
@@ -187,13 +208,13 @@ function RecurringContent({
         <>
           <View className="gap-2">
             <Text variant="label" tone="muted">
-              Upcoming
+              {t("recurring.screen.upcoming")}
             </Text>
             <Upcoming rules={active} onEdit={onEdit} />
           </View>
           <View className="gap-2">
             <Text variant="label" tone="muted">
-              All recurring items
+              {t("recurring.screen.all")}
             </Text>
             <Card className="p-0 tablet:p-0">
               {[...active, ...paused].map((r, i) => (
@@ -201,7 +222,10 @@ function RecurringContent({
                   key={r.id}
                   divider={i > 0}
                   title={r.template.payee}
-                  subtitle={`${describeRRule(r.rrule) ?? ""} · next ${r.nextDate}`}
+                  subtitle={t("recurring.screen.next", {
+                    schedule: describeRRuleT(t, r.rrule) ?? "",
+                    date: r.nextDate,
+                  })}
                   leading={
                     <IconTile>
                       <RepeatIcon />
@@ -211,7 +235,7 @@ function RecurringContent({
                     r.active ? (
                       <Amount value={r.template.amount} currency={r.template.currency} />
                     ) : (
-                      <Chip label="Paused" />
+                      <Chip label={t("recurring.screen.paused")} />
                     )
                   }
                   onPress={() => onEdit(r)}
@@ -231,6 +255,7 @@ function RepeatIcon() {
 }
 
 export default function Recurring() {
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const [form, setForm] = useState<{
     rule?: RecurringRule | undefined;
@@ -238,11 +263,11 @@ export default function Recurring() {
   } | null>(null);
   return (
     <Page
-      title="Recurring"
-      subtitle="Bills, subscriptions and income that repeat"
+      title={t("recurring.screen.title")}
+      subtitle={t("recurring.screen.subtitle")}
       actions={
         <Button
-          label="Add"
+          label={t("recurring.screen.add")}
           leading={<Plus size={18} color={colors.accentFg} strokeWidth={2} />}
           onPress={() => setForm({})}
           className="self-end"

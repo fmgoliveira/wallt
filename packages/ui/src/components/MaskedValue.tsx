@@ -1,4 +1,5 @@
 import { View } from "react-native";
+import { useUiStrings } from "../strings";
 import { useTheme } from "../theme/context";
 import { withAlpha } from "../tokens";
 import type { TextVariant } from "./primitives";
@@ -25,11 +26,12 @@ export interface MaskedValueProps {
  */
 export function MaskedValue({ size = "body", color, className }: MaskedValueProps) {
   const { scheme } = useTheme();
+  const ui = useUiStrings();
   const p = pill[size];
   return (
     <View
       accessible
-      accessibilityLabel="Hidden amount"
+      accessibilityLabel={ui.hiddenAmount}
       className={className}
       style={{ height: p.line, justifyContent: "center", alignSelf: "flex-start" }}
     >

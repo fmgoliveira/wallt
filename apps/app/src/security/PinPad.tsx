@@ -2,6 +2,7 @@ import { PIN_MAX, PIN_MIN } from "@wallt/core";
 import { Text, useTheme } from "@wallt/ui";
 import { Check, Delete } from "lucide-react-native";
 import { Pressable, View } from "react-native";
+import { useTranslation } from "../i18n";
 
 function PadKey({
   label,
@@ -47,6 +48,7 @@ export function PinPad({
   disabled?: boolean;
 }) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const add = (d: string) => value.length < PIN_MAX && onChange(value + d);
   const rows = [
     ["1", "2", "3"],
@@ -57,7 +59,7 @@ export function PinPad({
     <View className="gap-6">
       <View
         className="h-6 flex-row items-center justify-center gap-3"
-        accessibilityLabel={`${value.length} digits entered`}
+        accessibilityLabel={t("security.pad.digitsEntered", { count: value.length })}
       >
         {Array.from({ length: Math.max(value.length, PIN_MIN) }, (_, i) => (
           <View
@@ -83,7 +85,7 @@ export function PinPad({
         ))}
         <View className="flex-row gap-1">
           <PadKey
-            hint="Delete"
+            hint={t("security.pad.delete")}
             disabled={disabled || value.length === 0}
             onPress={() => onChange(value.slice(0, -1))}
           >
@@ -91,7 +93,7 @@ export function PinPad({
           </PadKey>
           <PadKey label="0" disabled={disabled} onPress={() => add("0")} />
           <PadKey
-            hint="Confirm PIN"
+            hint={t("security.pad.confirm")}
             disabled={disabled || value.length < PIN_MIN}
             onPress={onSubmit}
           >

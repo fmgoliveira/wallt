@@ -7,7 +7,8 @@ import { categoryOptions } from "../categories/options";
 import { displayColor } from "../components/colors";
 import { ToggleChip } from "../components/ToggleChip";
 import { useAccounts, useCategories, useTags } from "../data/hooks";
-import { activeFilterCount, type PeriodKey, periodOptions, type TxQuery } from "./filters";
+import { useTranslation } from "../i18n";
+import { activeFilterCount, type PeriodKey, periodKeys, type TxQuery } from "./filters";
 
 type SetQuery = (patch: Partial<TxQuery>) => void;
 
@@ -27,6 +28,7 @@ function FilterSheet({
   onClose: () => void;
 }) {
   const { scheme } = useTheme();
+  const { t } = useTranslation();
   const accounts = useAccounts({ includeArchived: true }).data ?? [];
   const categories = useCategories({ includeArchived: true }).data ?? [];
   const tags = useTags().data ?? [];
@@ -38,10 +40,13 @@ function FilterSheet({
   ];
 
   return (
-    <Sheet visible onClose={onClose} title="Filters">
+    <Sheet visible onClose={onClose} title={t("transactions.filters.title")}>
       <Select
-        label="Period"
-        options={periodOptions}
+        label={t("transactions.filters.period")}
+        options={periodKeys.map((value) => ({
+          value,
+          label: t(`transactions.filters.periods.${value}`),
+        }))}
         value={query.period}
         onChange={(v) => set({ period: v as PeriodKey })}
       />
@@ -49,18 +54,18 @@ function FilterSheet({
         <View className="flex-row gap-3">
           <DatePicker
             className="flex-1"
-            label="From"
+            label={t("transactions.filters.from")}
             value={query.from}
             onChange={(v) => set({ from: v })}
-            placeholder="Any date"
+            placeholder={t("transactions.filters.anyDate")}
             clearable
           />
           <DatePicker
             className="flex-1"
-            label="To"
+            label={t("transactions.filters.to")}
             value={query.to}
             onChange={(v) => set({ to: v })}
-            placeholder="Any date"
+            placeholder={t("transactions.filters.anyDate")}
             clearable
           />
         </View>
@@ -68,7 +73,7 @@ function FilterSheet({
 
       <View className="gap-2">
         <Text variant="small" tone="muted" weight="medium">
-          Accounts
+          {t("transactions.filters.accounts")}
         </Text>
         <View className="flex-row flex-wrap gap-2">
           {accounts.map((a) => (
@@ -85,7 +90,7 @@ function FilterSheet({
 
       <View className="gap-2">
         <Text variant="small" tone="muted" weight="medium">
-          Categories
+          {t("transactions.filters.categories")}
         </Text>
         <View className="flex-row flex-wrap gap-2">
           {cats.map((c) => (
@@ -107,15 +112,15 @@ function FilterSheet({
       {tags.length > 0 ? (
         <View className="gap-2">
           <Text variant="small" tone="muted" weight="medium">
-            Tags
+            {t("transactions.filters.tags")}
           </Text>
           <View className="flex-row flex-wrap gap-2">
-            {tags.map((t) => (
+            {tags.map((tag) => (
               <ToggleChip
-                key={t.id}
-                label={t.name}
-                selected={query.tags.includes(t.id)}
-                onPress={() => set({ tags: toggle(query.tags, t.id) })}
+                key={tag.id}
+                label={tag.name}
+                selected={query.tags.includes(tag.id)}
+                onPress={() => set({ tags: toggle(query.tags, tag.id) })}
               />
             ))}
           </View>
@@ -126,32 +131,32 @@ function FilterSheet({
         <View className="flex-row gap-3">
           <View className="flex-1">
             <AmountInput
-              label="Amount from"
+              label={t("transactions.filters.amountFrom")}
               value={query.min}
               onChangeValue={(v) => set({ min: v })}
               currency={currency}
               allowNegative
-              placeholder="No minimum"
+              placeholder={t("transactions.filters.noMinimum")}
             />
           </View>
           <View className="flex-1">
             <AmountInput
-              label="Amount to"
+              label={t("transactions.filters.amountTo")}
               value={query.max}
               onChangeValue={(v) => set({ max: v })}
               currency={currency}
               allowNegative
-              placeholder="No maximum"
+              placeholder={t("transactions.filters.noMaximum")}
             />
           </View>
         </View>
         <Text variant="small" tone="muted">
-          Expenses are negative: -50 to -10 finds spending between 10 and 50.
+          {t("transactions.filters.amountHint")}
         </Text>
       </View>
 
-      <Button label="Done" onPress={onClose} />
-      <Button label="Clear filters" variant="ghost" onPress={clear} />
+      <Button label={t("transactions.filters.done")} onPress={onClose} />
+      <Button label={t("transactions.filters.clear")} variant="ghost" onPress={clear} />
     </Sheet>
   );
 }
@@ -167,6 +172,7 @@ export function FilterBar({
   clear: () => void;
 }) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const [text, setText] = useState(query.q);
   const [open, setOpen] = useState(false);
   const count = activeFilterCount(query);
@@ -184,16 +190,20 @@ export function FilterBar({
     <View className="flex-row items-end gap-2">
       <Input
         className="flex-1"
-        accessibilityLabel="Search transactions"
+        accessibilityLabel={t("transactions.filters.searchLabel")}
         value={text}
         onChangeText={setText}
-        placeholder="Search payee, notes…  ( / )"
+        placeholder={t("transactions.filters.searchPlaceholder")}
         autoCapitalize="none"
         autoCorrect={false}
         returnKeyType="search"
       />
       <Button
-        label={count > 0 ? `Filters · ${count}` : "Filters"}
+        label={
+          count > 0
+            ? t("transactions.filters.buttonCount", { count })
+            : t("transactions.filters.button")
+        }
         variant="secondary"
         leading={<SlidersHorizontal size={16} color={colors.text} strokeWidth={1.8} />}
         onPress={() => setOpen(true)}

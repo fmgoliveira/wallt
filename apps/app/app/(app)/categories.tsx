@@ -21,13 +21,9 @@ import { categoryIcon } from "../../src/categories/icons";
 import { ListHeader } from "../../src/components/ReorderToggle";
 import { DataGate } from "../../src/data/DataGate";
 import { useCategories, useCategoryUsage, useReorderCategories } from "../../src/data/hooks";
+import { useTranslation } from "../../src/i18n";
 import { Page } from "../../src/shell/Page";
 import { placeholderIcon } from "../../src/shell/placeholder";
-
-const kinds = [
-  { value: "expense", label: "Expenses" },
-  { value: "income", label: "Income" },
-] as const;
 
 type FormState = { category?: Category; parentId?: string | null } | null;
 
@@ -49,6 +45,7 @@ function CategoryRow({
   handle: ReactNode;
   onOpen: () => void;
 }) {
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const Icon = categoryIcon(category.icon);
   return (
@@ -56,7 +53,7 @@ function CategoryRow({
       <ListItem
         divider={divider}
         title={category.name}
-        subtitle={uses > 0 ? `${uses} transaction${uses === 1 ? "" : "s"}` : undefined}
+        subtitle={uses > 0 ? t("categories.screen.uses", { count: uses }) : undefined}
         leading={
           <IconTile>
             <Icon size={18} color={tint} strokeWidth={1.6} />
@@ -65,7 +62,7 @@ function CategoryRow({
         trailing={
           handle ?? (
             <View className="flex-row items-center gap-2">
-              {category.archived ? <Chip label="Archived" /> : null}
+              {category.archived ? <Chip label={t("categories.archived")} /> : null}
               <ChevronRight size={16} color={colors.subtle} strokeWidth={1.6} />
             </View>
           )
@@ -85,6 +82,7 @@ function CategoriesContent({
   form: FormState;
   setForm: (f: FormState) => void;
 }) {
+  const { t } = useTranslation();
   const { scheme } = useTheme();
   const query = useCategories({ includeArchived: true });
   const usage = useCategoryUsage();
@@ -117,16 +115,16 @@ function CategoriesContent({
         <Card>
           <EmptyState
             icon={placeholderIcon(Tags)}
-            title="No categories"
-            description="Add a category to organise your transactions."
-            actionLabel="Add category"
+            title={t("categories.screen.emptyTitle")}
+            description={t("categories.screen.emptyDesc")}
+            actionLabel={t("categories.screen.add")}
             onAction={() => setForm({})}
           />
         </Card>
       ) : (
         <View className="gap-2">
           <ListHeader
-            title="Categories"
+            title={t("categories.screen.title")}
             sorting={sorting}
             canReorder={roots.length > 1}
             onToggle={() => setSorting((v) => !v)}
@@ -157,8 +155,7 @@ function CategoriesContent({
         </View>
       )}
       <Text variant="small" tone="muted">
-        Archived categories stay on past transactions but disappear from pickers. Reordering moves a
-        category among its siblings.
+        {t("categories.screen.note")}
       </Text>
       {form ? (
         <CategoryForm
@@ -174,16 +171,21 @@ function CategoriesContent({
 }
 
 export default function CategoriesScreen() {
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const [type, setType] = useState<Category["type"]>("expense");
   const [form, setForm] = useState<FormState>(null);
+  const kinds = [
+    { value: "expense", label: t("categories.screen.expenses") },
+    { value: "income", label: t("categories.screen.income") },
+  ] as const;
   return (
     <Page
-      title="Categories"
-      subtitle="Two levels, per type"
+      title={t("categories.screen.title")}
+      subtitle={t("categories.screen.subtitle")}
       actions={
         <Button
-          label="Add category"
+          label={t("categories.screen.add")}
           leading={<Plus size={18} color={colors.accentFg} strokeWidth={2} />}
           onPress={() => setForm({})}
         />

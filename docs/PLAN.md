@@ -15,7 +15,7 @@ Always stop and ask before:
 - Changing the database schema in a way that is not purely additive, or touching the sync protocol.
 - Anything involving money math, deduplication, or deleting/merging user data.
 - Anything involving secrets, bank credentials, auth, backup/restore, or exposing the server to the internet.
-- Signing up for a paid service, or accepting terms of a third-party API (e.g. Enable Banking).
+- Signing up for a paid service, or accepting terms of a third-party API.
 - Skipping or weakening tests or CI checks to make something pass.
 - Expanding scope beyond the current task/issue.
 
@@ -25,7 +25,7 @@ How to ask: open a GitHub issue (or comment on the PR) labelled `question`, stat
 
 ## 1. Product scope
 
-A self-hosted personal budget tracker with feature parity with Cashew, plus automatic bank sync and smart import.
+A self-hosted personal budget tracker with feature parity with Cashew, plus smart import.
 
 ### 1.1 Confirmed decisions
 | Topic | Decision |
@@ -34,13 +34,12 @@ A self-hosted personal budget tracker with feature parity with Cashew, plus auto
 | Web quality | Web must be a **real responsive desktop experience** (sidebar, multi-column, tables, keyboard, hover), not a stretched phone UI |
 | Data | **Offline-first** on Android (local SQLite) with sync to the server |
 | Server | Docker container, **SQLite file DB**, automated **encrypted backups to Google Drive** |
-| Banks | Portuguese banks + EU neobanks via **PSD2 aggregator (Enable Banking)**; universal **file import** as fallback |
+| Banks | No bank connections (owner decision). Statements come in through the universal **file import** |
 | Categorization | **Rules + local ML** (runs on your server, no data leaves it); low-confidence → review queue shown on app open |
 | Design | Modern, identical design language on Android and web |
 | Access | Public at **https://wallt.franciscoliveira.com** behind the host nginx (TLS terminated there); own auth with **mandatory 2FA (TOTP)** |
 | Users | Single user in v1; **multi-user possibly later** → `user_id` on every row, every query scoped by it |
 | Attachments | Receipts/files per transaction **in v1, optional** |
-| Bank connections | Initially **ActivoBank** + **Trade Republic**; fully configurable in-app (add/remove any supported bank) |
 
 ### 1.2 Assumptions (confirm or correct — ask if unsure)
 - Deployed on a public Linux server in Docker, behind the nginx already running on the host (no Cloudflare Tunnel; decision changed in #12).
@@ -80,13 +79,13 @@ A self-hosted personal budget tracker with feature parity with Cashew, plus auto
 └─────────────────────────────────────────────────┼────────┘
                                                   │ HTTPS (same origin on web)
 ┌─────────────── Docker: server ──────────────────▼────────┐
-│ Hono API  · auth · /sync push/pull · /import · /bank      │
+│ Hono API  · auth · /sync push/pull · /import              │
 │ Serves the static Expo web export on the same origin      │
-│ Jobs (cron): bank sync · ML retrain · FX rates · backups  │
+│ Jobs (cron): ML retrain · FX rates · backups              │
 │ SQLite (WAL) on /data volume  — source of truth           │
 └──────────────┬──────────────────────────┬────────────────┘
                │                          │
-        Enable Banking API         Google Drive (encrypted backups)
+                                   Google Drive (encrypted backups)
 ```
 
 ### 2.1 Stack (pin exact versions in P0 and record them in `docs/adr/0001-stack.md`)
@@ -104,7 +103,7 @@ A self-hosted personal budget tracker with feature parity with Cashew, plus auto
 | Forms/validation | react-hook-form + Zod (schemas in `packages/core`) | Same validation on client and server |
 | Server | Node LTS + Hono, better-sqlite3, Drizzle, croner | Small, fast, single container |
 | Auth | Password (argon2id) + mandatory TOTP 2FA + recovery codes, per-device refresh tokens; optional passkey later | Public URL, multiple devices |
-| Tests | Vitest (unit), Playwright (web e2e), Maestro (Android e2e, P8) | |
+| Tests | Vitest (unit), Playwright (web e2e), Maestro (Android e2e, P7) | |
 | Lint/format | Biome | One fast tool |
 | Builds | GitHub Actions; Docker image → GHCR; Android APK via EAS Build (or local Gradle in CI) | |
 
@@ -178,17 +177,17 @@ Custom, simple, and explicit (no third-party sync service, because they need Pos
 - **Push** `POST /sync/push {deviceId, changes[]}` → server applies each change **last-writer-wins per row by HLC**, stores it, and assigns a monotonically increasing `server_seq`. Returns accepted/rejected + current row for rejected.
 - **Pull** `GET /sync/pull?since=<seq>&limit=500` → rows changed after the cursor (including tombstones); client upserts and advances the cursor. Paginate until `hasMore=false`.
 - Triggers: app start, app foreground, after local write (debounced 2 s), every 5 min while open, manual pull-to-refresh. Use a background task on Android if cheap; otherwise not needed.
-- Rows created on the server (bank sync, imports done on web, ML recategorization) simply arrive through pull.
+- Rows created on the server (imports done on web, ML recategorization) simply arrive through pull.
 - **Conflict policy:** LWW by row. Exception: `category_id` set by the user always beats one set by ML (`categorization.method = 'user'` wins regardless of HLC). Document in ADR.
 - Schema migrations: client and server share `packages/db` migrations; the sync API sends `schemaVersion`; server refuses pushes from an older schema and the app asks the user to update.
 - Tests: property-based tests (fast-check) simulating 2–3 devices with random offline edits → all converge to the same state.
 
 ---
 
-## 5. Ingestion pipeline (shared by import and bank sync)
+## 5. Ingestion pipeline
 
 ```
-source (file | bank API) → parse → normalize → dedup → categorize → store → sync to devices
+source (file) → parse → normalize → dedup → categorize → store → sync to devices
 ```
 
 - **Normalize:** trim, collapse whitespace, strip card-number fragments / reference codes / dates from descriptions → `description_clean`; apply `payee_aliases`; parse amounts and dates.
@@ -223,7 +222,6 @@ Adding a new bank/account format must be doable **entirely from the app** (Setti
 - **Manage:** list, edit, duplicate, rename, delete, re-test against a new sample file, see which accounts/imports used it. Multiple fingerprints per profile (banks change export headers occasionally; a mismatch offers "update this profile" instead of starting over).
 - **Matching on import:** fingerprint match → auto-apply; no match → offer the closest profiles by similarity or "set up new format".
 - **Portability:** export/import profiles as JSON (share between installs, back up with the DB). Profiles are synced like other user data.
-- **Bank sync accounts** can also have a profile attached, for importing older history from a file before the PSD2 history window.
 
 Repo fixtures (`fixtures/`) are only for testing the **auto-detection engine** with synthetic/anonymized files (generated PT-style variants: `;` + comma decimals, debit/credit split, preambles, Windows-1252, XLSX with merged header cells). They are not needed to support a specific bank.
 
@@ -248,22 +246,9 @@ Never overwrite a category the user set manually.
 
 ---
 
-## 7. Bank integration (Enable Banking, PSD2)
+## 7. (reserved)
 
-GoCardless Bank Account Data stopped accepting new accounts in July 2025, so the primary provider is **Enable Banking**, which offers a free self-registered application mode used by other self-hosted finance apps. **P7 starts with a spike to verify current terms, coverage of your specific banks, and limits — report back and ask before building.**
-
-Initial connections: **ActivoBank** and **Trade Republic**. The list is not hard-coded: Settings → Connections lets the user add, re-authorize or remove any bank the provider supports, at any time; banks without PSD2 coverage fall back to file import (§5.2).
-
-Design:
-- Provider adapter interface `BankProvider { listInstitutions, startAuth, completeAuth, listAccounts, getBalances, getTransactions }` so another provider (Salt Edge, Tink, Yapily…) can be added later.
-- Auth: the app signs a JWT (RS256) with your application's private key; the key lives in the server's `/data/secrets` (mounted, never in git), encrypted at rest with a key from env.
-- Flow: user picks country + bank in the app → server calls start-auth → user is redirected to the bank → bank redirects to `https://<your-domain>/bank/callback` → server creates the session, lists accounts → user maps each bank account to a Wallt account (or creates new).
-- **Consent lifetime:** up to 180 days; store `valid_until`, notify 14 and 3 days before expiry, one-tap re-authorization.
-- **Sync schedule:** banks limit unattended PSD2 calls (typically 4/day per account). Schedule 3 runs/day + manual "Sync now" (counts against the limit; show remaining). First sync fetches max history the bank allows (often 90 days–2 years); later syncs fetch from `last_booking_date - 10 days` (overlap handled by dedup).
-- Fetch balances each run → reconcile with derived balance; show a discrepancy warning with a "create adjustment" action.
-- Map bank fields: `entry_reference`/transaction id → `external_id`; creditor/debtor name → payee; remittance info → description; `status` pending/booked.
-- Accounts not covered by PSD2 (meal cards, some cards) → file import or manual.
-- Logs: every job run in `job_runs` with counts and errors, visible in Settings → Connections.
+Section number kept so existing references stay valid.
 
 ---
 
@@ -272,7 +257,7 @@ Design:
 - One image: Hono API + static web build + job scheduler. `docker-compose.yml` with a single `/data` volume containing `wallt.db`, `attachments/`, `secrets/`, `backups/` (local staging).
 - SQLite: WAL mode, `foreign_keys=ON`, `busy_timeout`, migrations run on startup (with a pre-migration backup).
 - Healthcheck endpoint `/health`; structured JSON logs (pino).
-- Env: `APP_URL`, `ENCRYPTION_KEY`, `BACKUP_AGE_RECIPIENT`, `GDRIVE_*`, `ENABLEBANKING_APP_ID`, `TZ`.
+- Env: `APP_URL`, `ENCRYPTION_KEY`, `BACKUP_AGE_RECIPIENT`, `GDRIVE_*`, `TZ`.
 - **Backups:**
   - Snapshot with SQLite online backup (`VACUUM INTO`) → tar with attachments → gzip → **encrypt with `age`** → upload to Google Drive via OAuth (user account, `drive.file` scope, refresh token stored encrypted). Service accounts are not suitable for personal Drive storage.
   - Schedule: daily 03:30 local time + before every migration. Retention: 14 daily, 8 weekly, 12 monthly (GFS), pruning on Drive.
@@ -307,7 +292,7 @@ Web-specific must-haves: hover states, right-click/context menus on rows, sortab
 Implementation: `useBreakpoint()` hook + NativeWind responsive classes; screen components may have `.web.tsx` variants only when the layout truly differs (e.g. table vs list). Keep logic in hooks shared by both.
 
 ### 9.3 Key screens
-Dashboard (net worth, month cashflow, budgets snapshot, recent tx, review prompt) · Transactions (list/table, filters, search) · Transaction editor · Accounts (list + detail with balance chart) · Budgets · Reports · Categories & rules · Recurring/upcoming · Goals · Debts · Import wizard · Bank connections · Settings (theme, currency, backups, devices, lock, export).
+Dashboard (net worth, month cashflow, budgets snapshot, recent tx, review prompt) · Transactions (list/table, filters, search) · Transaction editor · Accounts (list + detail with balance chart) · Budgets · Reports · Categories & rules · Recurring/upcoming · Goals · Debts · Import wizard · Settings (theme, currency, backups, devices, lock, export).
 
 Deliverable of P2: a `/dev/ui` route (hidden in production) showing every component in both themes and three widths — used for visual review in PRs (attach screenshots).
 
@@ -377,15 +362,8 @@ Each task = one GitHub issue = one PR (unless noted). Acceptance criteria (AC) m
 4. Review queue (on-open sheet, swipe cards on Android, keyboard flow on web) + "always categorize as" → rule.
 5. Metrics in Settings: auto-categorized %, model accuracy.
 
-### P7 — Bank sync
-1. **Spike:** register Enable Banking app, verify terms/pricing for personal use, list which of the owner's banks are available, test sandbox. **Report and ask before continuing.**
-2. Provider adapter + JWT signing + encrypted secret storage.
-3. Connect flow (bank picker, redirect, callback, account mapping).
-4. Scheduled sync + manual sync + rate-limit tracking + job log UI.
-5. Balance reconciliation + consent-expiry notifications/re-auth.
-
-### P8 — Polish & release
-1. i18n PT/EN, accessibility pass, empty states, onboarding (create accounts → import or connect bank).
+### P7 — Polish & release
+1. i18n PT/EN, accessibility pass, empty states, onboarding (create accounts → import).
 2. Performance: 50k-transaction dataset; list scroll 60fps; dashboard < 300 ms; web Lighthouse ≥ 90.
 3. Export CSV/JSON; delete-all-data.
 4. E2E: Playwright suite for web critical paths; Maestro smoke for Android.
@@ -396,7 +374,7 @@ Each task = one GitHub issue = one PR (unless noted). Acceptance criteria (AC) m
 ## 11. GitHub repo & PR workflow
 
 - **Repo:** private, `wallt`. Default branch `main`, protected: PR required, CI green, linear history, no force-push.
-- **Issues:** one per task in §10, created from this plan with labels `type:feat` / `type:chore` / `type:spike` / `type:test`, `area:ui` / `area:server`, `owner-review` (data integrity, money, sync, auth, secrets, backups), and `question` / `blocked` / `later` when needed. Milestones = phases (P0–P8). Use a GitHub Project board (Todo / In progress / In review / Done).
+- **Issues:** one per task in §10, created from this plan with labels `type:feat` / `type:chore` / `type:spike` / `type:test`, `area:ui` / `area:server`, `owner-review` (data integrity, money, sync, auth, secrets, backups), and `question` / `blocked` / `later` when needed. Milestones = phases (P0–P7). Use a GitHub Project board (Todo / In progress / In review / Done).
 - **Branches:** `<type>/<issue#>-<short-slug>` e.g. `feat/42-import-header-detection`.
 - **Commits:** Conventional Commits (`feat(import): detect header row`). release-please generates the changelog and versions.
 - **PR size:** one task per PR, aim < 400 changed lines (excluding fixtures/lockfiles/generated). Split otherwise.
@@ -424,11 +402,10 @@ Each task = one GitHub issue = one PR (unless noted). Acceptance criteria (AC) m
 ## 12. Risks & mitigations
 | Risk | Mitigation |
 |---|---|
-| Enable Banking terms/coverage change or a bank is missing | Provider adapter interface; universal import is a first-class path, built **before** bank sync |
 | expo-sqlite on web immature | P0 spike; remote-repository fallback behind the same interface |
 | Web feels like a phone app | Breakpoint rules in §9.2, `.web.tsx` variants for tables, review screenshots at 3 widths in every UI PR |
 | Sync bugs corrupt data | Server as source of truth, tombstones, property tests, backups before migrations, owner review on sync PRs |
-| Duplicates from overlapping imports/bank syncs | external_id + dedup_hash + occurrence index; ambiguous → review, never silent drop; batch undo |
+| Duplicates from overlapping imports | external_id + dedup_hash + occurrence index; ambiguous → review, never silent drop; batch undo |
 | ML miscategorizes | Confidence thresholds, review queue, user category always wins, model rollback |
 | Losing data | Daily encrypted off-site backups, tested restore in CI, failure notifications |
 

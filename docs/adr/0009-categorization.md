@@ -11,7 +11,7 @@ used as they are.
 
 ## Decisions
 1. **One decision function.** `categorize()` in `packages/categorize` is the only place that decides: user rules, then
-   payee memory, then the model. Import calls it; bank sync (P7) and the review queue call the same code. A suggestion
+   payee memory, then the model. Import calls it; the review queue call the same code. A suggestion
    whose category type contradicts the sign (an income category on an outflow) is ignored at every step.
 2. **Rule semantics.** All conditions of a rule must hold; rules are tried by ascending `priority`, ties by id so every
    device agrees. Text compares accent- and case-insensitively; `regex` is case-insensitive, also tried on the

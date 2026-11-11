@@ -2,12 +2,8 @@ import { Button, Select, Sheet, Tabs, Text, toast } from "@wallt/ui";
 import { useState } from "react";
 import { categoryOptions } from "../categories/options";
 import { useBulkDeleteTransactions, useBulkUpdateTransactions, useCategories } from "../data/hooks";
+import { useTranslation } from "../i18n";
 import type { TxRow } from "./rows";
-
-const kinds = [
-  { value: "expense", label: "Expenses" },
-  { value: "income", label: "Income" },
-] as const;
 
 /** Set (or clear) the category of the selected expense/income rows. Transfers have no category and are skipped. */
 export function BulkCategorySheet({
@@ -19,8 +15,13 @@ export function BulkCategorySheet({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const { t } = useTranslation();
   const categories = useCategories({ includeArchived: true }).data ?? [];
   const update = useBulkUpdateTransactions();
+  const kinds = [
+    { value: "expense", label: t("transactions.bulk.expenses") },
+    { value: "income", label: t("transactions.bulk.income") },
+  ] as const;
   const [type, setType] = useState<"expense" | "income">("expense");
   const [categoryId, setCategoryId] = useState<string>("none");
 
@@ -34,15 +35,15 @@ export function BulkCategorySheet({
         ids: targets.map((r) => r.id),
         patch: { categoryId: categoryId === "none" ? null : categoryId, splits: [] },
       });
-      toast.success(`Updated ${targets.length} transaction${targets.length === 1 ? "" : "s"}`);
+      toast.success(t("transactions.bulk.updated", { count: targets.length }));
       onDone();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not update the transactions");
+      toast.error(error instanceof Error ? error.message : t("transactions.bulk.updateFailed"));
     }
   }
 
   return (
-    <Sheet visible onClose={onClose} title="Set category">
+    <Sheet visible onClose={onClose} title={t("transactions.bulk.setCategoryTitle")}>
       <Tabs
         items={kinds}
         value={type}
@@ -52,23 +53,39 @@ export function BulkCategorySheet({
         }}
       />
       <Select
-        label="Category"
-        options={[{ value: "none", label: "No category" }, ...categoryOptions(categories, type)]}
+        label={t("transactions.bulk.category")}
+        options={[
+          { value: "none", label: t("transactions.bulk.noCategory") },
+          ...categoryOptions(categories, type),
+        ]}
         value={categoryId}
         onChange={setCategoryId}
       />
       <Text variant="small" tone="muted">
         {targets.length === 0
-          ? `None of the ${rows.length} selected are ${type === "expense" ? "expenses" : "income"}.`
-          : `Applies to ${targets.length} ${type === "expense" ? "expense" : "income"} transaction${targets.length === 1 ? "" : "s"}${skipped > 0 ? `; ${skipped} other${skipped === 1 ? "" : "s"} unchanged` : ""}. Splits on them are replaced.`}
+          ? t(
+              type === "expense" ? "transactions.bulk.noneExpense" : "transactions.bulk.noneIncome",
+              {
+                total: rows.length,
+              },
+            )
+          : t(
+              type === "expense"
+                ? "transactions.bulk.appliesExpense"
+                : "transactions.bulk.appliesIncome",
+              {
+                count: targets.length,
+                skipped: skipped > 0 ? t("transactions.bulk.skipped", { count: skipped }) : "",
+              },
+            )}
       </Text>
       <Button
-        label="Apply"
+        label={t("transactions.bulk.apply")}
         loading={update.isPending}
         disabled={targets.length === 0}
         onPress={apply}
       />
-      <Button label="Cancel" variant="ghost" onPress={onClose} />
+      <Button label={t("transactions.bulk.cancel")} variant="ghost" onPress={onClose} />
     </Sheet>
   );
 }
@@ -82,16 +99,17 @@ export function BulkDeleteSheet({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const { t } = useTranslation();
   const remove = useBulkDeleteTransactions();
   const transfers = rows.filter((r) => r.transfer).length;
 
   async function doDelete() {
     try {
       await remove.mutateAsync(rows.map((r) => r.id));
-      toast.success(`Deleted ${rows.length} transaction${rows.length === 1 ? "" : "s"}`);
+      toast.success(t("transactions.bulk.deleted", { count: rows.length }));
       onDone();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not delete the transactions");
+      toast.error(error instanceof Error ? error.message : t("transactions.bulk.deleteFailed"));
       onClose();
     }
   }
@@ -100,14 +118,20 @@ export function BulkDeleteSheet({
     <Sheet
       visible
       onClose={onClose}
-      title={`Delete ${rows.length} transaction${rows.length === 1 ? "" : "s"}?`}
+      title={t("transactions.bulk.deleteTitle", { count: rows.length })}
     >
       <Text tone="muted">
-        Balances update. {transfers > 0 ? "Both sides of each transfer are removed. " : ""}This
-        cannot be undone here.
+        {t(
+          transfers > 0 ? "transactions.bulk.deleteBodyTransfers" : "transactions.bulk.deleteBody",
+        )}
       </Text>
-      <Button label="Delete" variant="destructive" loading={remove.isPending} onPress={doDelete} />
-      <Button label="Cancel" variant="ghost" onPress={onClose} />
+      <Button
+        label={t("transactions.bulk.delete")}
+        variant="destructive"
+        loading={remove.isPending}
+        onPress={doDelete}
+      />
+      <Button label={t("transactions.bulk.cancel")} variant="ghost" onPress={onClose} />
     </Sheet>
   );
 }

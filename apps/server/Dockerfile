@@ -28,7 +28,9 @@ RUN BS="$(node -p "require('/tmp/server-package.json').dependencies['better-sqli
 
 # 3) Runtime: non-root, only the bundle, the addon and the static web export.
 FROM node:${NODE_VERSION}-bookworm-slim AS runtime
+ARG APP_VERSION=
 ENV NODE_ENV=production \
+    APP_VERSION=${APP_VERSION} \
     DATA_DIR=/data \
     WEB_DIR=/app/web \
     PORT=3000

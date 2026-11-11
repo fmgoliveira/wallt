@@ -2,12 +2,14 @@ import { Button, Text, useTheme } from "@wallt/ui";
 import { Fingerprint, Lock } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { View } from "react-native";
+import { useTranslation } from "../i18n";
 import { PinPad } from "./PinPad";
 import { submitPin, unlockWithBiometrics, useSecurityStore } from "./securityStore";
 
 /** Full-screen cover shown while the app is locked (and, on native, until the stored settings are read). */
 export function LockScreen() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const { ready, biometrics, blockedUntil } = useSecurityStore();
   const [pin, setPin] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +34,11 @@ export function LockScreen() {
     const result = await submitPin(pin);
     setPin("");
     setError(
-      result === "wrong" ? "Wrong PIN" : result === "blocked" ? "Too many attempts. Wait." : null,
+      result === "wrong"
+        ? t("security.lock.wrongPin")
+        : result === "blocked"
+          ? t("security.lock.blocked")
+          : null,
     );
   }
 
@@ -46,17 +52,17 @@ export function LockScreen() {
         <View className="w-full max-w-[320px] gap-8">
           <View className="items-center gap-2">
             <Lock size={28} color={colors.muted} strokeWidth={1.6} />
-            <Text variant="heading">Wallt is locked</Text>
+            <Text variant="heading">{t("security.lock.title")}</Text>
             <Text tone={error || waitSeconds > 0 ? "negative" : "muted"} className="text-center">
               {waitSeconds > 0
-                ? `Try again in ${waitSeconds} s`
-                : (error ?? "Enter your PIN to continue")}
+                ? t("security.lock.retryIn", { seconds: waitSeconds })
+                : (error ?? t("security.lock.prompt"))}
             </Text>
           </View>
           <PinPad value={pin} onChange={setPin} onSubmit={submit} disabled={waitSeconds > 0} />
           {biometrics ? (
             <Button
-              label="Use fingerprint or face"
+              label={t("security.lock.biometrics")}
               variant="ghost"
               leading={<Fingerprint size={18} color={colors.muted} strokeWidth={1.6} />}
               onPress={bio}

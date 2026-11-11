@@ -22,6 +22,9 @@
     "experiments": {
       "typedRoutes": true
     },
-    "icon": "./assets/icon.png"
+    "icon": "./assets/icon.png",
+    "extra": {
+      "releasesUrl": "https://github.com/fmgoliveira/wallt/releases"
+    }
   }
 }

@@ -50,28 +50,12 @@ import {
   useUpdateTransaction,
   useUpdateTransfer,
 } from "../data/hooks";
+import { useTranslation } from "../i18n";
 import { AmountKeypad, backspace, pressDigits } from "./AmountKeypad";
 import { useEditorStore } from "./editorStore";
 
 type Kind = "expense" | "income" | "transfer";
 type StepId = "amount" | "account" | "category" | "details";
-
-const allKinds = [
-  { value: "expense", label: "Expense" },
-  { value: "income", label: "Income" },
-  { value: "transfer", label: "Transfer" },
-] as const;
-const moneyKinds = [
-  { value: "expense", label: "Expense" },
-  { value: "income", label: "Income" },
-] as const;
-
-const stepTitle: Record<StepId, string> = {
-  amount: "Amount",
-  account: "Account",
-  category: "Category",
-  details: "Details",
-};
 
 interface SplitRow {
   key: number;
@@ -88,6 +72,7 @@ export function TransactionEditorHost() {
 
 function EditorLoader() {
   const router = useRouter();
+  const { t } = useTranslation();
   const { txId, presetAccountId, lastAccountId, close } = useEditorStore();
   const accounts = useAccounts();
   const categories = useCategories({ includeArchived: true });
@@ -105,7 +90,7 @@ function EditorLoader() {
 
   if (loading) {
     return (
-      <Sheet visible onClose={close} title="Transaction">
+      <Sheet visible onClose={close} title={t("transactions.editor.loadingTitle")}>
         <Skeleton className="h-16 w-full" />
         <Skeleton className="h-44 w-full" />
       </Sheet>
@@ -113,18 +98,18 @@ function EditorLoader() {
   }
   if (txId && !tx.data) {
     return (
-      <Sheet visible onClose={close} title="Transaction not found">
-        <Text tone="muted">It may have been deleted.</Text>
-        <Button label="Close" variant="secondary" onPress={close} />
+      <Sheet visible onClose={close} title={t("transactions.editor.notFoundTitle")}>
+        <Text tone="muted">{t("transactions.editor.notFoundBody")}</Text>
+        <Button label={t("transactions.editor.close")} variant="secondary" onPress={close} />
       </Sheet>
     );
   }
   if (accounts.data.length === 0) {
     return (
-      <Sheet visible onClose={close} title="Add an account first">
-        <Text tone="muted">Transactions belong to an account.</Text>
+      <Sheet visible onClose={close} title={t("transactions.editor.noAccountTitle")}>
+        <Text tone="muted">{t("transactions.editor.noAccountBody")}</Text>
         <Button
-          label="Go to accounts"
+          label={t("transactions.editor.goToAccounts")}
           onPress={() => {
             close();
             router.push("/accounts");
@@ -163,6 +148,7 @@ function StepPills({
   onGo: (s: StepId) => void;
 }) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   return (
     <View className="flex-row gap-1.5" accessibilityRole="tablist">
       {steps.map((s, i) => {
@@ -173,7 +159,10 @@ function StepPills({
             key={s}
             accessibilityRole="tab"
             accessibilityState={{ selected: active, disabled: !enabled }}
-            accessibilityLabel={`Step ${i + 1}: ${stepTitle[s]}`}
+            accessibilityLabel={t("transactions.editor.stepLabel", {
+              n: i + 1,
+              title: t(`transactions.editor.steps.${s}`),
+            })}
             disabled={!enabled}
             onPress={() => onGo(s)}
             className="flex-1 web:cursor-pointer web:outline-none"
@@ -195,7 +184,7 @@ function StepPills({
               weight={active ? "medium" : "regular"}
               className="pt-1.5"
             >
-              {stepTitle[s]}
+              {t(`transactions.editor.steps.${s}`)}
             </Text>
           </Pressable>
         );
@@ -312,6 +301,7 @@ function EditorForm({
   onClose: () => void;
 }) {
   const { scheme, colors } = useTheme();
+  const { t } = useTranslation();
   const router = useRouter();
   const remember = useEditorStore((s) => s.remember);
   const createTx = useCreateTransaction();
@@ -380,17 +370,17 @@ function EditorForm({
   const toOptions = accounts.filter((a) => a.id !== accountId && a.currency === currency);
 
   const errors = {
-    amount: amount <= 0 ? "Enter an amount above zero" : undefined,
-    date: isValidDate(date) ? undefined : "Pick a date",
-    to: transfer && !toAccountId ? "Choose the destination account" : undefined,
+    amount: amount <= 0 ? t("transactions.editor.errAmount") : undefined,
+    date: isValidDate(date) ? undefined : t("transactions.editor.errDate"),
+    to: transfer && !toAccountId ? t("transactions.editor.errTo") : undefined,
     splits:
       !transfer && splitMode
         ? splits.length < 2
-          ? "Add at least two splits"
+          ? t("transactions.editor.errSplitsMin")
           : splits.some((s) => s.amount === null || s.amount <= 0)
-            ? "Every split needs an amount"
+            ? t("transactions.editor.errSplitsAmount")
             : remaining !== 0
-              ? "Splits must add up to the total"
+              ? t("transactions.editor.errSplitsTotal")
               : undefined
         : undefined,
   };
@@ -401,13 +391,19 @@ function EditorForm({
     createTransfer.isPending ||
     updateTransfer.isPending;
   const exponent = currencyExponent(currency);
+  const allKinds = [
+    { value: "expense", label: t("transactions.editor.kinds.expense") },
+    { value: "income", label: t("transactions.editor.kinds.income") },
+    { value: "transfer", label: t("transactions.editor.kinds.transfer") },
+  ] as const;
+  const moneyKinds = allKinds.slice(0, 2);
 
   // Physical keyboard on the amount step (web): digits, backspace, enter.
   useEffect(() => {
     if (step !== "amount" || typeof document === "undefined") return;
     const onKey = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement | null;
-      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA")) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (/^\d$/.test(e.key)) setAmount((v) => pressDigits(v, e.key));
       else if (e.key === "Backspace") setAmount((v) => backspace(v));
@@ -425,13 +421,13 @@ function EditorForm({
       if (e.key !== "Enter" || e.shiftKey || e.metaKey || e.ctrlKey || e.altKey || e.isComposing)
         return;
       if (confirmDelete || e.defaultPrevented) return;
-      const t = e.target as HTMLElement | null;
+      const el = e.target as HTMLElement | null;
       // Focused buttons/links/selects activate themselves; textareas need Enter for newlines.
-      if (t && ["BUTTON", "A", "SELECT", "TEXTAREA"].includes(t.tagName)) return;
-      if (t?.getAttribute("role") === "button" || t?.getAttribute("role") === "radio") return;
+      if (el && ["BUTTON", "A", "SELECT", "TEXTAREA"].includes(el.tagName)) return;
+      if (el?.getAttribute("role") === "button" || el?.getAttribute("role") === "radio") return;
       if (last) {
         // Single-line inputs on the last step (e.g. new tag) handle Enter themselves.
-        if (t?.tagName === "INPUT" || busy || invalid) return;
+        if (el?.tagName === "INPUT" || busy || invalid) return;
         e.preventDefault();
         void save();
       } else if (amount > 0) {
@@ -474,13 +470,13 @@ function EditorForm({
   async function addTag() {
     const name = newTag.trim();
     if (!name) return;
-    const existingTag = tags.find((t) => t.name.toLowerCase() === name.toLowerCase());
+    const existingTag = tags.find((x) => x.name.toLowerCase() === name.toLowerCase());
     try {
       const tag = existingTag ?? (await createTag.mutateAsync({ name }));
       setTagIds((ids) => (ids.includes(tag.id) ? ids : [...ids, tag.id]));
       setNewTag("");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not add the tag");
+      toast.error(error instanceof Error ? error.message : t("transactions.editor.tagFailed"));
     }
   }
 
@@ -523,10 +519,10 @@ function EditorForm({
         else await createTx.mutateAsync(fields);
       }
       remember(accountId);
-      toast.success(editing ? "Transaction updated" : "Transaction added");
+      toast.success(t(editing ? "transactions.editor.updated" : "transactions.editor.added"));
       onClose();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not save the transaction");
+      toast.error(error instanceof Error ? error.message : t("transactions.editor.saveFailed"));
     }
   }
 
@@ -534,18 +530,24 @@ function EditorForm({
     if (!existing) return;
     try {
       await remove.mutateAsync(existing.id);
-      toast.success(wasTransfer ? "Transfer deleted" : "Transaction deleted");
+      toast.success(
+        t(
+          wasTransfer
+            ? "transactions.editor.transferDeleted"
+            : "transactions.editor.transactionDeleted",
+        ),
+      );
       setConfirmDelete(false);
       onClose();
     } catch (error) {
       setConfirmDelete(false);
-      toast.error(error instanceof Error ? error.message : "Could not delete the transaction");
+      toast.error(error instanceof Error ? error.message : t("transactions.editor.deleteFailed"));
     }
   }
 
   const catType = kind === "income" ? "income" : "expense";
   const pickList = (keep: string | null) => [
-    { value: "none", label: "No category" },
+    { value: "none", label: t("transactions.editor.noCategory") },
     ...categoryOptions(categories, catType, keep),
   ];
   const roots = categories.filter(
@@ -559,7 +561,11 @@ function EditorForm({
   const toAccount = accounts.find((a) => a.id === toAccountId);
   const canJump = amount > 0;
 
-  const title = editing ? (wasTransfer ? "Edit transfer" : "Edit transaction") : "New transaction";
+  const title = editing
+    ? wasTransfer
+      ? t("transactions.editor.editTransfer")
+      : t("transactions.editor.editTransaction")
+    : t("transactions.editor.newTransaction");
 
   return (
     <Sheet visible onClose={onClose} title={title}>
@@ -604,7 +610,7 @@ function EditorForm({
           accessibilityRole="radiogroup"
         >
           <Text variant="small" tone="muted" weight="medium">
-            {transfer ? "From" : "Which account?"}
+            {transfer ? t("transactions.editor.from") : t("transactions.editor.whichAccount")}
           </Text>
           {accounts.map((a) => (
             <AccountCard
@@ -620,11 +626,11 @@ function EditorForm({
           {transfer ? (
             <>
               <Text variant="small" tone="muted" weight="medium" className="pt-2">
-                To
+                {t("transactions.editor.to")}
               </Text>
               {toOptions.length === 0 ? (
                 <Text variant="small" tone="muted">
-                  You need another {currency} account to transfer to.
+                  {t("transactions.editor.needAnotherAccount", { currency })}
                 </Text>
               ) : (
                 toOptions.map((a) => (
@@ -657,7 +663,7 @@ function EditorForm({
                 <View key={row.key} className="flex-row items-end gap-2">
                   <View className="flex-1">
                     <Select
-                      label={`Split ${i + 1}`}
+                      label={t("transactions.editor.splitN", { n: i + 1 })}
                       options={pickList(row.categoryId)}
                       value={row.categoryId ?? "none"}
                       onChange={(v) =>
@@ -671,7 +677,7 @@ function EditorForm({
                   </View>
                   <View className="w-[120px]">
                     <AmountInput
-                      label="Amount"
+                      label={t("transactions.editor.amount")}
                       value={row.amount}
                       onChangeValue={(v) =>
                         setSplits((rs) =>
@@ -685,7 +691,7 @@ function EditorForm({
                   {splits.length > 2 ? (
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityLabel={`Remove split ${i + 1}`}
+                      accessibilityLabel={t("transactions.editor.removeSplitN", { n: i + 1 })}
                       onPress={() => setSplits((rs) => rs.filter((r) => r.key !== row.key))}
                       className="h-11 w-11 items-center justify-center"
                     >
@@ -711,12 +717,12 @@ function EditorForm({
                 >
                   <Plus size={14} color={colors.muted} strokeWidth={1.8} />
                   <Text variant="small" weight="medium" tone="muted">
-                    Add split
+                    {t("transactions.editor.addSplit")}
                   </Text>
                 </Pressable>
                 <View className="flex-row items-center gap-1.5">
                   <Text variant="small" tone="muted">
-                    Left to allocate
+                    {t("transactions.editor.leftToAllocate")}
                   </Text>
                   <Amount value={remaining} currency={currency} size="small" tone="muted" />
                 </View>
@@ -732,15 +738,19 @@ function EditorForm({
                 className="self-start py-2 web:cursor-pointer web:outline-none web:hover:opacity-70"
               >
                 <Text variant="small" weight="medium" tone="muted">
-                  Remove split
+                  {t("transactions.editor.removeSplit")}
                 </Text>
               </Pressable>
             </View>
           ) : (
             <>
-              <View className="flex-row flex-wrap gap-[2.5%]" accessibilityRole="radiogroup">
+              <View
+                className="flex-row flex-wrap"
+                style={{ columnGap: "2.5%", rowGap: 10 }}
+                accessibilityRole="radiogroup"
+              >
                 <CategoryTile
-                  label="None"
+                  label={t("transactions.editor.none")}
                   icon={categoryIcon(null)}
                   tint={colors.subtle}
                   selected={categoryId === null}
@@ -766,7 +776,7 @@ function EditorForm({
               {children.length > 0 ? (
                 <View className="gap-2">
                   <Text variant="small" tone="muted" weight="medium">
-                    Subcategory
+                    {t("transactions.editor.subcategory")}
                   </Text>
                   <View className="flex-row flex-wrap gap-2">
                     {children.map((c) => (
@@ -782,7 +792,11 @@ function EditorForm({
                       />
                     ))}
                     <ToggleChip
-                      label={`Just ${selected?.parentId ? categories.find((x) => x.id === selected.parentId)?.name : selected?.name}`}
+                      label={t("transactions.editor.just", {
+                        name: selected?.parentId
+                          ? (categories.find((x) => x.id === selected.parentId)?.name ?? "")
+                          : (selected?.name ?? ""),
+                      })}
                       selected={categoryId === activeRoot}
                       onPress={() => {
                         if (activeRoot) setCategoryId(activeRoot);
@@ -798,7 +812,7 @@ function EditorForm({
                 className="self-start py-2 web:cursor-pointer web:outline-none web:hover:opacity-70"
               >
                 <Text variant="small" weight="medium" tone="muted">
-                  Split across categories
+                  {t("transactions.editor.splitAcross")}
                 </Text>
               </Pressable>
             </>
@@ -833,11 +847,11 @@ function EditorForm({
                 {transfer
                   ? `${account?.name ?? ""} → ${toAccount?.name ?? "…"}`
                   : splitMode
-                    ? "Split"
-                    : (selected?.name ?? "No category")}
+                    ? t("transactions.editor.split")
+                    : (selected?.name ?? t("transactions.editor.noCategory"))}
               </Text>
               <Text variant="small" tone="muted" numberOfLines={1}>
-                {transfer ? "Transfer" : (account?.name ?? "")}
+                {transfer ? t("transactions.editor.transfer") : (account?.name ?? "")}
               </Text>
             </View>
             <Amount
@@ -848,7 +862,7 @@ function EditorForm({
           </View>
 
           <DatePicker
-            label="Date"
+            label={t("transactions.editor.date")}
             value={date}
             onChange={setDate}
             error={submitted ? errors.date : undefined}
@@ -856,34 +870,34 @@ function EditorForm({
 
           {transfer ? null : (
             <Input
-              label="Payee"
+              label={t("transactions.editor.payee")}
               value={payee}
               onChangeText={setPayee}
-              placeholder="Who was it with?"
+              placeholder={t("transactions.editor.payeePlaceholder")}
             />
           )}
           <Input
-            label="Notes"
+            label={t("transactions.editor.notes")}
             value={notes}
             onChangeText={setNotes}
-            placeholder="Optional"
+            placeholder={t("transactions.editor.notesPlaceholder")}
             multiline
           />
 
           {transfer ? null : (
             <View className="gap-2">
               <Text variant="small" tone="muted" weight="medium">
-                Tags
+                {t("transactions.editor.tags")}
               </Text>
               <View className="flex-row flex-wrap gap-2">
-                {tags.map((t) => (
+                {tags.map((tag) => (
                   <ToggleChip
-                    key={t.id}
-                    label={t.name}
-                    selected={tagIds.includes(t.id)}
+                    key={tag.id}
+                    label={tag.name}
+                    selected={tagIds.includes(tag.id)}
                     onPress={() =>
                       setTagIds((ids) =>
-                        ids.includes(t.id) ? ids.filter((x) => x !== t.id) : [...ids, t.id],
+                        ids.includes(tag.id) ? ids.filter((x) => x !== tag.id) : [...ids, tag.id],
                       )
                     }
                   />
@@ -892,23 +906,23 @@ function EditorForm({
               <Input
                 value={newTag}
                 onChangeText={setNewTag}
-                placeholder="New tag, then press enter"
+                placeholder={t("transactions.editor.newTagPlaceholder")}
                 onSubmitEditing={addTag}
                 returnKeyType="done"
-                accessibilityLabel="New tag"
+                accessibilityLabel={t("transactions.editor.newTagLabel")}
               />
             </View>
           )}
 
           <View className="gap-1">
             <Switch
-              label="Pending"
-              description="Not yet booked by the bank"
+              label={t("transactions.editor.pending")}
+              description={t("transactions.editor.pendingHint")}
               value={status === "pending"}
               onValueChange={(on) => setStatus(on ? "pending" : "booked")}
             />
             <Switch
-              label="Include in reports"
+              label={t("transactions.editor.includeInReports")}
               value={counted === "in"}
               onValueChange={(on) => setCounted(on ? "in" : "out")}
             />
@@ -919,25 +933,36 @@ function EditorForm({
       <View className="gap-2 pt-1">
         {last ? (
           <Button
-            label={editing ? "Save changes" : "Add transaction"}
+            label={t(
+              editing ? "transactions.editor.saveChanges" : "transactions.editor.addTransaction",
+            )}
             loading={busy}
             onPress={save}
           />
         ) : (
-          <Button label="Next" disabled={amount <= 0} onPress={() => go(1)} />
+          <Button
+            label={t("transactions.editor.next")}
+            disabled={amount <= 0}
+            onPress={() => go(1)}
+          />
         )}
         <View className="flex-row items-center justify-between">
           {index === 0 ? (
-            <Button label="Cancel" variant="ghost" onPress={onClose} />
+            <Button label={t("transactions.editor.cancel")} variant="ghost" onPress={onClose} />
           ) : (
-            <Button label="Back" variant="ghost" onPress={() => go(-1)} />
+            <Button label={t("transactions.editor.back")} variant="ghost" onPress={() => go(-1)} />
           )}
           {!last && canJump && !invalid ? (
-            <Button label="Save now" variant="ghost" loading={busy} onPress={save} />
+            <Button
+              label={t("transactions.editor.saveNow")}
+              variant="ghost"
+              loading={busy}
+              onPress={save}
+            />
           ) : null}
           {last && editing && !wasTransfer && existing ? (
             <Button
-              label="Create rule"
+              label={t("transactions.editor.createRule")}
               variant="ghost"
               onPress={() => {
                 onClose();
@@ -946,7 +971,11 @@ function EditorForm({
             />
           ) : null}
           {last && editing ? (
-            <Button label="Delete" variant="ghost" onPress={() => setConfirmDelete(true)} />
+            <Button
+              label={t("transactions.editor.delete")}
+              variant="ghost"
+              onPress={() => setConfirmDelete(true)}
+            />
           ) : null}
         </View>
       </View>
@@ -954,20 +983,28 @@ function EditorForm({
       <Sheet
         visible={confirmDelete}
         onClose={() => setConfirmDelete(false)}
-        title={wasTransfer ? "Delete transfer?" : "Delete transaction?"}
+        title={
+          wasTransfer
+            ? t("transactions.editor.deleteTransferTitle")
+            : t("transactions.editor.deleteTransactionTitle")
+        }
       >
         <Text tone="muted">
           {wasTransfer
-            ? "Both sides of the transfer are removed and the balances of both accounts update."
-            : "It is removed and the account balance updates."}
+            ? t("transactions.editor.deleteTransferBody")
+            : t("transactions.editor.deleteTransactionBody")}
         </Text>
         <Button
-          label="Delete"
+          label={t("transactions.editor.delete")}
           variant="destructive"
           loading={remove.isPending}
           onPress={doDelete}
         />
-        <Button label="Cancel" variant="ghost" onPress={() => setConfirmDelete(false)} />
+        <Button
+          label={t("transactions.editor.cancel")}
+          variant="ghost"
+          onPress={() => setConfirmDelete(false)}
+        />
       </Sheet>
     </Sheet>
   );

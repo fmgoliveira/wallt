@@ -103,4 +103,11 @@ export const migrations: readonly { tag: string; statements: readonly string[] }
       "CREATE TRIGGER `import_profiles_outbox_u` AFTER UPDATE ON `import_profiles`\nWHEN NOT EXISTS (SELECT 1 FROM `sync_meta` WHERE `key` = 'outbox_suspended')\nBEGIN\nINSERT INTO `outbox` (`table_name`, `row_id`, `op`, `hlc`, `queued_at`, `attempts`, `last_error`)\nVALUES ('import_profiles', NEW.`id`, CASE WHEN NEW.`deleted_at` IS NULL THEN 'put' ELSE 'delete' END, NEW.`hlc`, NEW.`updated_at`, 0, NULL)\nON CONFLICT(`table_name`, `row_id`) DO UPDATE SET `op` = excluded.`op`, `hlc` = excluded.`hlc`, `queued_at` = excluded.`queued_at`, `attempts` = 0, `last_error` = NULL;\nEND",
     ],
   },
+  {
+    tag: "0003_booking_date_index_device_pull_seq",
+    statements: [
+      "ALTER TABLE `devices` ADD `last_pull_seq` integer;",
+      "CREATE INDEX `transactions_booking_date_idx` ON `transactions` (`booking_date`);",
+    ],
+  },
 ];

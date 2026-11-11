@@ -1,0 +1,43 @@
+export const sync = {
+  errors: {
+    invalid_credentials: "Wrong email or password.",
+    invalid_code: "That code did not work. Try the next one from your authenticator.",
+    locked: "Too many attempts. Wait a few minutes and try again.",
+    rate_limited: "Too many attempts from this device. Wait a few minutes.",
+    expired: "That took too long. Enter your password again.",
+    offline: "Could not reach the server. Check the address and your connection.",
+    server: "The server answered with an error.",
+    generic: "Something went wrong",
+    enterServer: "Enter the server address (https://…).",
+    enrolRequired: "Finish two-factor setup on the server's web app first, then sign in here.",
+  },
+  signIn: {
+    titleCode: "Two-factor code",
+    titleServer: "Sign in to your server",
+    recoveryCode: "Recovery code",
+    sixDigitCode: "6-digit code",
+    checking: "Checking…",
+    submit: "Sign in",
+    useAuthenticator: "Use authenticator code",
+    useRecovery: "Use a recovery code",
+    serverAddress: "Server address",
+    serverPlaceholder: "https://wallt.example.com",
+    email: "Email",
+    password: "Password",
+    continue: "Continue",
+    cancel: "Cancel",
+    done: "Signed in. Syncing…",
+  },
+  settings: {
+    title: "Sync",
+    signedIn: "Signed in as {{email}} on {{server}}. {{status}}.",
+    signedOut:
+      "Keep this device in step with your server and your other devices. Works offline; changes sync when you are back online.",
+    syncNow: "Sync now",
+    signOut: "Sign out of this device",
+    signInToSync: "Sign in to sync",
+  },
+  status: {
+    syncNowLabel: "{{label}}. Sync now",
+  },
+} as const;

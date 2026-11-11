@@ -1,6 +1,6 @@
 # Wallt
 
-Self-hosted personal finance & budget tracker — a Cashew-like app with multiple accounts, transactions, budgets, categories, reports, automatic bank sync (PSD2) and universal statement import.
+Self-hosted personal finance & budget tracker — a Cashew-like app with multiple accounts, transactions, budgets, categories, reports and universal statement import.
 
 - **Clients:** one Expo (React Native) codebase → Android app + responsive web app, same design.
 - **Server:** Docker container, SQLite file DB, encrypted automated backups to Google Drive.
@@ -12,7 +12,7 @@ Self-hosted personal finance & budget tracker — a Cashew-like app with multipl
 - Architecture decisions: `docs/adr/`
 
 ## Workflow
-Work is tracked as GitHub issues grouped by milestone (P0 → P8). One issue = one branch = one PR. See §11 of the plan.
+Work is tracked as GitHub issues grouped by milestone (P0 → P7). One issue = one branch = one PR. See §11 of the plan.
 
 > **In case of doubt, ask first** — open or comment on the issue with the `question` label before writing code.
 
@@ -30,3 +30,10 @@ pnpm format      # Biome auto-fix
 
 Layout: `apps/{app,server}`, `packages/{core,db,sync,ingest,categorize,ui,config}` (see `docs/PLAN.md` §2.2).
 Shared TS/Biome config lives in `packages/config`. Copy `.env.example` to `.env` for local settings.
+
+## End-to-end tests
+- **Web (Playwright, runs in CI):** `pnpm --filter @wallt/app build`, then `pnpm e2e` (first time: `pnpm --filter @wallt/e2e exec playwright install chromium`). The tests start the server serving the web export on port 3100 with a throw-away data directory; see `apps/e2e`.
+- **Android (Maestro, by hand):** install the app on an emulator or device, then `maestro test apps/e2e/maestro/smoke.yaml`.
+
+## Releases
+Tagged releases publish the server image to GHCR and a signed APK to the GitHub Release, driven by release-please. See [`docs/release.md`](docs/release.md) for the flow and the one-time setup (signing secrets).

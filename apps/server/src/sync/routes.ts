@@ -4,6 +4,7 @@ import { bodyLimit } from "hono/body-limit";
 import { type AuthEnv, requireAuth } from "../auth/routes";
 import type { AuthService } from "../auth/service";
 import type { Db } from "../database";
+import { purgeDeletedRows } from "./purge";
 import type { SyncService } from "./service";
 
 /** `/sync/push` and `/sync/pull` (access token required). See ADR 0007. */
@@ -16,6 +17,10 @@ export function syncRoutes(auth: AuthService, sync: SyncService, db: Db, now: ()
   });
 
   const touch = db.prepare("UPDATE devices SET last_seen_at = ? WHERE id = ?");
+  // `since` is what the device has already applied: remember the highest, the purge of deleted rows waits on it.
+  const recordPulled = db.prepare(
+    "UPDATE devices SET last_pull_seq = MAX(COALESCE(last_pull_seq, 0), ?) WHERE id = ?",
+  );
 
   const schemaConflict = (error: "schema_outdated" | "server_outdated") => ({
     error,
@@ -51,8 +56,12 @@ export function syncRoutes(auth: AuthService, sync: SyncService, db: Db, now: ()
     if (!check.ok) return c.json(schemaConflict(check.error), 409);
     const result = sync.pull(c.get("userId"), since, limit);
     touch.run(new Date(now()).toISOString(), c.get("deviceId"));
+    recordPulled.run(since, c.get("deviceId"));
     return c.json(result);
   });
+
+  // Removes this user's deleted rows from the server once every active device has applied them (see purge.ts).
+  app.post("/purge", (c) => c.json(purgeDeletedRows(db, c.get("userId"), now())));
 
   return app;
 }

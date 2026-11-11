@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Platform, View } from "react-native";
 import { DataGate } from "../../src/data/DataGate";
 import { useTransactionPages } from "../../src/data/hooks";
+import { useTranslation } from "../../src/i18n";
 import { Page } from "../../src/shell/Page";
 import { placeholderIcon } from "../../src/shell/placeholder";
 import { BulkCategorySheet, BulkDeleteSheet } from "../../src/transactions/BulkDialogs";
@@ -21,6 +22,7 @@ function isTyping(target: EventTarget | null): boolean {
 }
 
 function TransactionsContent() {
+  const { t } = useTranslation();
   const bp = useBreakpoint();
   const table = bp === "desktop" && Platform.OS === "web";
   const { query, filter, set, clear } = useTxQuery();
@@ -65,7 +67,9 @@ function TransactionsContent() {
       if (e.key === "/") {
         e.preventDefault();
         document
-          .querySelector<HTMLInputElement>('input[aria-label="Search transactions"]')
+          .querySelector<HTMLInputElement>(
+            `input[aria-label="${t("transactions.filters.searchLabel")}"]`,
+          )
           ?.focus();
       } else if ((e.key === "e" || e.key === "E") && selectedRows.length === 1 && selectedRows[0]) {
         e.preventDefault();
@@ -79,17 +83,30 @@ function TransactionsContent() {
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [table, selectedRows, selected.size, open, act]);
+  }, [table, selectedRows, selected.size, open, act, t]);
 
   const menuItems = (row: TxRow): MenuItem[] => {
     const on = selected.has(row.id) ? selectedRows : [row];
-    const label = on.length > 1 ? ` (${on.length})` : "";
+    const many = on.length > 1;
     return [
-      { label: "Edit", onPress: () => open(row) },
+      { label: t("transactions.menu.edit"), onPress: () => open(row) },
       ...(row.transfer && on.length === 1
         ? []
-        : [{ label: `Set category${label}`, onPress: () => act("category", on) }]),
-      { label: `Delete${label}`, negative: true, onPress: () => act("delete", on) },
+        : [
+            {
+              label: many
+                ? t("transactions.menu.setCategoryN", { n: on.length })
+                : t("transactions.menu.setCategory"),
+              onPress: () => act("category", on),
+            },
+          ]),
+      {
+        label: many
+          ? t("transactions.menu.deleteN", { n: on.length })
+          : t("transactions.menu.delete"),
+        negative: true,
+        onPress: () => act("delete", on),
+      },
     ];
   };
 
@@ -109,13 +126,17 @@ function TransactionsContent() {
       <Card>
         <EmptyState
           icon={placeholderIcon(Receipt)}
-          title={filtered ? "No matching transactions" : "No transactions yet"}
+          title={
+            filtered ? t("transactions.page.emptyFilteredTitle") : t("transactions.page.emptyTitle")
+          }
           description={
             filtered
-              ? "Try a different search or clear the filters."
-              : "Add your first transaction."
+              ? t("transactions.page.emptyFilteredDescription")
+              : t("transactions.page.emptyDescription")
           }
-          actionLabel={filtered ? "Clear filters" : "Add transaction"}
+          actionLabel={
+            filtered ? t("transactions.page.clearFilters") : t("transactions.page.addTransaction")
+          }
           onAction={
             filtered
               ? () => {
@@ -179,7 +200,7 @@ function TransactionsContent() {
       {body}
       {pages.isFetchingNextPage ? (
         <Text variant="small" tone="muted" className="text-center">
-          Loading more…
+          {t("transactions.page.loadingMore")}
         </Text>
       ) : null}
       {menu ? (
@@ -213,31 +234,37 @@ function BulkBar({
   onDelete: () => void;
   onClear: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <Card className="flex-row items-center gap-2 py-2 tablet:py-2">
       <Text weight="medium" className="flex-1">
-        {count} selected
+        {t("transactions.bulkBar.selected", { n: count })}
       </Text>
       {hasTransfers && count === 1 ? null : (
-        <Button label="Set category" variant="secondary" onPress={onCategory} />
+        <Button
+          label={t("transactions.bulkBar.setCategory")}
+          variant="secondary"
+          onPress={onCategory}
+        />
       )}
-      <Button label="Delete" variant="secondary" onPress={onDelete} />
-      <Button label="Clear" variant="ghost" onPress={onClear} />
+      <Button label={t("transactions.bulkBar.delete")} variant="secondary" onPress={onDelete} />
+      <Button label={t("transactions.bulkBar.clear")} variant="ghost" onPress={onClear} />
     </Card>
   );
 }
 
 export default function Transactions() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const bp = useBreakpoint();
   return (
     <Page
       fill
-      title="Transactions"
-      subtitle="Search, filter and edit"
+      title={t("transactions.page.title")}
+      subtitle={t("transactions.page.subtitle")}
       actions={
         <Button
-          label="Add"
+          label={t("transactions.page.add")}
           kbd={bp === "desktop" ? "N" : undefined}
           leading={<Plus size={18} color={colors.accentFg} strokeWidth={2} />}
           onPress={() => useEditorStore.getState().openNew()}

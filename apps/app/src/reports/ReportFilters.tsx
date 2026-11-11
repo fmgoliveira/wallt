@@ -8,6 +8,16 @@ import { categoryOptions } from "../categories/options";
 import { displayColor } from "../components/colors";
 import { ToggleChip } from "../components/ToggleChip";
 import { useAccounts, useCategories, useTags } from "../data/hooks";
+import { useTranslation } from "../i18n";
+
+const periodKeys = {
+  month: "reports.periodMonth",
+  "last-month": "reports.periodLastMonth",
+  "3m": "reports.period3m",
+  "6m": "reports.period6m",
+  "12m": "reports.period12m",
+  ytd: "reports.periodYtd",
+} as const satisfies Record<ReportPeriod, string>;
 
 export interface ReportQuery {
   period: ReportPeriod;
@@ -37,6 +47,7 @@ export function ReportFilters({
   query: ReportQuery;
   onChange: (q: ReportQuery) => void;
 }) {
+  const { t } = useTranslation();
   const { scheme, colors } = useTheme();
   const bp = useBreakpoint();
   const [open, setOpen] = useState(false);
@@ -50,30 +61,30 @@ export function ReportFilters({
     <View className="flex-row items-end gap-3">
       <View className={bp === "phone" ? "flex-1" : "w-64"}>
         <Select
-          label="Period"
-          options={REPORT_PERIODS}
+          label={t("reports.period")}
+          options={REPORT_PERIODS.map((p) => ({ value: p.value, label: t(periodKeys[p.value]) }))}
           value={query.period}
           onChange={(period) => onChange({ ...query, period })}
         />
       </View>
       <Button
-        label={n > 0 ? `Filters (${n})` : "Filters"}
+        label={n > 0 ? t("reports.filtersCount", { n }) : t("reports.filters")}
         variant="secondary"
         leading={<SlidersHorizontal size={16} color={colors.text} strokeWidth={1.8} />}
         onPress={() => setOpen(true)}
       />
       {n > 0 ? (
         <Button
-          label="Clear"
+          label={t("reports.clear")}
           variant="ghost"
           onPress={() => onChange({ ...query, accounts: [], categories: [], tags: [] })}
         />
       ) : null}
       {open ? (
-        <Sheet visible onClose={() => setOpen(false)} title="Filter reports">
+        <Sheet visible onClose={() => setOpen(false)} title={t("reports.filterReports")}>
           <View className="gap-1.5">
             <Text variant="small" tone="muted" weight="medium">
-              Accounts
+              {t("reports.accounts")}
             </Text>
             <View className="flex-row flex-wrap gap-2">
               {accounts.map((a) => (
@@ -89,7 +100,7 @@ export function ReportFilters({
           </View>
           <View className="gap-1.5">
             <Text variant="small" tone="muted" weight="medium">
-              Categories
+              {t("reports.categories")}
             </Text>
             <View className="flex-row flex-wrap gap-2">
               {cats.map((c) => (
@@ -112,21 +123,21 @@ export function ReportFilters({
           {tags.length > 0 ? (
             <View className="gap-1.5">
               <Text variant="small" tone="muted" weight="medium">
-                Tags
+                {t("reports.tags")}
               </Text>
               <View className="flex-row flex-wrap gap-2">
-                {tags.map((t) => (
+                {tags.map((tag) => (
                   <ToggleChip
-                    key={t.id}
-                    label={t.name}
-                    selected={query.tags.includes(t.id)}
-                    onPress={() => onChange({ ...query, tags: toggle(query.tags, t.id) })}
+                    key={tag.id}
+                    label={tag.name}
+                    selected={query.tags.includes(tag.id)}
+                    onPress={() => onChange({ ...query, tags: toggle(query.tags, tag.id) })}
                   />
                 ))}
               </View>
             </View>
           ) : null}
-          <Button label="Done" onPress={() => setOpen(false)} />
+          <Button label={t("reports.done")} onPress={() => setOpen(false)} />
         </Sheet>
       ) : null}
     </View>

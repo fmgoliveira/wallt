@@ -1,6 +1,8 @@
 import type { AppNotification } from "@wallt/core";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
+import { i18n } from "../i18n";
+import { notificationBodyT, notificationTitleT } from "../i18n/packages";
 
 /** Android: system notifications (local, nothing leaves the device). */
 export const systemNotifications = true;
@@ -52,7 +54,7 @@ export async function show(n: AppNotification): Promise<void> {
     await ensureChannel();
     await Notifications.scheduleNotificationAsync({
       identifier: n.key,
-      content: { title: n.title, body: n.body },
+      content: { title: notificationTitleT(i18n.t, n), body: notificationBodyT(i18n.t, n) },
       trigger: null,
     });
   } catch {
@@ -91,8 +93,13 @@ export async function syncBillReminders(bills: readonly AppNotification[], now =
       await Notifications.scheduleNotificationAsync({
         identifier,
         content: {
-          title: b.title.replace(/ (is due|is overdue).*$/, " is due today"),
-          body: b.body,
+          // the reminder fires on the morning it is due, whatever the title said when it was computed
+          title: notificationTitleT(i18n.t, {
+            ...b,
+            titleText: b.titleText && { id: "billToday", params: b.titleText.params },
+            title: b.title.replace(/ (is due|is overdue).*$/, " is due today"),
+          }),
+          body: notificationBodyT(i18n.t, b),
         },
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.DATE,

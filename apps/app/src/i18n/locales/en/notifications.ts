@@ -1,0 +1,31 @@
+export const notifications = {
+  off: "Off",
+  on: "On",
+  bell: {
+    title: "Notifications",
+    label: "Notifications",
+    labelUnread: "Notifications, {{count}} unread",
+    emptyTitle: "Nothing yet",
+    emptyDescription: "Budget alerts, bills that are due and transactions to review show up here.",
+    close: "Close",
+    subtitle: "{{type}} · {{when}}",
+    subtitleNew: "{{type}} · {{when}} · new",
+  },
+  type: {
+    budget: "Budget",
+    bill: "Bill",
+    review: "Review",
+  },
+  settings: {
+    title: "Notifications",
+    hintSystem: "Shown on this device and listed in the bell. They never include amounts.",
+    hintWeb: "Listed in the bell at the top of each page.",
+    permissionDenied: "Allow notifications for Wallt in the system settings to get alerts.",
+    budgetTitle: "Budget alerts",
+    budgetHint: "When a budget reaches 80% and 100%.",
+    billTitle: "Upcoming bills",
+    billHint: "A few days before a recurring item is due.",
+    reviewTitle: "Review reminders",
+    reviewHint: "Once a day while transactions need review.",
+  },
+} as const;

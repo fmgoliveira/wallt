@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SyncState } from "./engine";
-import { describeSync, timeAgo } from "./status";
+import { describeSync, describeSyncParts, timeAgo } from "./status";
 
 const base: SyncState = {
   syncing: false,
@@ -49,5 +49,17 @@ describe("describeSync", () => {
       "Update the app to sync",
     );
     expect(describeSync({ ...base, failed: 2 }, NOW).tone).toBe("negative");
+  });
+});
+
+describe("describeSyncParts", () => {
+  it("is the structured form of describeSync", () => {
+    expect(describeSyncParts(null, NOW)).toEqual({ kind: "local", tone: "neutral", pending: 0 });
+    const parts = describeSyncParts({ ...base, lastSyncedAt: NOW - 10 * 60_000, pending: 2 }, NOW);
+    expect(parts).toMatchObject({ kind: "synced", ago: { unit: "min", n: 10 }, pending: 2 });
+    expect(describeSyncParts({ ...base, failed: 3 }, NOW)).toMatchObject({
+      kind: "refused",
+      count: 3,
+    });
   });
 });

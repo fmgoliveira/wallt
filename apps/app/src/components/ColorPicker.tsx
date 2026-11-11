@@ -1,10 +1,11 @@
 import { categoryPalette, Text, useTheme } from "@wallt/ui";
 import { Pressable, View } from "react-native";
+import { useTranslation } from "../i18n";
 import { paletteHex, paletteName, paletteNames } from "./colors";
 
 /** Radio group of the curated palette plus "no colour". `value` is the stored hex. */
 export function ColorPicker({
-  label = "Colour",
+  label,
   value,
   onChange,
 }: {
@@ -13,6 +14,7 @@ export function ColorPicker({
   onChange: (hex: string | null) => void;
 }) {
   const { scheme, colors } = useTheme();
+  const { t } = useTranslation();
   const ring = (selected: boolean) =>
     selected
       ? `0 0 0 2px ${colors.bg}, 0 0 0 3.5px ${colors.text}`
@@ -21,12 +23,12 @@ export function ColorPicker({
   return (
     <View className="gap-1.5">
       <Text variant="small" tone="muted" weight="medium">
-        {label}
+        {label ?? t("common.colorPicker.colour")}
       </Text>
       <View className="flex-row flex-wrap" accessibilityRole="radiogroup">
         <Pressable
           accessibilityRole="radio"
-          accessibilityLabel="No colour"
+          accessibilityLabel={t("common.colorPicker.noColour")}
           accessibilityState={{ checked: value === null }}
           onPress={() => onChange(null)}
           className="h-11 w-11 items-center justify-center web:cursor-pointer web:outline-none"

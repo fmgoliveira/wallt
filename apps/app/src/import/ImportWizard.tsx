@@ -43,6 +43,8 @@ import {
   useUpdateImportProfile,
 } from "../data/hooks";
 import { useRepository } from "../data/RepositoryProvider";
+import { useTranslation } from "../i18n";
+import { analysisNoteT, parseErrorT } from "../i18n/packages";
 import { notifyLocalWrite } from "../sync/runtime";
 import { applyPlan, type ImportOutcome, planForAccount } from "./apply";
 import { DropZone } from "./DropZone";
@@ -60,16 +62,6 @@ export interface ImportWizardProps {
 const PREVIEW_ROWS = 20;
 const baseName = (name: string) => name.replace(/\.[^.]+$/, "");
 
-function describe(a: Analysis): string[] {
-  if (a.kind === "statement") return [a.format === "ofx" ? "OFX statement" : "CAMT statement"];
-  const t = a.table;
-  const out = [t.kind === "spreadsheet" ? "Spreadsheet" : "Text file"];
-  if (t.sheet && (t.sheets?.length ?? 0) > 1) out.push(`Sheet “${t.sheet}”`);
-  if (t.encoding) out.push(t.encoding.toUpperCase());
-  if (t.delimiter) out.push(t.delimiter === "\t" ? "Tab separated" : `“${t.delimiter}” separated`);
-  return out;
-}
-
 /**
  * Upload -> auto-detect -> confirm/correct -> import (PLAN 5.1) and, in `setup` mode, the format wizard of 5.2.
  * Detection and parsing are the pure `@wallt/ingest` functions; this component only wires them to the screen and
@@ -79,6 +71,27 @@ export function ImportWizard({ mode, profile, onSaved }: ImportWizardProps) {
   const bp = useBreakpoint();
   const router = useRouter();
   const { colors } = useTheme();
+  const { t } = useTranslation();
+  const describe = (a: Analysis): string[] => {
+    if (a.kind === "statement")
+      return [a.format === "ofx" ? t("importing.wizard.ofx") : t("importing.wizard.camt")];
+    const tb = a.table;
+    const out: string[] = [
+      tb.kind === "spreadsheet"
+        ? t("importing.wizard.spreadsheet")
+        : t("importing.wizard.textFile"),
+    ];
+    if (tb.sheet && (tb.sheets?.length ?? 0) > 1)
+      out.push(t("importing.wizard.sheetNamed", { name: tb.sheet }));
+    if (tb.encoding) out.push(tb.encoding.toUpperCase());
+    if (tb.delimiter)
+      out.push(
+        tb.delimiter === "\t"
+          ? t("importing.wizard.tabSeparated")
+          : t("importing.wizard.delimiterSeparated", { delimiter: tb.delimiter }),
+      );
+    return out;
+  };
   const repo = useRepository();
   const queryClient = useQueryClient();
   const accounts = useAccounts();
@@ -175,7 +188,11 @@ export function ImportWizard({ mode, profile, onSaved }: ImportWizardProps) {
     account &&
     statementCurrency &&
     statementCurrency !== account.currency
-      ? `The file is in ${statementCurrency} but ${account.name} is in ${account.currency}.`
+      ? t("importing.wizard.currencyClash", {
+          file: statementCurrency,
+          account: account.name,
+          currency: account.currency,
+        })
       : null;
 
   useEffect(() => {
@@ -263,7 +280,7 @@ export function ImportWizard({ mode, profile, onSaved }: ImportWizardProps) {
       } else {
         await createProfile.mutateAsync({
           name: uniqueName(
-            name.trim() || baseName(file?.name ?? "Format"),
+            name.trim() || baseName(file?.name ?? t("importing.wizard.defaultFormatName")),
             (profiles.data ?? []).map((p) => p.name),
           ),
           fingerprints: [fp],
@@ -273,7 +290,7 @@ export function ImportWizard({ mode, profile, onSaved }: ImportWizardProps) {
       }
       return true;
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not save the format");
+      toast.error(error instanceof Error ? error.message : t("importing.wizard.saveFailed"));
       return false;
     }
   }
@@ -290,9 +307,7 @@ export function ImportWizard({ mode, profile, onSaved }: ImportWizardProps) {
       }
       setOutcome(result);
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "The import failed; nothing was changed",
-      );
+      toast.error(error instanceof Error ? error.message : t("importing.wizard.importFailed"));
     } finally {
       setBusy(false);
     }
@@ -306,9 +321,9 @@ export function ImportWizard({ mode, profile, onSaved }: ImportWizardProps) {
       notifyLocalWrite();
       await queryClient.invalidateQueries();
       setUndone(true);
-      toast.success(`Removed ${n} imported transaction${n === 1 ? "" : "s"}`);
+      toast.success(t("importing.wizard.removed", { count: n }));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not undo the import");
+      toast.error(error instanceof Error ? error.message : t("importing.wizard.undoFailed"));
     } finally {
       setBusy(false);
     }
@@ -316,7 +331,9 @@ export function ImportWizard({ mode, profile, onSaved }: ImportWizardProps) {
 
   async function saveSetup() {
     if (await saveFormat()) {
-      toast.success(matched ? "Format updated" : "Format saved");
+      toast.success(
+        matched ? t("importing.wizard.formatUpdated") : t("importing.wizard.formatSaved"),
+      );
       onSaved?.();
     }
   }
@@ -335,7 +352,7 @@ export function ImportWizard({ mode, profile, onSaved }: ImportWizardProps) {
         />
         {mode === "import" ? (
           <Button
-            label="Manage import formats"
+            label={t("importing.wizard.manageFormats")}
             variant="ghost"
             onPress={() => router.push("/import-formats")}
           />
@@ -349,19 +366,37 @@ export function ImportWizard({ mode, profile, onSaved }: ImportWizardProps) {
       <Card className="gap-4">
         <EmptyState
           icon={<FileSpreadsheet size={20} color={colors.positive} strokeWidth={1.6} />}
-          title={undone ? "Import undone" : "Import complete"}
+          title={undone ? t("importing.outcome.undone") : t("importing.outcome.complete")}
           description={
             undone
-              ? "The imported transactions were removed. Nothing else changed."
-              : `${outcome.inserted} new · ${outcome.duplicates} duplicate${outcome.duplicates === 1 ? "" : "s"} skipped · ${outcome.needsReview} to review${outcome.linkedTransfers ? ` · ${outcome.linkedTransfers} transfer${outcome.linkedTransfers === 1 ? "" : "s"} linked` : ""}${outcome.updatedPending ? ` · ${outcome.updatedPending} pending booked` : ""}`
+              ? t("importing.outcome.undoneDescription")
+              : [
+                  t("importing.outcome.new", { count: outcome.inserted }),
+                  t("importing.outcome.duplicates", { count: outcome.duplicates }),
+                  t("importing.outcome.review", { count: outcome.needsReview }),
+                  ...(outcome.linkedTransfers
+                    ? [t("importing.outcome.linked", { count: outcome.linkedTransfers })]
+                    : []),
+                  ...(outcome.updatedPending
+                    ? [t("importing.outcome.pending", { count: outcome.updatedPending })]
+                    : []),
+                ].join(" · ")
           }
         />
         <View className="flex-row flex-wrap justify-center gap-2">
           {undone ? null : (
-            <Button label="Undo import" variant="secondary" loading={busy} onPress={undo} />
+            <Button
+              label={t("importing.outcome.undo")}
+              variant="secondary"
+              loading={busy}
+              onPress={undo}
+            />
           )}
-          <Button label="Import another file" variant="secondary" onPress={reset} />
-          <Button label="View transactions" onPress={() => router.push("/transactions")} />
+          <Button label={t("importing.outcome.another")} variant="secondary" onPress={reset} />
+          <Button
+            label={t("importing.outcome.view")}
+            onPress={() => router.push("/transactions")}
+          />
         </View>
       </Card>
     );
@@ -388,17 +423,17 @@ export function ImportWizard({ mode, profile, onSaved }: ImportWizardProps) {
               {file.name}
             </Text>
             <Text variant="small" tone="muted">
-              {analysis ? describe(analysis).join(" · ") : "Reading…"}
+              {analysis ? describe(analysis).join(" · ") : t("importing.wizard.reading")}
             </Text>
           </View>
-          <Button label="Change" variant="ghost" onPress={reset} />
+          <Button label={t("importing.wizard.change")} variant="ghost" onPress={reset} />
         </View>
         {analysis?.kind === "statement" && analysis.accounts.length > 1 ? (
           <Select
-            label="Account in the file"
+            label={t("importing.wizard.fileAccount")}
             options={analysis.accounts.map((a, i) => ({
               value: String(i),
-              label: `${a.iban ?? a.accountId ?? `Account ${i + 1}`} · ${a.currency}`,
+              label: `${a.iban ?? a.accountId ?? t("importing.wizard.fileAccountFallback", { n: i + 1 })} · ${a.currency}`,
             }))}
             value={String(fileAccount)}
             onChange={(v) => setFileAccount(Number(v))}
@@ -406,7 +441,7 @@ export function ImportWizard({ mode, profile, onSaved }: ImportWizardProps) {
         ) : null}
         {sheetOptions && analysis?.kind === "table" ? (
           <Select
-            label="Sheet"
+            label={t("importing.wizard.sheet")}
             options={sheetOptions}
             value={analysis.table.sheet ?? null}
             onChange={(next) => {
@@ -420,8 +455,8 @@ export function ImportWizard({ mode, profile, onSaved }: ImportWizardProps) {
       {mode === "import" ? (
         <Card className="gap-3">
           <Select
-            label="Import into account"
-            placeholder="Choose an account"
+            label={t("importing.wizard.importInto")}
+            placeholder={t("importing.wizard.chooseAccount")}
             options={(accounts.data ?? []).map((a) => ({
               value: a.id,
               label: `${a.name} · ${a.currency}`,
@@ -432,7 +467,7 @@ export function ImportWizard({ mode, profile, onSaved }: ImportWizardProps) {
           />
           {(accounts.data ?? []).length === 0 ? (
             <Text variant="small" tone="muted">
-              Create an account first (Accounts), then come back.
+              {t("importing.wizard.createAccountFirst")}
             </Text>
           ) : null}
         </Card>
@@ -442,31 +477,37 @@ export function ImportWizard({ mode, profile, onSaved }: ImportWizardProps) {
         <Card className="gap-3">
           <View className="flex-row items-center justify-between gap-3">
             <View className="flex-1 gap-0.5">
-              <Text variant="title">Format</Text>
+              <Text variant="title">{t("importing.wizard.format")}</Text>
               <Text variant="small" tone="muted">
                 {matched
-                  ? `Using “${matched.name}”`
+                  ? t("importing.wizard.usingFormat", { name: matched.name })
                   : analysis.confidence >= 0.8
-                    ? "New format detected automatically"
-                    : "New format: please check the columns"}
+                    ? t("importing.wizard.newDetected")
+                    : t("importing.wizard.newCheck")}
               </Text>
             </View>
             <Chip
               tone={analysis.confidence >= 0.8 || matched ? "positive" : "warning"}
-              label={matched ? "Saved format" : `${Math.round(analysis.confidence * 100)}% sure`}
+              label={
+                matched
+                  ? t("importing.wizard.savedFormat")
+                  : t("importing.wizard.sure", { percent: Math.round(analysis.confidence * 100) })
+              }
             />
           </View>
           {analysis.notes.length > 0 && !matched ? (
             <View className="gap-0.5">
-              {analysis.notes.map((n) => (
-                <Text key={n} variant="small" tone="warning">
-                  {n}
+              {analysis.noteCodes.map((code) => (
+                <Text key={code} variant="small" tone="warning">
+                  {analysisNoteT(t, code)}
                 </Text>
               ))}
             </View>
           ) : null}
           <Button
-            label={showMapping ? "Hide column settings" : "Adjust columns"}
+            label={
+              showMapping ? t("importing.wizard.hideColumns") : t("importing.wizard.adjustColumns")
+            }
             variant="secondary"
             onPress={() => setShowMapping((v) => !v)}
           />
@@ -487,7 +528,7 @@ export function ImportWizard({ mode, profile, onSaved }: ImportWizardProps) {
   const right = (
     <View className="gap-4 desktop:flex-[7]">
       <Card className="gap-3">
-        <Text variant="title">Check</Text>
+        <Text variant="title">{t("importing.wizard.check")}</Text>
         {!parsed ? (
           <Skeleton className="h-16 w-full" />
         ) : (
@@ -495,19 +536,24 @@ export function ImportWizard({ mode, profile, onSaved }: ImportWizardProps) {
             <View className="flex-row flex-wrap gap-2">
               <Chip
                 tone={rows.length > 0 ? "positive" : "negative"}
-                label={`${rows.length} rows read`}
+                label={t("importing.wizard.rowsRead", { count: rows.length })}
               />
               {failed.length > 0 ? (
-                <Chip tone="negative" label={`${failed.length} failed`} />
+                <Chip
+                  tone="negative"
+                  label={t("importing.wizard.failed", { count: failed.length })}
+                />
               ) : null}
-              {parsed.skipped > 0 ? <Chip label={`${parsed.skipped} ignored`} /> : null}
+              {parsed.skipped > 0 ? (
+                <Chip label={t("importing.wizard.ignored", { count: parsed.skipped })} />
+              ) : null}
               {stats.balance && stats.balance.pairs > 0 ? (
                 <Chip
                   tone={stats.balance.matchRatio >= 0.8 ? "positive" : "warning"}
                   label={
                     stats.balance.matchRatio >= 0.8
-                      ? "Balance reconciles"
-                      : "Balance does not reconcile"
+                      ? t("importing.wizard.reconciles")
+                      : t("importing.wizard.notReconciles")
                   }
                 />
               ) : null}
@@ -520,23 +566,20 @@ export function ImportWizard({ mode, profile, onSaved }: ImportWizardProps) {
                 <View className="flex-row gap-6">
                   <View>
                     <Text variant="small" tone="muted">
-                      In
+                      {t("importing.wizard.in")}
                     </Text>
                     <Amount value={stats.inflow} currency={currency} />
                   </View>
                   <View>
                     <Text variant="small" tone="muted">
-                      Out
+                      {t("importing.wizard.out")}
                     </Text>
                     <Amount value={stats.outflow} currency={currency} tone="text" />
                   </View>
                 </View>
               </View>
             ) : (
-              <Text tone="muted">
-                No transactions could be read. Adjust the columns, or check that this is a bank
-                export.
-              </Text>
+              <Text tone="muted">{t("importing.wizard.noTransactions")}</Text>
             )}
             {failed.length > 0 && analysis?.kind === "table" ? (
               <View
@@ -545,13 +588,16 @@ export function ImportWizard({ mode, profile, onSaved }: ImportWizardProps) {
               >
                 {failed.slice(0, 5).map((e) => (
                   <Text key={e.rowIndex} variant="small" tone="negative" numberOfLines={1}>
-                    Row {e.rowIndex + 1}: {e.reason} ·{" "}
-                    {(analysis.table.rows[e.rowIndex] ?? []).join(" · ")}
+                    {t("importing.wizard.rowError", {
+                      n: e.rowIndex + 1,
+                      reason: parseErrorT(t, e),
+                      cells: (analysis.table.rows[e.rowIndex] ?? []).join(" · "),
+                    })}
                   </Text>
                 ))}
                 {failed.length > 5 ? (
                   <Text variant="small" tone="muted">
-                    and {failed.length - 5} more
+                    {t("importing.wizard.andMore", { count: failed.length - 5 })}
                   </Text>
                 ) : null}
               </View>
@@ -563,9 +609,12 @@ export function ImportWizard({ mode, profile, onSaved }: ImportWizardProps) {
       {rows.length > 0 ? (
         <Card className="overflow-hidden p-0">
           <View className="px-4 pt-4 pb-2">
-            <Text variant="title">Preview</Text>
+            <Text variant="title">{t("importing.wizard.preview")}</Text>
             <Text variant="small" tone="muted">
-              First {Math.min(PREVIEW_ROWS, rows.length)} of {rows.length}
+              {t("importing.wizard.previewCount", {
+                shown: Math.min(PREVIEW_ROWS, rows.length),
+                total: rows.length,
+              })}
             </Text>
           </View>
           {rows.slice(0, PREVIEW_ROWS).map((r, i) => (
@@ -582,69 +631,88 @@ export function ImportWizard({ mode, profile, onSaved }: ImportWizardProps) {
 
       {mode === "import" ? (
         <Card className="gap-3">
-          <Text variant="title">Import</Text>
+          <Text variant="title">{t("importing.wizard.import")}</Text>
           {planning && !plan ? (
             <Skeleton className="h-10 w-full" />
           ) : plan ? (
             <>
               <View className="flex-row flex-wrap gap-2">
-                <Chip tone="positive" label={`${plan.summary.inserted} new`} />
+                <Chip
+                  tone="positive"
+                  label={t("importing.wizard.planNew", { count: plan.summary.inserted })}
+                />
                 {plan.summary.duplicates > 0 ? (
-                  <Chip label={`${plan.summary.duplicates} duplicates skipped`} />
+                  <Chip
+                    label={t("importing.wizard.planDuplicates", { count: plan.summary.duplicates })}
+                  />
                 ) : null}
                 {plan.summary.updatedPending > 0 ? (
-                  <Chip label={`${plan.summary.updatedPending} pending become booked`} />
+                  <Chip
+                    label={t("importing.wizard.planPending", {
+                      count: plan.summary.updatedPending,
+                    })}
+                  />
                 ) : null}
                 {plan.summary.needsReview > 0 ? (
-                  <Chip tone="warning" label={`${plan.summary.needsReview} need review`} />
+                  <Chip
+                    tone="warning"
+                    label={t("importing.wizard.planReview", { count: plan.summary.needsReview })}
+                  />
                 ) : null}
               </View>
               {plan.transfers.length > 0 ? (
                 <View className="flex-row items-center gap-2">
                   <ArrowLeftRight size={14} color={colors.muted} strokeWidth={1.6} />
                   <Text variant="small" tone="muted" className="flex-1">
-                    {plan.transfers.filter((t) => t.auto).length} likely transfer
-                    {plan.transfers.filter((t) => t.auto).length === 1 ? "" : "s"} will be linked
-                    {plan.transfers.some((t) => !t.auto)
-                      ? `, ${plan.transfers.filter((t) => !t.auto).length} more are only suggestions and stay as they are`
-                      : ""}
+                    {plan.transfers.some((x) => !x.auto)
+                      ? t("importing.wizard.transfersMore", {
+                          count: plan.transfers.filter((x) => x.auto).length,
+                          more: plan.transfers.filter((x) => !x.auto).length,
+                        })
+                      : t("importing.wizard.transfers", {
+                          count: plan.transfers.filter((x) => x.auto).length,
+                        })}
                   </Text>
                 </View>
               ) : null}
             </>
           ) : (
             <Text tone="muted">
-              {accountId ? "Nothing to import yet." : "Choose the account to import into."}
+              {accountId
+                ? t("importing.wizard.nothingYet")
+                : t("importing.wizard.chooseAccountToImport")}
             </Text>
           )}
           {analysis?.kind === "table" && !matched ? (
             <View className="gap-3">
               <Switch
-                label="Remember this format"
-                description="Next time this bank's file imports in one click"
+                label={t("importing.wizard.remember")}
+                description={t("importing.wizard.rememberHint")}
                 value={remember}
                 onValueChange={setRemember}
               />
               {remember ? (
                 <Input
-                  label="Format name"
+                  label={t("importing.wizard.formatName")}
                   value={name}
                   onChangeText={setName}
-                  placeholder="e.g. My bank, current account"
+                  placeholder={t("importing.wizard.formatNamePlaceholder")}
                 />
               ) : null}
             </View>
           ) : null}
           {matched && mappingChanged ? (
             <Text variant="small" tone="muted">
-              Your column changes will update “{matched.name}”.
+              {t("importing.wizard.willUpdate", { name: matched.name })}
             </Text>
           ) : null}
           <Button
             label={
               plan
-                ? `Import ${plan.summary.inserted + plan.summary.updatedPending} transaction${plan.summary.inserted + plan.summary.updatedPending === 1 ? "" : "s"}`
-                : "Import"
+                ? t("importing.wizard.importCount", {
+                    count: plan.summary.inserted + plan.summary.updatedPending,
+                  })
+                : t("importing.wizard.import")
             }
             loading={busy}
             disabled={!ready || !plan || plan.summary.inserted + plan.summary.updatedPending === 0}
@@ -654,29 +722,31 @@ export function ImportWizard({ mode, profile, onSaved }: ImportWizardProps) {
           plan.summary.inserted + plan.summary.updatedPending === 0 &&
           plan.summary.total > 0 ? (
             <Text variant="small" tone="muted">
-              Everything in this file is already in {account?.name}.
+              {t("importing.wizard.alreadyThere", { account: account?.name ?? "" })}
             </Text>
           ) : null}
         </Card>
       ) : analysis?.kind === "table" ? (
         <Card className="gap-3">
-          <Text variant="title">{matched ? "Update format" : "Save format"}</Text>
+          <Text variant="title">
+            {matched ? t("importing.wizard.updateFormat") : t("importing.wizard.saveFormat")}
+          </Text>
           <Text variant="small" tone="muted">
-            Nothing is written to your transactions while setting up a format.
+            {t("importing.wizard.setupNote")}
             {matched && fp && !matched.fingerprints.includes(fp)
-              ? " This file's layout differs from the saved one; saving also teaches the format the new layout."
+              ? ` ${t("importing.wizard.layoutDiffers")}`
               : ""}
           </Text>
           {!matched ? (
             <Input
-              label="Format name"
+              label={t("importing.wizard.formatName")}
               value={name}
               onChangeText={setName}
-              placeholder="e.g. My bank, current account"
+              placeholder={t("importing.wizard.formatNamePlaceholder")}
             />
           ) : null}
           <Button
-            label={matched ? "Save changes" : "Save format"}
+            label={matched ? t("importing.wizard.saveChanges") : t("importing.wizard.saveFormat")}
             loading={createProfile.isPending || updateProfile.isPending}
             disabled={rows.length === 0 || (!matched && name.trim() === "")}
             onPress={saveSetup}
@@ -684,9 +754,7 @@ export function ImportWizard({ mode, profile, onSaved }: ImportWizardProps) {
         </Card>
       ) : (
         <Card>
-          <Text tone="muted">
-            OFX and CAMT files have a fixed layout: no format setup is needed, just import them.
-          </Text>
+          <Text tone="muted">{t("importing.wizard.fixedLayout")}</Text>
         </Card>
       )}
     </View>

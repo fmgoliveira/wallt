@@ -9,6 +9,7 @@ import {
 } from "@wallt/core";
 import { useId, useState } from "react";
 import { Pressable, View } from "react-native";
+import { getUiLocale, useUiStrings } from "../strings";
 import { useTheme } from "../theme/context";
 import { radius, ringShadow } from "../tokens";
 import { useControlHeight } from "./Button";
@@ -21,7 +22,7 @@ const pad = (n: number) => String(n).padStart(2, "0");
 export function formatCalendarDate(value: string, long = false): string {
   if (!isValidDate(value)) return "";
   const { year, month, day } = parseDate(value);
-  return new Date(year, month - 1, day).toLocaleDateString(undefined, {
+  return new Date(year, month - 1, day).toLocaleDateString(getUiLocale(), {
     weekday: long ? "long" : "short",
     day: "numeric",
     month: long ? "long" : "short",
@@ -116,10 +117,10 @@ function MonthGrid({
   );
 }
 
-function weekdayLabels(): string[] {
+function weekdayLabels(locale: string | undefined): string[] {
   // 2024-01-01 was a Monday.
   return Array.from({ length: 7 }, (_, i) =>
-    new Date(2024, 0, 1 + i).toLocaleDateString(undefined, { weekday: "narrow" }),
+    new Date(2024, 0, 1 + i).toLocaleDateString(locale, { weekday: "narrow" }),
   );
 }
 
@@ -131,12 +132,14 @@ export function DatePicker({
   label,
   value,
   onChange,
-  placeholder = "Pick a date",
+  placeholder,
   clearable,
   error,
   className,
 }: DatePickerProps) {
   const { scheme, colors } = useTheme();
+  const ui = useUiStrings();
+  const shownPlaceholder = placeholder ?? ui.pickDate;
   const height = useControlHeight();
   const id = useId();
   const [open, setOpen] = useState(false);
@@ -152,7 +155,7 @@ export function DatePicker({
     setOpen(false);
   };
   const title = new Date(parseDate(month).year, parseDate(month).month - 1, 1).toLocaleDateString(
-    undefined,
+    ui.locale,
     { month: "long", year: "numeric" },
   );
 
@@ -181,7 +184,7 @@ export function DatePicker({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={
-          label ? `${label}: ${formatCalendarDate(value) || placeholder}` : undefined
+          label ? `${label}: ${formatCalendarDate(value) || shownPlaceholder}` : undefined
         }
         accessibilityState={{ expanded: open }}
         onPress={show}
@@ -193,7 +196,9 @@ export function DatePicker({
           boxShadow: ringShadow(colors, error ? "error" : open ? "focus" : "default"),
         }}
       >
-        <Text tone={value ? "default" : "subtle"}>{formatCalendarDate(value) || placeholder}</Text>
+        <Text tone={value ? "default" : "subtle"}>
+          {formatCalendarDate(value) || shownPlaceholder}
+        </Text>
         <Text tone="subtle" accessibilityElementsHidden>
           ▾
         </Text>
@@ -203,16 +208,16 @@ export function DatePicker({
           {error}
         </Text>
       ) : null}
-      <Sheet visible={open} onClose={() => setOpen(false)} title={label ?? placeholder}>
+      <Sheet visible={open} onClose={() => setOpen(false)} title={label ?? shownPlaceholder}>
         <View className="flex-row items-center justify-between">
-          {nav(-1, "Previous month")}
+          {nav(-1, ui.previousMonth)}
           <Text weight="semibold" accessibilityRole="header">
             {title}
           </Text>
-          {nav(1, "Next month")}
+          {nav(1, ui.nextMonth)}
         </View>
         <View className="flex-row">
-          {weekdayLabels().map((d, i) => (
+          {weekdayLabels(ui.locale).map((d, i) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: fixed seven columns
             <View key={i} className="flex-1 items-center py-1">
               <Text variant="small" tone="subtle">
@@ -224,8 +229,8 @@ export function DatePicker({
         <MonthGrid month={month} selected={value} today={today} onPick={pick} />
         <View className="flex-row items-center gap-2 pt-1">
           {[
-            { label: "Today", date: today },
-            { label: "Yesterday", date: addDays(today, -1) },
+            { label: ui.today, date: today },
+            { label: ui.yesterday, date: addDays(today, -1) },
           ].map((q) => (
             <Pressable
               key={q.label}
@@ -256,7 +261,7 @@ export function DatePicker({
               className="min-h-touch justify-center px-1 web:cursor-pointer web:outline-none web:hover:opacity-70"
             >
               <Text weight="medium" tone="muted">
-                Clear
+                {ui.clear}
               </Text>
             </Pressable>
           ) : null}

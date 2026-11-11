@@ -10,7 +10,8 @@
     "format": "biome check --write .",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
-    "build": "turbo run build"
+    "build": "turbo run build",
+    "e2e": "pnpm --filter @wallt/e2e e2e"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.6",

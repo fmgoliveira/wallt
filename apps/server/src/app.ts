@@ -35,6 +35,8 @@ export type AppDeps = {
   ml?: MlService;
   /** Clock (ms) for the per-IP rate limiters; tests inject one. */
   clock?: () => number;
+  /** Release version of this build (`/health` reports it so apps can tell when they are out of date). */
+  version?: string;
 };
 
 export type AppEnv = { Variables: { clientIp: string } };
@@ -49,6 +51,7 @@ export function createApp({
   fx,
   ml,
   clock,
+  version,
 }: AppDeps) {
   const app = new Hono<AppEnv>();
   const trusted = trustedProxies ?? parseTrustedProxies("127.0.0.1,::1");
@@ -85,7 +88,11 @@ export function createApp({
   app.get("/health", (c) => {
     try {
       db.prepare("SELECT 1").get();
-      return c.json({ status: "ok", schemaVersion: SCHEMA_VERSION });
+      return c.json({
+        status: "ok",
+        schemaVersion: SCHEMA_VERSION,
+        ...(version ? { version } : {}),
+      });
     } catch (err) {
       log.error({ err }, "health check failed");
       return c.json({ status: "error" }, 503);

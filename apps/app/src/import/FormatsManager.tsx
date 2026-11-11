@@ -32,6 +32,8 @@ import {
   useImportProfiles,
   useUpdateImportProfile,
 } from "../data/hooks";
+import { useTranslation } from "../i18n";
+import { profileImportErrorT } from "../i18n/packages";
 import { ImportWizard } from "./ImportWizard";
 
 type View_ = { kind: "list" } | { kind: "setup" } | { kind: "retest"; profile: ImportProfile };
@@ -45,10 +47,10 @@ const toPortable = (p: ImportProfile): PortableProfile => ({
   config: p.config as unknown as PortableProfile["config"],
 });
 
-async function copyText(text: string): Promise<void> {
+async function copyText(text: string, copied: string): Promise<void> {
   if (Platform.OS === "web" && navigator.clipboard) {
     await navigator.clipboard.writeText(text);
-    toast.success("Copied to the clipboard");
+    toast.success(copied);
     return;
   }
   await Share.share({ message: text });
@@ -60,6 +62,7 @@ async function copyText(text: string): Promise<void> {
  */
 export function FormatsManager() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const profiles = useImportProfiles();
   const accounts = useAccounts();
   const create = useCreateImportProfile();
@@ -87,20 +90,20 @@ export function FormatsManager() {
       <View className="gap-4">
         <View className="flex-row items-center justify-between gap-3">
           <Text variant="title">
-            {view.kind === "setup" ? "Add bank format" : `Re-test “${view.profile.name}”`}
+            {view.kind === "setup"
+              ? t("importing.formats.addBank")
+              : t("importing.formats.retest", { name: view.profile.name })}
           </Text>
-          <Button label="Back" variant="ghost" onPress={() => setView({ kind: "list" })} />
+          <Button
+            label={t("importing.formats.back")}
+            variant="ghost"
+            onPress={() => setView({ kind: "list" })}
+          />
         </View>
         {view.kind === "retest" ? (
-          <Text tone="muted">
-            Upload a new sample to check this format still reads it. If the layout changed, saving
-            teaches the format the new layout.
-          </Text>
+          <Text tone="muted">{t("importing.formats.retestHint")}</Text>
         ) : (
-          <Text tone="muted">
-            Upload one sample export. Wallt detects the layout; fix anything it got wrong and save.
-            Nothing is imported while you set up a format.
-          </Text>
+          <Text tone="muted">{t("importing.formats.setupHint")}</Text>
         )}
         <ImportWizard
           mode="setup"
@@ -132,24 +135,24 @@ export function FormatsManager() {
         },
       });
       setEditing(null);
-      toast.success("Format updated");
+      toast.success(t("importing.formats.updated"));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not save");
+      toast.error(e instanceof Error ? e.message : t("importing.formats.saveFailed"));
     }
   };
 
   const duplicate = async (p: ImportProfile) => {
     try {
       await create.mutateAsync({
-        name: uniqueName(`${p.name} copy`, names),
+        name: uniqueName(t("importing.formats.copySuffix", { name: p.name }), names),
         institution: p.institution,
         defaultAccountId: p.defaultAccountId,
         fingerprints: [...p.fingerprints],
         config: p.config,
       });
-      toast.success("Format duplicated");
+      toast.success(t("importing.formats.duplicated"));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not duplicate");
+      toast.error(e instanceof Error ? e.message : t("importing.formats.duplicateFailed"));
     }
   };
 
@@ -158,9 +161,9 @@ export function FormatsManager() {
     try {
       await remove.mutateAsync(deleting.id);
       setDeleting(null);
-      toast.success("Format deleted");
+      toast.success(t("importing.formats.deleted"));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not delete");
+      toast.error(e instanceof Error ? e.message : t("importing.formats.deleteFailed"));
     }
   };
 
@@ -181,14 +184,14 @@ export function FormatsManager() {
       setImporting(false);
       setPasted("");
       setImportError(null);
-      toast.success(`Imported ${incoming.length} format${incoming.length === 1 ? "" : "s"}`);
+      toast.success(t("importing.formats.imported", { count: incoming.length }));
     } catch (e) {
       setImportError(
         e instanceof ProfileImportError
-          ? e.message
+          ? profileImportErrorT(t, e)
           : e instanceof Error
             ? e.message
-            : "Could not import",
+            : t("importing.formats.importFailed"),
       );
     }
   };
@@ -197,14 +200,18 @@ export function FormatsManager() {
     <View className="gap-4">
       <View className="flex-row flex-wrap gap-2">
         <Button
-          label="Add bank format"
+          label={t("importing.formats.addBank")}
           onPress={() => setView({ kind: "setup" })}
           leading={<Plus size={16} color={colors.accentFg} strokeWidth={1.8} />}
         />
-        <Button label="Import from JSON" variant="secondary" onPress={() => setImporting(true)} />
+        <Button
+          label={t("importing.formats.importJson")}
+          variant="secondary"
+          onPress={() => setImporting(true)}
+        />
         {list.length > 0 ? (
           <Button
-            label="Export all"
+            label={t("importing.formats.exportAll")}
             variant="secondary"
             onPress={() => setExporting(exportProfiles(list.map(toPortable)))}
           />
@@ -217,9 +224,9 @@ export function FormatsManager() {
         <Card>
           <EmptyState
             icon={<FileSpreadsheet size={20} color={colors.muted} strokeWidth={1.6} />}
-            title="No formats yet"
-            description="A format remembers how one bank's export is laid out, so importing it again takes one click. They are also saved the first time you import a new file."
-            actionLabel="Add bank format"
+            title={t("importing.formats.none")}
+            description={t("importing.formats.noneHint")}
+            actionLabel={t("importing.formats.addBank")}
             onAction={() => setView({ kind: "setup" })}
           />
         </Card>
@@ -233,7 +240,7 @@ export function FormatsManager() {
                 subtitle={[
                   p.institution,
                   accountName(p.defaultAccountId) ? `→ ${accountName(p.defaultAccountId)}` : null,
-                  `${p.fingerprints.length} layout${p.fingerprints.length === 1 ? "" : "s"}`,
+                  t("importing.formats.layouts", { count: p.fingerprints.length }),
                 ]
                   .filter(Boolean)
                   .join(" · ")}
@@ -246,7 +253,7 @@ export function FormatsManager() {
                   isProfileConfig(p.config) ? (
                     <ChevronRight size={16} color={colors.subtle} strokeWidth={1.6} />
                   ) : (
-                    <Chip tone="warning" label="Unreadable" />
+                    <Chip tone="warning" label={t("importing.formats.unreadable")} />
                   )
                 }
                 onPress={() => openEdit(p)}
@@ -256,18 +263,22 @@ export function FormatsManager() {
         </Card>
       )}
 
-      <Sheet visible={!!editing} onClose={() => setEditing(null)} title="Import format">
-        <Input label="Name" value={editName} onChangeText={setEditName} />
+      <Sheet
+        visible={!!editing}
+        onClose={() => setEditing(null)}
+        title={t("importing.formats.sheetTitle")}
+      >
+        <Input label={t("importing.formats.name")} value={editName} onChangeText={setEditName} />
         <Input
-          label="Bank (optional)"
+          label={t("importing.formats.bank")}
           value={editInstitution}
           onChangeText={setEditInstitution}
-          placeholder="e.g. Banco Exemplo"
+          placeholder={t("importing.formats.bankPlaceholder")}
         />
         <Select
-          label="Default account"
+          label={t("importing.formats.defaultAccount")}
           options={[
-            { value: NO_ACCOUNT, label: "None" },
+            { value: NO_ACCOUNT, label: t("importing.mapping.none") },
             ...(accounts.data ?? []).map((a) => ({ value: a.id, label: a.name })),
           ]}
           value={editAccount}
@@ -275,7 +286,7 @@ export function FormatsManager() {
         />
         <View className="gap-1.5">
           <Text variant="small" tone="muted" weight="medium">
-            Layouts it recognises
+            {t("importing.formats.recognised")}
           </Text>
           {editFingerprints.map((f) => (
             <View key={f} className="flex-row items-center justify-between">
@@ -283,7 +294,7 @@ export function FormatsManager() {
                 {f}
               </Text>
               <Button
-                label="Remove"
+                label={t("importing.formats.remove")}
                 variant="ghost"
                 disabled={editFingerprints.length <= 1}
                 onPress={() => setEditFingerprints((fs) => fs.filter((x) => x !== f))}
@@ -291,18 +302,18 @@ export function FormatsManager() {
             </View>
           ))}
           <Text variant="small" tone="muted">
-            A bank that changes its export gets a new layout: re-test with a new sample to add it.
+            {t("importing.formats.layoutNote")}
           </Text>
         </View>
         <Button
-          label="Save"
+          label={t("importing.formats.save")}
           loading={update.isPending}
           disabled={editName.trim() === ""}
           onPress={saveEdit}
         />
         <View className="flex-row flex-wrap gap-2">
           <Button
-            label="Re-test with a file"
+            label={t("importing.formats.retestFile")}
             variant="secondary"
             onPress={() => {
               if (!editing) return;
@@ -312,7 +323,7 @@ export function FormatsManager() {
             }}
           />
           <Button
-            label="Duplicate"
+            label={t("importing.formats.duplicate")}
             variant="secondary"
             onPress={() => {
               if (!editing) return;
@@ -322,7 +333,7 @@ export function FormatsManager() {
             }}
           />
           <Button
-            label="Export"
+            label={t("importing.formats.export")}
             variant="secondary"
             onPress={() => {
               if (!editing) return;
@@ -333,7 +344,7 @@ export function FormatsManager() {
           />
         </View>
         <Button
-          label="Delete format"
+          label={t("importing.formats.delete")}
           variant="destructive"
           onPress={() => {
             if (!editing) return;
@@ -344,31 +355,43 @@ export function FormatsManager() {
         />
       </Sheet>
 
-      <Sheet visible={!!deleting} onClose={() => setDeleting(null)} title="Delete this format?">
+      <Sheet
+        visible={!!deleting}
+        onClose={() => setDeleting(null)}
+        title={t("importing.formats.deleteTitle")}
+      >
         <Text tone="muted">
-          “{deleting?.name}” is removed. Imported transactions are not affected; the next file from
-          this bank will be detected from scratch.
+          {t("importing.formats.deleteBody", { name: deleting?.name ?? "" })}
         </Text>
         <Button
-          label="Delete"
+          label={t("importing.formats.confirmDelete")}
           variant="destructive"
           loading={remove.isPending}
           onPress={confirmDelete}
         />
-        <Button label="Cancel" variant="ghost" onPress={() => setDeleting(null)} />
+        <Button
+          label={t("importing.formats.cancel")}
+          variant="ghost"
+          onPress={() => setDeleting(null)}
+        />
       </Sheet>
 
-      <Sheet visible={exporting !== null} onClose={() => setExporting(null)} title="Export formats">
-        <Text tone="muted">
-          Keep this text, or paste it into Import from JSON on another install.
-        </Text>
+      <Sheet
+        visible={exporting !== null}
+        onClose={() => setExporting(null)}
+        title={t("importing.formats.exportTitle")}
+      >
+        <Text tone="muted">{t("importing.formats.exportBody")}</Text>
         <Input
           value={exporting ?? ""}
           multiline
           editable={false}
-          accessibilityLabel="Exported formats"
+          accessibilityLabel={t("importing.formats.exportedLabel")}
         />
-        <Button label="Copy" onPress={() => exporting && void copyText(exporting)} />
+        <Button
+          label={t("importing.formats.copy")}
+          onPress={() => exporting && void copyText(exporting, t("importing.formats.copied"))}
+        />
       </Sheet>
 
       <Sheet
@@ -377,13 +400,13 @@ export function FormatsManager() {
           setImporting(false);
           setImportError(null);
         }}
-        title="Import from JSON"
+        title={t("importing.formats.importJson")}
       >
         <Input
-          label="Paste exported formats"
+          label={t("importing.formats.pasteLabel")}
           value={pasted}
-          onChangeText={(t) => {
-            setPasted(t);
+          onChangeText={(text) => {
+            setPasted(text);
             setImportError(null);
           }}
           multiline
@@ -391,7 +414,7 @@ export function FormatsManager() {
           error={importError ?? undefined}
         />
         <Button
-          label="Import"
+          label={t("importing.formats.import")}
           loading={create.isPending}
           disabled={pasted.trim() === ""}
           onPress={runImport}

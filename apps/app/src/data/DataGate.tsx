@@ -1,16 +1,18 @@
 import { Card, Skeleton, Text } from "@wallt/ui";
 import type { ReactNode } from "react";
 import { View } from "react-native";
+import { useTranslation } from "../i18n";
 import { useDataState } from "./RepositoryProvider";
 
 /** Renders children once the data source is ready; shows a skeleton while opening and the reason if it failed. */
 export function DataGate({ children }: { children: ReactNode }) {
   const state = useDataState();
+  const { t } = useTranslation();
   if (state.status === "ready") return <>{children}</>;
   if (state.status === "error") {
     return (
       <Card className="gap-1">
-        <Text variant="title">Cannot open your data</Text>
+        <Text variant="title">{t("common.dataGate.errorTitle")}</Text>
         <Text tone="muted">{state.error.message}</Text>
       </Card>
     );

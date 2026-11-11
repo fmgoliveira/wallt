@@ -15,6 +15,8 @@ const schema = z.object({
   /** Reverse proxies (IPs/CIDRs) whose X-Real-IP is trusted; default loopback. */
   TRUSTED_PROXIES: z.string().default("127.0.0.1,::1"),
   TZ: z.string().min(1).optional(),
+  /** Release version baked into the image (`APP_VERSION` build arg); reported by `/health`. */
+  APP_VERSION: z.string().min(1).max(64).optional(),
   /** Master secret: TOTP secrets are encrypted with it and the JWT key is derived from it. */
   ENCRYPTION_KEY: base64Key,
   /** age public key; backups run only when this and the Google client below are all set. */

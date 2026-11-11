@@ -14,6 +14,7 @@ import { ChevronRight, Plus, UserRound } from "lucide-react-native";
 import { useState } from "react";
 import { View } from "react-native";
 import { usePayeeAliases } from "../data/hooks";
+import { useTranslation } from "../i18n";
 import { placeholderIcon } from "../shell/placeholder";
 import { AliasForm } from "./AliasForm";
 import { useApplyAliases } from "./data";
@@ -23,6 +24,7 @@ import { useApplyAliases } from "./data";
  * every import (first match wins, oldest first) and, on request, to existing transactions.
  */
 export function AliasesManager() {
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const aliases = usePayeeAliases();
   const apply = useApplyAliases();
@@ -37,16 +39,16 @@ export function AliasesManager() {
         <Card>
           <EmptyState
             icon={placeholderIcon(UserRound)}
-            title="No payee names yet"
-            description="Banks write the same shop in many ways. Teach Wallt that “PINGO DOCE LISBOA 4521” is just “Pingo Doce”, and every import will use the clean name."
-            actionLabel="Add payee name"
+            title={t("aliases.manager.emptyTitle")}
+            description={t("aliases.manager.emptyDescription")}
+            actionLabel={t("aliases.manager.addPayeeName")}
             onAction={() => setForm({})}
           />
         </Card>
       ) : (
         <View className="gap-2">
           <Text variant="label" tone="muted">
-            First match wins, oldest first
+            {t("aliases.manager.listHeader")}
           </Text>
           <Card className="p-0 tablet:p-0">
             {list.map((a, i) => (
@@ -69,29 +71,30 @@ export function AliasesManager() {
       )}
       <View className="gap-3">
         <Button
-          label="Add payee name"
+          label={t("aliases.manager.addPayeeName")}
           leading={<Plus size={18} color={colors.accentFg} strokeWidth={2} />}
           onPress={() => setForm({})}
         />
         {list.length > 0 ? (
           <Button
-            label="Apply to existing transactions"
+            label={t("aliases.manager.applyExisting")}
             variant="ghost"
             loading={apply.isPending}
             onPress={async () => {
               try {
                 const n = await apply.mutateAsync(undefined);
-                toast.success(`Renamed ${n} transaction${n === 1 ? "" : "s"}`);
+                toast.success(t("aliases.manager.renamed", { count: n }));
               } catch (error) {
-                toast.error(error instanceof Error ? error.message : "Something went wrong");
+                toast.error(
+                  error instanceof Error ? error.message : t("aliases.manager.wentWrong"),
+                );
               }
             }}
           />
         ) : null}
       </View>
       <Text variant="small" tone="muted">
-        Imports also strip card numbers, dates and long reference numbers from descriptions before
-        any of this runs. Rules then see the clean payee.
+        {t("aliases.manager.note")}
       </Text>
       {form ? <AliasForm alias={form.alias} onClose={() => setForm(null)} /> : null}
     </View>

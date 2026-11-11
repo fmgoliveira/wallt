@@ -1,17 +1,21 @@
 import { usePrivacyStore, useTheme } from "@wallt/ui";
 import { Eye, EyeOff } from "lucide-react-native";
 import { Pressable } from "react-native";
+import { useTranslation } from "../i18n";
 
 /** Eye button for page headers: one tap hides or shows every amount. */
 export function PrivacyToggle() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const hidden = usePrivacyStore((s) => s.hidden);
   const toggle = usePrivacyStore((s) => s.toggle);
   const Icon = hidden ? EyeOff : Eye;
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={hidden ? "Show amounts" : "Hide amounts"}
+      accessibilityLabel={
+        hidden ? t("security.privacyToggle.show") : t("security.privacyToggle.hide")
+      }
       accessibilityState={{ selected: hidden }}
       onPress={toggle}
       hitSlop={6}
