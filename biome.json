@@ -8,6 +8,7 @@
       "!**/.turbo",
       "!**/coverage",
       "!pnpm-lock.yaml",
+      "!apps/app/app.json",
       "!**/*.md",
       "!**/*.yaml",
       "!**/*.yml",
