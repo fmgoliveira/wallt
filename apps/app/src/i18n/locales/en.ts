@@ -1,3 +1,20 @@
+import { accounts } from "./en/accounts";
+import { aliases } from "./en/aliases";
+import { budgets } from "./en/budgets";
+import { categories } from "./en/categories";
+import { common } from "./en/common";
+import { dashboard } from "./en/dashboard";
+import { goals } from "./en/goals";
+import { importing } from "./en/importing";
+import { notifications } from "./en/notifications";
+import { recurring } from "./en/recurring";
+import { reports } from "./en/reports";
+import { review } from "./en/review";
+import { rules } from "./en/rules";
+import { security } from "./en/security";
+import { sync } from "./en/sync";
+import { transactions } from "./en/transactions";
+
 /** English is the source catalogue; Portuguese must have exactly the same keys (enforced by its type). */
 export const en = {
   nav: {
@@ -33,6 +50,22 @@ export const en = {
     en: "English",
     pt: "Português",
   },
+  transactions,
+  importing,
+  review,
+  rules,
+  aliases,
+  dashboard,
+  reports,
+  budgets,
+  accounts,
+  categories,
+  goals,
+  recurring,
+  security,
+  notifications,
+  sync,
+  common,
 } as const;
 
 export type Catalogue = typeof en;

@@ -1,8 +1,24 @@
 import type { Catalogue } from "./en";
+import { accounts } from "./pt/accounts";
+import { aliases } from "./pt/aliases";
+import { budgets } from "./pt/budgets";
+import { categories } from "./pt/categories";
+import { common } from "./pt/common";
+import { dashboard } from "./pt/dashboard";
+import { goals } from "./pt/goals";
+import { importing } from "./pt/importing";
+import { notifications } from "./pt/notifications";
+import { recurring } from "./pt/recurring";
+import { reports } from "./pt/reports";
+import { review } from "./pt/review";
+import { rules } from "./pt/rules";
+import { security } from "./pt/security";
+import { sync } from "./pt/sync";
+import { transactions } from "./pt/transactions";
 
 type Widen<T> = { [K in keyof T]: T[K] extends string ? string : Widen<T[K]> };
 
-export const pt: Widen<Catalogue> = {
+export const pt: Catalogue = {
   nav: {
     dashboard: "Painel",
     transactions: "Transações",
@@ -36,4 +52,20 @@ export const pt: Widen<Catalogue> = {
     en: "English",
     pt: "Português",
   },
+  transactions,
+  importing,
+  review,
+  rules,
+  aliases,
+  dashboard,
+  reports,
+  budgets,
+  accounts,
+  categories,
+  goals,
+  recurring,
+  security,
+  notifications,
+  sync,
+  common,
 };
