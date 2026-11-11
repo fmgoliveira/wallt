@@ -1,8 +1,8 @@
-import { describeSync } from "@wallt/sync";
 import { Chip } from "@wallt/ui";
 import { useEffect, useState } from "react";
 import { AppState, Pressable } from "react-native";
 import { useTranslation } from "../i18n";
+import { describeSyncT } from "../i18n/packages";
 import { syncNow, useSyncUi } from "./runtime";
 
 /** Sync status chip (PLAN §10 P3.3): "Synced 2 min ago", offline badge, pending count. Tap to sync now. */
@@ -27,7 +27,7 @@ export function SyncStatus() {
     };
   }, []);
 
-  const { label, tone } = describeSync(session ? state : null, now);
+  const { label, tone } = describeSyncT(t, session ? state : null, now);
   const chip = <Chip tone={tone} label={label} />;
   if (!session) return chip;
   return (

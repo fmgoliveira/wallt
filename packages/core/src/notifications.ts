@@ -12,11 +12,23 @@ import { type RuleLike, upcomingItems } from "./recurrence";
 
 export type NotificationType = "budget" | "review" | "bill";
 
+/**
+ * Machine-readable form of a notification text: UIs translate `id` (with `params`); `title`/`body` below stay as
+ * the English fallback.
+ */
+export interface NotificationText {
+  id: string;
+  params?: Record<string, string | number>;
+}
+
 export interface AppNotification {
   key: string;
   type: NotificationType;
   title: string;
   body: string;
+  /** Absent on items stored by older versions: fall back to `title`. */
+  titleText?: NotificationText;
+  bodyText?: NotificationText;
   /** For bills: the due date, so a platform can schedule the reminder ahead of time. */
   dueDate?: CalendarDate;
 }
@@ -49,6 +61,11 @@ export function budgetNotifications(
           ? `${budget.name} is over budget`
           : `${budget.name} is close to its limit`,
       body: `You have spent ${status.percent}% of this period's budget.`,
+      titleText: {
+        id: status.level === "over" ? "budgetOver" : "budgetNear",
+        params: { name: budget.name },
+      },
+      bodyText: { id: "budgetSpent", params: { percent: status.percent } },
     });
   }
   return out;
@@ -71,6 +88,18 @@ export function billNotifications(
             ? `${i.rule.template.payee} is due today`
             : `${i.rule.template.payee} is due ${i.inDays === 1 ? "tomorrow" : `in ${i.inDays} days`}`,
       body: "Open Recurring to post or skip it.",
+      titleText: {
+        id:
+          i.inDays < 0
+            ? "billOverdue"
+            : i.inDays === 0
+              ? "billToday"
+              : i.inDays === 1
+                ? "billTomorrow"
+                : "billInDays",
+        params: { payee: i.rule.template.payee, days: i.inDays },
+      },
+      bodyText: { id: "billOpen" },
       dueDate: i.date,
     }));
 }
@@ -84,6 +113,8 @@ export function reviewNotification(count: number, today: CalendarDate): AppNotif
       type: "review",
       title: `${count} transaction${count === 1 ? "" : "s"} need${count === 1 ? "s" : ""} review`,
       body: "Check the categories we suggested.",
+      titleText: { id: "reviewCount", params: { count } },
+      bodyText: { id: "reviewCheck" },
     },
   ];
 }

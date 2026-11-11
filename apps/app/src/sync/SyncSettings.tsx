@@ -1,8 +1,9 @@
-import { type AuthClientError, describeSync, normalizeServerUrl } from "@wallt/sync";
+import { type AuthClientError, normalizeServerUrl } from "@wallt/sync";
 import { Button, Card, Input, Sheet, Text, toast } from "@wallt/ui";
 import { useState } from "react";
 import { Platform, View } from "react-native";
 import { useTranslation } from "../i18n";
+import { describeSyncT } from "../i18n/packages";
 import { syncNow, useSyncUi } from "./runtime";
 import { authClientFor, completeSignIn, signOut } from "./session";
 
@@ -153,7 +154,7 @@ export function SyncSetting() {
   const engine = useSyncUi((u) => u.engine);
   const [open, setOpen] = useState(false);
   const { t } = useTranslation();
-  const status = describeSync(session ? engine : null, Date.now());
+  const status = describeSyncT(t, session ? engine : null, Date.now());
 
   return (
     <Card className="gap-3">

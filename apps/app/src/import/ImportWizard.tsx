@@ -44,6 +44,7 @@ import {
 } from "../data/hooks";
 import { useRepository } from "../data/RepositoryProvider";
 import { useTranslation } from "../i18n";
+import { analysisNoteT, parseErrorT } from "../i18n/packages";
 import { notifyLocalWrite } from "../sync/runtime";
 import { applyPlan, type ImportOutcome, planForAccount } from "./apply";
 import { DropZone } from "./DropZone";
@@ -496,9 +497,9 @@ export function ImportWizard({ mode, profile, onSaved }: ImportWizardProps) {
           </View>
           {analysis.notes.length > 0 && !matched ? (
             <View className="gap-0.5">
-              {analysis.notes.map((n) => (
-                <Text key={n} variant="small" tone="warning">
-                  {n}
+              {analysis.noteCodes.map((code) => (
+                <Text key={code} variant="small" tone="warning">
+                  {analysisNoteT(t, code)}
                 </Text>
               ))}
             </View>
@@ -589,7 +590,7 @@ export function ImportWizard({ mode, profile, onSaved }: ImportWizardProps) {
                   <Text key={e.rowIndex} variant="small" tone="negative" numberOfLines={1}>
                     {t("importing.wizard.rowError", {
                       n: e.rowIndex + 1,
-                      reason: e.reason,
+                      reason: parseErrorT(t, e),
                       cells: (analysis.table.rows[e.rowIndex] ?? []).join(" · "),
                     })}
                   </Text>

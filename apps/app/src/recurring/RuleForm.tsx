@@ -1,5 +1,4 @@
 import {
-  describeRRule,
   presetOf,
   RECURRENCE_PRESETS,
   type RecurrencePreset,
@@ -28,6 +27,7 @@ import {
   useUpdateRecurringRule,
 } from "../data/recurring";
 import { useTranslation } from "../i18n";
+import { describeRRuleT, presetLabelT } from "../i18n/packages";
 
 /** What the form starts from when it is not editing a saved rule (e.g. an accepted suggestion). */
 export interface RuleDraft {
@@ -98,11 +98,11 @@ export function RuleForm({
       ? [
           {
             value: "keep" as const,
-            label: describeRRule(start.rrule) ?? t("recurring.form.currentSchedule"),
+            label: describeRRuleT(t, start.rrule) ?? t("recurring.form.currentSchedule"),
           },
         ]
       : []),
-    ...RECURRENCE_PRESETS,
+    ...RECURRENCE_PRESETS.map((p) => ({ value: p.value, label: presetLabelT(t, p.value) })),
   ];
 
   async function save() {

@@ -1,4 +1,4 @@
-import { previewRule, validateCondition } from "@wallt/categorize";
+import { conditionErrorCode, previewRule } from "@wallt/categorize";
 import type { Rule, RuleCondition } from "@wallt/core";
 import { AmountInput, Button, Input, Select, Sheet, Tabs, Text, toast, useTheme } from "@wallt/ui";
 import type { TFunction } from "i18next";
@@ -14,6 +14,7 @@ import {
   useUpdateRule,
 } from "../data/hooks";
 import { useTranslation } from "../i18n";
+import { conditionErrorT } from "../i18n/packages";
 import { useRuleHistory } from "./data";
 
 type Field = RuleCondition["field"];
@@ -126,7 +127,12 @@ export function RuleForm({
 
   const errors = conditions.map((c) => {
     if (c.field === "amount" && c.value === null) return t("rules.form.enterAmount");
-    return validateCondition({ field: c.field, op: c.op, value: c.value ?? "" } as RuleCondition);
+    const code = conditionErrorCode({
+      field: c.field,
+      op: c.op,
+      value: c.value ?? "",
+    } as RuleCondition);
+    return code === null ? null : conditionErrorT(t, code);
   });
   const allValid = errors.every((e) => e === null);
 

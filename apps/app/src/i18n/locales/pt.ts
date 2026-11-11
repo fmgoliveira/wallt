@@ -13,6 +13,7 @@ import { reports } from "./pt/reports";
 import { review } from "./pt/review";
 import { rules } from "./pt/rules";
 import { security } from "./pt/security";
+import { shared } from "./pt/shared";
 import { sync } from "./pt/sync";
 import { transactions } from "./pt/transactions";
 
@@ -66,4 +67,5 @@ export const pt: Widen<Catalogue> = {
   notifications,
   sync,
   common,
+  shared,
 };

@@ -4,6 +4,7 @@ import { Bell } from "lucide-react-native";
 import { useState } from "react";
 import { Pressable, View } from "react-native";
 import { useTranslation } from "../i18n";
+import { notificationTitleT } from "../i18n/packages";
 import { placeholderIcon } from "../shell/placeholder";
 import { useNotificationStore } from "./store";
 
@@ -73,7 +74,7 @@ export function NotificationBell() {
                 <ListItem
                   key={n.key}
                   divider={i > 0}
-                  title={n.title}
+                  title={notificationTitleT(t, n)}
                   subtitle={t(
                     n.read ? "notifications.bell.subtitle" : "notifications.bell.subtitleNew",
                     {

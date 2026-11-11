@@ -108,7 +108,24 @@ export function exportProfiles(profiles: readonly PortableProfile[]): string {
   return JSON.stringify(bundle, null, 2);
 }
 
-export class ProfileImportError extends Error {}
+export type ProfileImportErrorCode =
+  | "invalidJson"
+  | "notProfilesFile"
+  | "newerVersion"
+  | "noName"
+  | "noFingerprints"
+  | "badConfig";
+
+export class ProfileImportError extends Error {
+  /** Machine-readable cause and its values (`n` = format number, `name`), for UIs that translate. */
+  constructor(
+    message: string,
+    readonly code: ProfileImportErrorCode,
+    readonly params: { n?: number; name?: string } = {},
+  ) {
+    super(message);
+  }
+}
 
 /** Parse and validate an exported bundle. Throws `ProfileImportError` with a message fit for the user. */
 export function parseProfilesJson(text: string): PortableProfile[] {
@@ -116,27 +133,41 @@ export function parseProfilesJson(text: string): PortableProfile[] {
   try {
     data = JSON.parse(text);
   } catch {
-    throw new ProfileImportError("That is not valid JSON.");
+    throw new ProfileImportError("That is not valid JSON.", "invalidJson");
   }
   const bundle = data as Partial<PortableBundle> | null;
   if (bundle?.kind !== "wallt-import-profiles" || !Array.isArray(bundle.profiles)) {
-    throw new ProfileImportError("This is not a Wallt import formats file.");
+    throw new ProfileImportError("This is not a Wallt import formats file.", "notProfilesFile");
   }
   if (bundle.version !== 1)
-    throw new ProfileImportError("This file comes from a newer version of Wallt.");
+    throw new ProfileImportError("This file comes from a newer version of Wallt.", "newerVersion");
   return bundle.profiles.map((p, i) => {
     const prof = p as Partial<PortableProfile>;
     const where = `Format ${i + 1}`;
     if (typeof prof.name !== "string" || prof.name.trim() === "")
-      throw new ProfileImportError(`${where} has no name.`);
+      throw new ProfileImportError(`${where} has no name.`, "noName", { n: i + 1 });
     if (
       !Array.isArray(prof.fingerprints) ||
       prof.fingerprints.length === 0 ||
       !prof.fingerprints.every((f) => typeof f === "string" && f !== "")
     )
-      throw new ProfileImportError(`${where} ("${prof.name}") has no fingerprints.`);
+      throw new ProfileImportError(
+        `${where} ("${prof.name}") has no fingerprints.`,
+        "noFingerprints",
+        {
+          n: i + 1,
+          name: prof.name,
+        },
+      );
     if (!isProfileConfig(prof.config))
-      throw new ProfileImportError(`${where} ("${prof.name}") has an unreadable configuration.`);
+      throw new ProfileImportError(
+        `${where} ("${prof.name}") has an unreadable configuration.`,
+        "badConfig",
+        {
+          n: i + 1,
+          name: prof.name,
+        },
+      );
     return {
       name: prof.name.trim(),
       institution: typeof prof.institution === "string" ? prof.institution : null,

@@ -27,35 +27,63 @@ export type RuleLike = Pick<Rule, "id" | "conditions" | "action" | "priority">;
 
 const SIGNS = ["expense", "income"] as const;
 
-/** Why a condition cannot be saved, or `null` when it is fine. */
-export function validateCondition(c: RuleCondition): string | null {
+export type ConditionErrorCode =
+  | "textOp"
+  | "textEmpty"
+  | "badRegex"
+  | "amountOp"
+  | "amountValue"
+  | "accountOp"
+  | "accountEmpty"
+  | "signOp"
+  | "signValue";
+
+/** English text of each condition error (the fallback; apps translate by code). */
+export const CONDITION_ERRORS: Record<ConditionErrorCode, string> = {
+  textOp: "Text can be matched with contains, equals or regex",
+  textEmpty: "Enter some text",
+  badRegex: "Not a valid regular expression",
+  amountOp: "Amount can be compared with at least, at most or equals",
+  amountValue: "Enter an amount in minor units",
+  accountOp: "Account can only be matched with equals",
+  accountEmpty: "Pick an account",
+  signOp: "Sign can only be matched with equals",
+  signValue: "Pick expense or income",
+};
+
+/** Why a condition is not usable, as a code; null when it is valid. */
+export function conditionErrorCode(c: RuleCondition): ConditionErrorCode | null {
   switch (c.field) {
     case "payee":
     case "description":
-      if (c.op !== "contains" && c.op !== "equals" && c.op !== "regex")
-        return "Text can be matched with contains, equals or regex";
-      if (typeof c.value !== "string" || c.value.trim() === "") return "Enter some text";
+      if (c.op !== "contains" && c.op !== "equals" && c.op !== "regex") return "textOp";
+      if (typeof c.value !== "string" || c.value.trim() === "") return "textEmpty";
       if (c.op === "regex") {
         try {
           new RegExp(c.value, "i");
         } catch {
-          return "Not a valid regular expression";
+          return "badRegex";
         }
       }
       return null;
     case "amount":
-      if (c.op !== "gte" && c.op !== "lte" && c.op !== "equals")
-        return "Amount can be compared with at least, at most or equals";
+      if (c.op !== "gte" && c.op !== "lte" && c.op !== "equals") return "amountOp";
       if (typeof c.value !== "number" || !Number.isSafeInteger(c.value) || c.value < 0)
-        return "Enter an amount in minor units";
+        return "amountValue";
       return null;
     case "account":
-      if (c.op !== "equals") return "Account can only be matched with equals";
-      return typeof c.value === "string" && c.value !== "" ? null : "Pick an account";
+      if (c.op !== "equals") return "accountOp";
+      return typeof c.value === "string" && c.value !== "" ? null : "accountEmpty";
     case "sign":
-      if (c.op !== "equals") return "Sign can only be matched with equals";
-      return (SIGNS as readonly unknown[]).includes(c.value) ? null : "Pick expense or income";
+      if (c.op !== "equals") return "signOp";
+      return (SIGNS as readonly unknown[]).includes(c.value) ? null : "signValue";
   }
+}
+
+/** Why a condition cannot be saved, or `null` when it is fine. */
+export function validateCondition(c: RuleCondition): string | null {
+  const code = conditionErrorCode(c);
+  return code === null ? null : CONDITION_ERRORS[code];
 }
 
 function textMatches(op: RuleCondition["op"], value: string, texts: readonly string[]): boolean {

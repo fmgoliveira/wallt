@@ -1,4 +1,4 @@
-import { describeRRule, formatAmount, type RecurringRule, upcomingItems } from "@wallt/core";
+import { formatAmount, type RecurringRule, upcomingItems } from "@wallt/core";
 import {
   Amount,
   Button,
@@ -26,6 +26,7 @@ import {
   useSkipOccurrence,
 } from "../../src/data/recurring";
 import { useTranslation } from "../../src/i18n";
+import { describeRRuleT } from "../../src/i18n/packages";
 import { useDismissedSuggestions } from "../../src/recurring/dismissed";
 import { type RuleDraft, RuleForm } from "../../src/recurring/RuleForm";
 import { Page } from "../../src/shell/Page";
@@ -78,7 +79,7 @@ function Upcoming({
             key={`${item.rule.id}:${item.date}`}
             divider={i > 0}
             title={t.payee}
-            subtitle={`${item.date} · ${describeRRule(item.rule.rrule) ?? ""}`}
+            subtitle={`${item.date} · ${describeRRuleT(tr, item.rule.rrule) ?? ""}`}
             leading={<Chip tone={due.tone} label={due.text} />}
             trailing={
               <View className="items-end gap-2">
@@ -136,7 +137,7 @@ function Suggestions({ onAccept }: { onAccept: (draft: RuleDraft) => void }) {
             divider={i > 0}
             title={s.payee}
             subtitle={t("recurring.screen.seen", {
-              schedule: describeRRule(s.rrule) ?? "",
+              schedule: describeRRuleT(t, s.rrule) ?? "",
               n: s.occurrences,
               account: accounts.find((a) => a.id === s.accountId)?.name ?? "",
             })}
@@ -222,7 +223,7 @@ function RecurringContent({
                   divider={i > 0}
                   title={r.template.payee}
                   subtitle={t("recurring.screen.next", {
-                    schedule: describeRRule(r.rrule) ?? "",
+                    schedule: describeRRuleT(t, r.rrule) ?? "",
                     date: r.nextDate,
                   })}
                   leading={

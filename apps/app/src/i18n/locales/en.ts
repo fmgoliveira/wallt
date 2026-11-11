@@ -12,6 +12,7 @@ import { reports } from "./en/reports";
 import { review } from "./en/review";
 import { rules } from "./en/rules";
 import { security } from "./en/security";
+import { shared } from "./en/shared";
 import { sync } from "./en/sync";
 import { transactions } from "./en/transactions";
 
@@ -66,6 +67,7 @@ export const en = {
   notifications,
   sync,
   common,
+  shared,
 } as const;
 
 export type Catalogue = typeof en;

@@ -236,9 +236,33 @@ const ordinal = (n: number) => {
   return `${n}${suffix}`;
 };
 
+/** Structured description of a supported rule, for UIs that translate it. */
+export interface RRuleDescription {
+  freq: "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY";
+  interval: number;
+  /** Weekdays, 0 = Monday … 6 = Sunday. */
+  byDay: number[];
+  /** Day of month, -1 = last day, null = unspecified. */
+  byMonthDay: number | null;
+  until: string | null;
+}
+
+/** Parts of the summary of an RRULE; null for rules outside the supported subset. */
+export function describeRRuleParts(rrule: string): RRuleDescription | null {
+  const spec = parseRRule(rrule);
+  if (!spec) return null;
+  return {
+    freq: spec.freq,
+    interval: spec.interval,
+    byDay: [...spec.byDay],
+    byMonthDay: spec.byMonthDay ?? null,
+    until: spec.until ?? null,
+  };
+}
+
 /** Plain-English summary ("Every 2 weeks on Friday"); null for rules outside the supported subset. */
 export function describeRRule(rrule: string): string | null {
-  const spec = parseRRule(rrule);
+  const spec = describeRRuleParts(rrule);
   if (!spec) return null;
   const every = (unit: string, plural: string) =>
     spec.interval === 1 ? `Every ${unit}` : `Every ${spec.interval} ${plural}`;

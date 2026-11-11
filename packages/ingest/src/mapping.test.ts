@@ -192,7 +192,9 @@ Data;Descrição;Montante
     const parsed = parseRows(rows, r.mapping);
     expect(parsed.rows).toHaveLength(2);
     expect(parsed.rows[0]?.bookingDate).toBe("2024-01-02");
-    expect(parsed.errors).toEqual([{ rowIndex: 3, reason: "Unreadable amount" }]);
+    expect(parsed.errors).toEqual([
+      { rowIndex: 3, reason: "Unreadable amount", code: "unreadableAmount" },
+    ]);
   });
 
   it("explains what it could not find", () => {

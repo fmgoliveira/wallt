@@ -33,6 +33,8 @@ export interface InferenceResult {
   confidence: number;
   balanceCheck: BalanceCheck | null;
   notes: string[];
+  /** Same order as `notes`, machine-readable, for UIs that translate. */
+  noteCodes: AnalysisNoteCode[];
 }
 
 export interface ParsedRow {
@@ -52,9 +54,29 @@ export interface ParsedRow {
   externalId: string | null;
 }
 
+export type AnalysisNoteCode =
+  | "noDate"
+  | "noDescription"
+  | "noAmount"
+  | "flipSign"
+  | "balanceMismatch";
+
+/** English text of each analysis note (the fallback; apps translate by code). */
+export const ANALYSIS_NOTES: Record<AnalysisNoteCode, string> = {
+  noDate: "No date column found",
+  noDescription: "No description column found",
+  noAmount: "No amount column found",
+  flipSign: "Amounts reconcile with the balance only after flipping their sign",
+  balanceMismatch: "The balance column does not reconcile with the amounts",
+};
+
 export interface ParseError {
   rowIndex: number;
+  /** English fallback text. */
   reason: string;
+  /** Machine-readable cause, for UIs that translate; `value` is the offending cell text. */
+  code: "unreadableDate" | "unreadableAmount";
+  value?: string;
 }
 
 export interface ParseResult {
@@ -142,6 +164,11 @@ export function checkBalance(
  */
 export function inferMapping(rows: Rows, currency = "EUR"): InferenceResult {
   const notes: string[] = [];
+  const noteCodes: AnalysisNoteCode[] = [];
+  const note = (code: AnalysisNoteCode) => {
+    notes.push(ANALYSIS_NOTES[code]);
+    noteCodes.push(code);
+  };
   const headerRow = findHeaderRow(rows);
   const data = rows.slice(headerRow === null ? 0 : headerRow + 1);
   const headers = headerRow === null ? [] : (rows[headerRow] ?? []);
@@ -162,7 +189,7 @@ export function inferMapping(rows: Rows, currency = "EUR"): InferenceResult {
   const freeDates = () => dateCols.filter((s) => !used.has(s.index));
   take("date", freeDates()[0]?.index);
   take("valueDate", freeDates()[0]?.index);
-  if (columns.date === undefined) notes.push("No date column found");
+  if (columns.date === undefined) note("noDate");
 
   // 2. numbers
   const numeric = stats.filter((s) => s.type === "number" && !used.has(s.index));
@@ -196,7 +223,7 @@ export function inferMapping(rows: Rows, currency = "EUR"): InferenceResult {
       .sort((x, y) => y.avgLength - x.avgLength)[0];
     take("description", longest?.index);
   }
-  if (columns.description === undefined) notes.push("No description column found");
+  if (columns.description === undefined) note("noDescription");
 
   // 4. formats
   const dateFormat: DateFormat = detectDateFormat(
@@ -226,17 +253,17 @@ export function inferMapping(rows: Rows, currency = "EUR"): InferenceResult {
       if (balanceCheck.matchRatio >= 0.8) {
         if (balanceCheck.flipped && columns.amount !== undefined) {
           mapping.invertSign = true;
-          notes.push("Amounts reconcile with the balance only after flipping their sign");
+          note("flipSign");
         }
       } else if (balanceCheck.pairs > 0) {
-        notes.push("The balance column does not reconcile with the amounts");
+        note("balanceMismatch");
       }
     }
   }
 
   const haveAmount =
     columns.amount !== undefined || columns.debit !== undefined || columns.credit !== undefined;
-  if (!haveAmount) notes.push("No amount column found");
+  if (!haveAmount) note("noAmount");
   const parsed = parseRows(rows, mapping, currency);
   const total = parsed.rows.length + parsed.errors.length;
   const cleanShare = total ? parsed.rows.length / total : 0;
@@ -252,7 +279,7 @@ export function inferMapping(rows: Rows, currency = "EUR"): InferenceResult {
         100,
     ) / 100,
   );
-  return { mapping, confidence, balanceCheck, notes };
+  return { mapping, confidence, balanceCheck, notes, noteCodes };
 }
 
 /** Apply a mapping to the rows. Rows without a date are skipped; half-parsed rows are reported as errors. */
@@ -282,12 +309,17 @@ export function parseRows(rows: Rows, mapping: ImportMapping, currency = "EUR"):
     if (bookingDate === null) {
       // preamble, totals and footers carry no date: skipped, unless a date-ish cell came with an amount
       if (amount !== null && dateText !== "")
-        errors.push({ rowIndex: i, reason: `Unreadable date "${dateText}"` });
+        errors.push({
+          rowIndex: i,
+          reason: `Unreadable date "${dateText}"`,
+          code: "unreadableDate",
+          value: dateText,
+        });
       else skipped++;
       continue;
     }
     if (amount === null) {
-      errors.push({ rowIndex: i, reason: "Unreadable amount" });
+      errors.push({ rowIndex: i, reason: "Unreadable amount", code: "unreadableAmount" });
       continue;
     }
     const valueText = cell(row, c.valueDate);

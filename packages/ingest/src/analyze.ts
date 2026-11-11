@@ -1,5 +1,6 @@
 import { decodeText } from "./decode";
 import {
+  type AnalysisNoteCode,
   type ImportMapping,
   inferMapping,
   type ParsedRow,
@@ -18,6 +19,7 @@ export type Analysis =
       errors: ParseError[];
       confidence: 1;
       notes: string[];
+      noteCodes: AnalysisNoteCode[];
     }
   | {
       kind: "table";
@@ -28,6 +30,7 @@ export type Analysis =
       skipped: number;
       confidence: number;
       notes: string[];
+      noteCodes: AnalysisNoteCode[];
     };
 
 /**
@@ -52,6 +55,7 @@ export function analyzeFile(
         errors: [],
         confidence: 1,
         notes: [],
+        noteCodes: [],
       };
     }
   }
@@ -67,5 +71,6 @@ export function analyzeFile(
     skipped: parsed.skipped,
     confidence: inferred.confidence,
     notes: inferred.notes,
+    noteCodes: inferred.noteCodes,
   };
 }

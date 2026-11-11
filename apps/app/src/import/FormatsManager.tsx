@@ -33,6 +33,7 @@ import {
   useUpdateImportProfile,
 } from "../data/hooks";
 import { useTranslation } from "../i18n";
+import { profileImportErrorT } from "../i18n/packages";
 import { ImportWizard } from "./ImportWizard";
 
 type View_ = { kind: "list" } | { kind: "setup" } | { kind: "retest"; profile: ImportProfile };
@@ -187,7 +188,7 @@ export function FormatsManager() {
     } catch (e) {
       setImportError(
         e instanceof ProfileImportError
-          ? e.message
+          ? profileImportErrorT(t, e)
           : e instanceof Error
             ? e.message
             : t("importing.formats.importFailed"),
