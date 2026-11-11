@@ -1,5 +1,15 @@
 import { AUTO_LOCK_OPTIONS, isValidPin } from "@wallt/core";
-import { Button, Card, Input, Select, Sheet, Tabs, Text, toast, usePrivacyStore } from "@wallt/ui";
+import {
+  Button,
+  Card,
+  Input,
+  Select,
+  Sheet,
+  Switch,
+  Text,
+  toast,
+  usePrivacyStore,
+} from "@wallt/ui";
 import { useEffect, useState } from "react";
 import { View } from "react-native";
 import { useTranslation } from "../i18n";
@@ -13,14 +23,6 @@ import {
   setBiometrics,
   useSecurityStore,
 } from "./securityStore";
-
-function useOnOff() {
-  const { t } = useTranslation();
-  return [
-    { value: "off", label: t("security.off") },
-    { value: "on", label: t("security.on") },
-  ] as const;
-}
 
 const AUTO_LOCK_KEYS = {
   0: "immediately",
@@ -88,19 +90,13 @@ function PinSheet({
 export function PrivacySetting() {
   const hidden = usePrivacyStore((s) => s.hidden);
   const { t } = useTranslation();
-  const onOff = useOnOff();
   return (
-    <Card className="gap-3">
-      <View className="gap-1">
-        <Text variant="title">{t("security.privacy.title")}</Text>
-        <Text variant="small" tone="muted">
-          {t("security.privacy.hint")}
-        </Text>
-      </View>
-      <Tabs
-        items={onOff}
-        value={hidden ? "on" : "off"}
-        onChange={(v) => usePrivacyStore.getState().setHidden(v === "on")}
+    <Card>
+      <Switch
+        label={t("security.privacy.title")}
+        description={t("security.privacy.hint")}
+        value={hidden}
+        onValueChange={(v) => usePrivacyStore.getState().setHidden(v)}
       />
     </Card>
   );
@@ -112,7 +108,6 @@ export function LockSetting() {
   const [flow, setFlow] = useState<Flow>(null);
   const [bioOk, setBioOk] = useState(false);
   const { t } = useTranslation();
-  const onOff = useOnOff();
 
   useEffect(() => {
     void biometricsAvailable().then(setBioOk);
@@ -135,16 +130,11 @@ export function LockSetting() {
 
   return (
     <Card className="gap-4">
-      <View className="gap-1">
-        <Text variant="title">{t("security.appLock.title")}</Text>
-        <Text variant="small" tone="muted">
-          {bioOk ? t("security.appLock.hintBiometrics") : t("security.appLock.hint")}
-        </Text>
-      </View>
-      <Tabs
-        items={onOff}
-        value={lockEnabled ? "on" : "off"}
-        onChange={(v) => setFlow(v === "on" ? "enable" : "disable")}
+      <Switch
+        label={t("security.appLock.title")}
+        description={bioOk ? t("security.appLock.hintBiometrics") : t("security.appLock.hint")}
+        value={lockEnabled}
+        onValueChange={(v) => setFlow(v ? "enable" : "disable")}
       />
       {lockEnabled ? (
         <>
@@ -161,16 +151,11 @@ export function LockSetting() {
             onChange={(v) => void setAutoLock(Number(v))}
           />
           {bioOk ? (
-            <View className="gap-1.5">
-              <Text variant="small" tone="muted" weight="medium">
-                {t("security.appLock.biometricsLabel")}
-              </Text>
-              <Tabs
-                items={onOff}
-                value={biometrics ? "on" : "off"}
-                onChange={(v) => void setBiometrics(v === "on")}
-              />
-            </View>
+            <Switch
+              label={t("security.appLock.biometricsLabel")}
+              value={biometrics}
+              onValueChange={(v) => void setBiometrics(v)}
+            />
           ) : null}
           <View className="flex-row">
             <Button

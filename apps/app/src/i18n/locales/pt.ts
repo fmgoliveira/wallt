@@ -36,7 +36,11 @@ export const pt: Widen<Catalogue> = {
   },
   settings: {
     title: "Definições",
-    subtitle: "Idioma, segurança, categorias, regras; tema, moeda e cópias de segurança mais tarde",
+    subtitle: "Idioma, segurança, notificações, categorias, regras e os seus dados",
+    sectionPreferences: "Preferências",
+    sectionSecurity: "Segurança e privacidade",
+    sectionData: "Os seus dados",
+    sectionOrganise: "Organizar",
     categories: "Categorias",
     categoriesHint: "Nomes, ícones, cores e ordem",
     rules: "Regras",
