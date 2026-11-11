@@ -738,7 +738,11 @@ function EditorForm({
             </View>
           ) : (
             <>
-              <View className="flex-row flex-wrap gap-[2.5%]" accessibilityRole="radiogroup">
+              <View
+                className="flex-row flex-wrap"
+                style={{ columnGap: "2.5%", rowGap: 10 }}
+                accessibilityRole="radiogroup"
+              >
                 <CategoryTile
                   label="None"
                   icon={categoryIcon(null)}
