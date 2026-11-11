@@ -70,8 +70,8 @@ Mobile/native packages follow **Expo SDK 58's bundled versions** (not npm latest
 | Tool | Version | Status |
 |---|---|---|
 | fast-check | 4.10.2 | planned (P3.4) |
-| @playwright/test | 1.65.0 | planned (P7.4) |
-| Maestro | n/a (CLI) | planned (P7.4) |
+| @playwright/test | 1.65.0 | in use (`apps/e2e`) |
+| Maestro | n/a (CLI) | smoke flow in `apps/e2e/maestro` (run by hand) |
 
 ## Open points for the owner
 1. **Node 26 and TypeScript 7** are the newest releases, chosen in PR #59. They work with Expo/Biome/Vitest so far; not yet verified with

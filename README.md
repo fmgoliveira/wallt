@@ -30,3 +30,7 @@ pnpm format      # Biome auto-fix
 
 Layout: `apps/{app,server}`, `packages/{core,db,sync,ingest,categorize,ui,config}` (see `docs/PLAN.md` §2.2).
 Shared TS/Biome config lives in `packages/config`. Copy `.env.example` to `.env` for local settings.
+
+## End-to-end tests
+- **Web (Playwright, runs in CI):** `pnpm --filter @wallt/app build`, then `pnpm e2e` (first time: `pnpm --filter @wallt/e2e exec playwright install chromium`). The tests start the server serving the web export on port 3100 with a throw-away data directory; see `apps/e2e`.
+- **Android (Maestro, by hand):** install the app on an emulator or device, then `maestro test apps/e2e/maestro/smoke.yaml`.

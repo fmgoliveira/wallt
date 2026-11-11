@@ -2,6 +2,7 @@ import { type AuthClientError, normalizeServerUrl } from "@wallt/sync";
 import { Button, Card, Input, Sheet, Text, toast } from "@wallt/ui";
 import { useState } from "react";
 import { Platform, View } from "react-native";
+import { useDataState } from "../data/RepositoryProvider";
 import { useTranslation } from "../i18n";
 import { describeSyncT } from "../i18n/packages";
 import { syncNow, useSyncUi } from "./runtime";
@@ -154,6 +155,8 @@ export function SyncSetting() {
   const engine = useSyncUi((u) => u.engine);
   const [open, setOpen] = useState(false);
   const { t } = useTranslation();
+  // Signing in needs the local database (device id, enrolment of existing rows), so wait until it is open.
+  const dataReady = useDataState().status === "ready";
   const status = describeSyncT(t, session ? engine : null, Date.now());
 
   return (
@@ -184,7 +187,11 @@ export function SyncSetting() {
           />
         </>
       ) : (
-        <Button label={t("sync.settings.signInToSync")} onPress={() => setOpen(true)} />
+        <Button
+          label={t("sync.settings.signInToSync")}
+          disabled={!dataReady}
+          onPress={() => setOpen(true)}
+        />
       )}
       {open ? <SignInSheet onClose={() => setOpen(false)} /> : null}
     </Card>

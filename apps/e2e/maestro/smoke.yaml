@@ -1,0 +1,24 @@
+# Android smoke test (Maestro): a fresh install gets through first-run onboarding, creates an account and
+# reaches Settings. Run against a debug/release APK on an emulator or device:
+#   maestro test apps/e2e/maestro/smoke.yaml
+# Needs a clean app state (the flow clears it first). Not run in CI: it needs an emulator and a built APK.
+appId: app.wallt
+---
+- clearState
+- launchApp
+- assertVisible: "Welcome to Wallt"
+- tapOn: "Create account"
+- assertVisible: "New account"
+- tapOn:
+    text: "Name"
+- inputText: "Maestro checking"
+- hideKeyboard
+- scrollUntilVisible:
+    element: "Add account"
+- tapOn: "Add account"
+- assertVisible: "Maestro checking"
+# bottom tabs: Dashboard / Activity / Accounts / More
+- tapOn: "More"
+- tapOn: "Settings"
+- assertVisible: "Language"
+- assertVisible: "Your data"
