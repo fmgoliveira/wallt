@@ -82,7 +82,10 @@ describe("upload queue", () => {
     await queueUpload(meta, { id: "gone", filePath: "gone.jpg" });
     await flushUploads(session, meta, blobs, async () => res(422));
     let called = 0;
-    await flushUploads(session, meta, blobs, async () => (called++, res(204)));
+    await flushUploads(session, meta, blobs, async () => {
+      called++;
+      return res(204);
+    });
     expect(called).toBe(0);
   });
 
@@ -92,7 +95,10 @@ describe("upload queue", () => {
     await queueUpload(meta, { id: "a", filePath: "a.jpg" });
     await dropUpload(meta, "a");
     let called = 0;
-    await flushUploads(session, meta, blobs, async () => (called++, res(204)));
+    await flushUploads(session, meta, blobs, async () => {
+      called++;
+      return res(204);
+    });
     expect(called).toBe(0);
   });
 });

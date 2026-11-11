@@ -127,7 +127,7 @@ export async function pickAttachment(
   const bytes = image ? image.bytes : await loadBytes(picked.uri);
   if (bytes.byteLength > maxBytes) throw new AttachmentError("too_large");
   const base = (picked.name || (isPdf ? "receipt.pdf" : "photo.jpg")).slice(0, 200);
-  const name = isPdf ? base : base.replace(/\.[^.]+$/, "") + ".jpg";
+  const name = isPdf ? base : `${base.replace(/\.[^.]+$/, "")}.jpg`;
   return {
     bytes,
     mime: isPdf ? "application/pdf" : "image/jpeg",

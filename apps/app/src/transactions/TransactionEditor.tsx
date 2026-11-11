@@ -533,9 +533,13 @@ function EditorForm({
           tagIds,
           ...shared,
         };
-        const savedId = existing
-          ? (await updateTx.mutateAsync({ id: existing.id, patch: fields }), existing.id)
-          : (await createTx.mutateAsync(fields)).id;
+        let savedId: string;
+        if (existing) {
+          await updateTx.mutateAsync({ id: existing.id, patch: fields });
+          savedId = existing.id;
+        } else {
+          savedId = (await createTx.mutateAsync(fields)).id;
+        }
         await saveAttachments(savedId);
       }
       remember(accountId);
