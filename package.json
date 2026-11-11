@@ -17,5 +17,6 @@
     "@biomejs/biome": "2.6.6",
     "turbo": "2.11.10",
     "typescript": "7.0.2"
-  }
+  },
+  "version": "1.0.0"
 }
