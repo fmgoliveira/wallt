@@ -11,73 +11,75 @@ import {
   Upload,
   Wallet,
 } from "lucide-react-native";
+import type { Catalogue } from "../i18n/locales/en";
 
 export interface NavItem {
   key: string;
-  label: string;
+  /** Key in the `nav` catalogue (translated at render time). */
+  label: keyof Catalogue["nav"];
   /** Shorter label for the phone tab bar, where width is tight. */
-  shortLabel?: string;
+  shortLabel?: keyof Catalogue["nav"];
   href: string;
   icon: LucideIcon;
 }
 
 export const dashboard: NavItem = {
   key: "dashboard",
-  label: "Dashboard",
+  label: "dashboard",
   href: "/",
   icon: LayoutDashboard,
 };
 export const transactions: NavItem = {
   key: "transactions",
-  label: "Transactions",
-  shortLabel: "Activity",
+  label: "transactions",
+  shortLabel: "transactionsShort",
   href: "/transactions",
   icon: ArrowLeftRight,
 };
 export const accounts: NavItem = {
   key: "accounts",
-  label: "Accounts",
+  label: "accounts",
   href: "/accounts",
   icon: Wallet,
 };
 export const budgets: NavItem = {
   key: "budgets",
-  label: "Budgets",
+  label: "budgets",
   href: "/budgets",
   icon: PiggyBank,
 };
 export const recurring: NavItem = {
   key: "recurring",
-  label: "Recurring",
+  label: "recurring",
   href: "/recurring",
   icon: Repeat,
 };
 export const goals: NavItem = {
   key: "goals",
-  label: "Goals & debts",
-  shortLabel: "Goals",
+  label: "goals",
+  shortLabel: "goalsShort",
   href: "/goals",
   icon: Target,
 };
 export const reports: NavItem = {
   key: "reports",
-  label: "Reports",
+  label: "reports",
   href: "/reports",
   icon: ChartColumn,
 };
 export const importItem: NavItem = {
   key: "import",
-  label: "Import",
+  label: "import",
   href: "/import",
   icon: Upload,
 };
 export const settings: NavItem = {
   key: "settings",
-  label: "Settings",
+  label: "settings",
   href: "/settings",
   icon: Settings,
 };
-export const more: NavItem = { key: "more", label: "More", href: "/more", icon: Ellipsis };
+export const more: NavItem = { key: "more", label: "more", href: "/more", icon: Ellipsis };
 
 /**
  * Phone tab bar (plan §9.2, guidelines §7): two tabs, the add button in the middle, two tabs.

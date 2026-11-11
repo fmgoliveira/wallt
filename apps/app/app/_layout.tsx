@@ -8,6 +8,7 @@ import { DefaultTheme, ThemeProvider as NavigationThemeProvider, Stack } from "e
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import { DataProvider } from "../src/data/RepositoryProvider";
+import { useLanguageStore } from "../src/i18n";
 import { SecurityGate } from "../src/security/SecurityGate";
 
 // Navigation paints its own opaque background; make it transparent so our themed backdrop shows.
@@ -42,7 +43,10 @@ export default function RootLayout() {
   // browser would paint that first and then jump to the sidebar layout (and replay the entrance animation).
   // The app sits behind a login, so render it only on the client, once fonts are ready.
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    setMounted(true);
+    void useLanguageStore.getState().hydrate();
+  }, []);
 
   if (!mounted || (!loaded && !error)) return null;
 

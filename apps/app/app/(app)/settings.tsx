@@ -1,6 +1,8 @@
 import { Card, IconTile, ListItem, useTheme } from "@wallt/ui";
 import { useRouter } from "expo-router";
 import { ChevronRight, FileSpreadsheet, ListFilter, Tags, UserRound } from "lucide-react-native";
+import { useTranslation } from "../../src/i18n";
+import { LanguageSetting } from "../../src/i18n/LanguageSetting";
 import { NotificationSetting } from "../../src/notifications/NotificationSettings";
 import { CategorizationSettings } from "../../src/review/CategorizationSettings";
 import { LockSetting, PrivacySetting } from "../../src/security/SecuritySettings";
@@ -10,11 +12,10 @@ import { SyncSetting } from "../../src/sync/SyncSettings";
 export default function SettingsScreen() {
   const router = useRouter();
   const { colors } = useTheme();
+  const { t } = useTranslation();
   return (
-    <Page
-      title="Settings"
-      subtitle="Security, categories, rules; theme, currency and backups later"
-    >
+    <Page title={t("settings.title")} subtitle={t("settings.subtitle")}>
+      <LanguageSetting />
       <SyncSetting />
       <NotificationSetting />
       <PrivacySetting />
@@ -22,8 +23,8 @@ export default function SettingsScreen() {
       <CategorizationSettings />
       <Card className="p-0 tablet:p-0">
         <ListItem
-          title="Categories"
-          subtitle="Names, icons, colours and order"
+          title={t("settings.categories")}
+          subtitle={t("settings.categoriesHint")}
           leading={
             <IconTile>
               <Tags size={18} color={colors.muted} strokeWidth={1.6} />
@@ -33,8 +34,8 @@ export default function SettingsScreen() {
           onPress={() => router.push("/categories")}
         />
         <ListItem
-          title="Rules"
-          subtitle="Categorise transactions automatically"
+          title={t("settings.rules")}
+          subtitle={t("settings.rulesHint")}
           divider
           leading={
             <IconTile>
@@ -45,8 +46,8 @@ export default function SettingsScreen() {
           onPress={() => router.push("/rules")}
         />
         <ListItem
-          title="Payee names"
-          subtitle="Clean up how shops and people are named"
+          title={t("settings.payeeNames")}
+          subtitle={t("settings.payeeNamesHint")}
           divider
           leading={
             <IconTile>
@@ -57,8 +58,8 @@ export default function SettingsScreen() {
           onPress={() => router.push("/payee-names")}
         />
         <ListItem
-          title="Import formats"
-          subtitle="How each bank's export is read"
+          title={t("settings.importFormats")}
+          subtitle={t("settings.importFormatsHint")}
           divider
           leading={
             <IconTile>
