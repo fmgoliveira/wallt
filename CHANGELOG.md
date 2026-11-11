@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/fmgoliveira/wallt/compare/v1.0.0...v1.1.0) (2026-11-11)
+
+
+### Features
+
+* optional receipt attachments on transactions (P2.6b) ([#87](https://github.com/fmgoliveira/wallt/issues/87)) ([8821ee4](https://github.com/fmgoliveira/wallt/commit/8821ee40052de70cd7f02b40f7f9c470f9433024))
+
 ## 1.0.0 (2026-11-11)
 
 
