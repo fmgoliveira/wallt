@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/fmgoliveira/wallt/compare/v1.1.1...v1.2.0) (2026-11-11)
+
+
+### Features
+
+* **android:** new settings UI layout ([#101](https://github.com/fmgoliveira/wallt/issues/101)) ([1bc2241](https://github.com/fmgoliveira/wallt/commit/1bc2241a8da231479c88f712dabf6187a546ea3c))
+
 ## [1.1.1](https://github.com/fmgoliveira/wallt/compare/v1.1.0...v1.1.1) (2026-11-11)
 
 
