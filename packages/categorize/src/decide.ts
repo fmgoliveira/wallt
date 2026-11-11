@@ -4,7 +4,7 @@ import { evaluateRules, type RuleLike } from "./rules";
 
 /*
  * The categorization order of PLAN §6, first confident hit wins: user rules, exact payee memory, the local model.
- * This is the one place that decides; callers (import, bank sync, the review queue) only apply the result.
+ * This is the one place that decides; callers (import, the review queue) only apply the result.
  */
 
 export type CategoryKind = "expense" | "income";
