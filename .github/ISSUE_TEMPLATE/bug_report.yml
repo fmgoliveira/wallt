@@ -1,0 +1,39 @@
+name: Bug report
+description: Something is broken
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please **do not** include real financial data or secrets. For security problems use the private
+        reporting form on the Security tab instead.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Client
+      options: [Android app, Web app, Server only]
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: From Settings in the app, or `/health` on your server.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / screenshots
+      description: Redact anything personal.

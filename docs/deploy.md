@@ -2,7 +2,7 @@
 
 One container (API + static web export + scheduler) with one `/data` volume, behind the nginx that
 already runs on the host. nginx terminates TLS and rate-limits `/auth/*`; the app sends the security
-headers (CSP, HSTS, frame-ancestors, ...). Public URL: `https://wallt.franciscoliveira.com`.
+headers (CSP, HSTS, frame-ancestors, ...). Public URL: `https://wallt.example.com`.
 
 ```
 Internet ──443──▶ host nginx ──▶ 127.0.0.1:3000 ──▶ wallt container (/data volume)
@@ -12,7 +12,7 @@ Internet ──443──▶ host nginx ──▶ 127.0.0.1:3000 ──▶ wallt 
 
 ```bash
 cp .env.example .env        # then edit: ENCRYPTION_KEY (required), SETUP_TOKEN (first start), APP_URL
-docker compose up -d --build
+docker compose up -d      # pulls ghcr.io/fmgoliveira/wallt
 curl -fsS http://127.0.0.1:3000/health
 ```
 
@@ -21,15 +21,16 @@ curl -fsS http://127.0.0.1:3000/health
 - The port is published on `127.0.0.1` only; nothing is reachable from the internet except through nginx.
 - Hardening in compose: non-root user, read-only root filesystem, all capabilities dropped,
   `no-new-privileges`, `init: true`, healthcheck on `/health`.
-- Back up the `wallt-data` volume (encrypted Drive backups arrive with #13). Upgrades: `git pull && docker compose up -d --build`;
+- Back up the `wallt-data` volume (encrypted Drive backups arrive with #13). Upgrades: `docker compose pull && docker compose up -d` (pin a version with `WALLT_VERSION`; to build from source use `-f docker-compose.yml -f docker-compose.build.yml up -d --build`);
   migrations run on boot and write a snapshot to `/data/backups` first.
 
 | Variable | Default | Notes |
 |---|---|---|
+| `WALLT_VERSION` | `latest` | image tag from GHCR (`X.Y.Z`) |
 | `PORT` | `3000` | host port on 127.0.0.1 |
-| `TZ` | `Europe/Lisbon` | job schedules |
+| `TZ` | `UTC` | job schedules |
 | `LOG_LEVEL` | `info` | pino JSON logs (`docker compose logs -f`) |
-| `APP_URL` | `https://wallt.franciscoliveira.com` | public URL |
+| `APP_URL` | `https://wallt.example.com` | public URL |
 | `ENCRYPTION_KEY` | **required** | base64, >= 32 bytes (`openssl rand -base64 32`). Encrypts TOTP secrets and derives the token-signing key. Keep a separate offline copy: without it nobody can log in |
 | `SETUP_TOKEN` | empty | >= 16 chars. Needed once to create the first account (see "First account"); remove afterwards |
 | `TRUSTED_PROXIES` | `127.0.0.1,::1,172.16.0.0/12` | IPs/CIDRs whose `X-Real-IP` is trusted (see below) |
@@ -39,7 +40,7 @@ curl -fsS http://127.0.0.1:3000/health
 The server is public, so account creation is guarded. With `SETUP_TOKEN` set, call (once, ideally from the app's setup screen):
 
 ```bash
-curl -sS https://wallt.franciscoliveira.com/auth/setup -H 'content-type: application/json' \
+curl -sS https://wallt.example.com/auth/setup -H 'content-type: application/json' \
   -d '{"setupToken":"<SETUP_TOKEN>","email":"you@example.com","password":"<12+ chars>"}'
 ```
 
@@ -121,17 +122,17 @@ limit_req_zone $binary_remote_addr zone=wallt_auth:10m rate=5r/m;
 
 server {
     listen 80;
-    server_name wallt.franciscoliveira.com;
+    server_name wallt.example.com;
     return 301 https://$host$request_uri;
 }
 
 server {
     listen 443 ssl;
     http2 on;
-    server_name wallt.franciscoliveira.com;
+    server_name wallt.example.com;
 
-    ssl_certificate     /etc/letsencrypt/live/wallt.franciscoliveira.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/wallt.franciscoliveira.com/privkey.pem;
+    ssl_certificate     /etc/letsencrypt/live/wallt.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/wallt.example.com/privkey.pem;
 
     client_max_body_size 25m;          # file imports / attachments
 
@@ -161,7 +162,7 @@ Do not add HSTS/CSP in nginx; the app sends them (duplicate headers would confli
 Certificates are out of scope for the repo: provide them however you already do. Example with certbot:
 
 ```bash
-sudo certbot certonly --nginx -d wallt.franciscoliveira.com
+sudo certbot certonly --nginx -d wallt.example.com
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
@@ -170,7 +171,7 @@ HSTS is sent by the app (`max-age=31536000; includeSubDomains`), so only enable 
 ## 4. Checks after deploy
 
 ```bash
-curl -fsS https://wallt.franciscoliveira.com/health          # {"status":"ok","schemaVersion":N}
-curl -sI  https://wallt.franciscoliveira.com/ | grep -i -E 'content-security|strict-transport|x-frame'
+curl -fsS https://wallt.example.com/health          # {"status":"ok","schemaVersion":N}
+curl -sI  https://wallt.example.com/ | grep -i -E 'content-security|strict-transport|x-frame'
 docker compose logs wallt | tail                              # request logs show the real client IP
 ```

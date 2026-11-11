@@ -1,6 +1,14 @@
 {
   "name": "wallt",
   "private": true,
+  "description": "Self-hosted personal finance & budget tracker",
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fmgoliveira/wallt.git"
+  },
+  "homepage": "https://github.com/fmgoliveira/wallt#readme",
+  "bugs": "https://github.com/fmgoliveira/wallt/issues",
   "packageManager": "pnpm@12.18.0",
   "engines": {
     "node": ">=26"

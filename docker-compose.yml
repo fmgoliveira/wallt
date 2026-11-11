@@ -2,10 +2,9 @@
 # runs on the host (see docs/deploy.md); the app is only published on 127.0.0.1.
 services:
   wallt:
-    build:
-      context: .
-      dockerfile: apps/server/Dockerfile
-    image: wallt:local
+    # Prebuilt image from GHCR. Pin a release with WALLT_VERSION=X.Y.Z in .env (default: latest).
+    # To build from source instead: docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+    image: ghcr.io/fmgoliveira/wallt:${WALLT_VERSION:-latest}
     init: true
     restart: unless-stopped
     ports:
@@ -13,9 +12,9 @@ services:
     volumes:
       - wallt-data:/data
     environment:
-      TZ: ${TZ:-Europe/Lisbon}
+      TZ: ${TZ:-UTC}
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      APP_URL: ${APP_URL:-https://wallt.franciscoliveira.com}
+      APP_URL: ${APP_URL:-}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:?set ENCRYPTION_KEY in .env (openssl rand -base64 32)}
       # One-time guard for creating the first user; remove it after setup.
       SETUP_TOKEN: ${SETUP_TOKEN:-}
