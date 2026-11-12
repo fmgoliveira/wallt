@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/fmgoliveira/wallt/compare/v1.2.0...v1.2.1) (2026-11-12)
+
+
+### Bug Fixes
+
+* **app:** deleted default categories come back after restart ([#103](https://github.com/fmgoliveira/wallt/issues/103)) ([0b3df4b](https://github.com/fmgoliveira/wallt/commit/0b3df4bbedbfd32aaa525f73b756f3fef6220592))
+
 ## [1.2.0](https://github.com/fmgoliveira/wallt/compare/v1.1.1...v1.2.0) (2026-11-11)
 
 
