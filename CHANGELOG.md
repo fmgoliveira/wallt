@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/fmgoliveira/wallt/compare/v1.2.1...v1.3.0) (2026-11-15)
+
+
+### Features
+
+* **app:** balance over time chart on the account page ([#105](https://github.com/fmgoliveira/wallt/issues/105)) ([71fdfad](https://github.com/fmgoliveira/wallt/commit/71fdfad8168a5163557fc721cffd5251e9e26b49))
+
 ## [1.2.1](https://github.com/fmgoliveira/wallt/compare/v1.2.0...v1.2.1) (2026-11-12)
 
 
