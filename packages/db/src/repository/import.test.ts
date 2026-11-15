@@ -59,6 +59,17 @@ describe("linkTransfer", () => {
     expect((await repo.accounts.getWithBalance(a.id))?.balance).toBe(-5000);
   });
 
+  it("clears the review flag, so a linked pair is not left waiting in the queue", async () => {
+    const { repo, a, b } = await setup();
+    const out = await repo.transactions.create(tx(a.id, -5000, { needsReview: true }));
+    const inn = await repo.transactions.create(tx(b.id, 5000, { needsReview: true }));
+    expect(await repo.transactions.count({ needsReview: true })).toBe(2);
+    const [from, to] = await repo.transactions.linkTransfer(inn.id, out.id);
+    expect(from.categorization.needsReview).toBe(false);
+    expect(to.categorization.needsReview).toBe(false);
+    expect(await repo.transactions.count({ needsReview: true })).toBe(0);
+  });
+
   it("refuses mismatches", async () => {
     const { repo, a, b } = await setup();
     const out = await repo.transactions.create(tx(a.id, -5000));
