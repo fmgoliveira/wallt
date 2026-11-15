@@ -18,6 +18,7 @@ import { Archive, ArchiveRestore, ArrowLeft, Pencil, Receipt, Trash2 } from "luc
 import { useState } from "react";
 import { View } from "react-native";
 import { AccountForm } from "../../../src/accounts/AccountForm";
+import { BalanceChart } from "../../../src/accounts/BalanceChart";
 import { accountTypeIcon, accountTypeLabel } from "../../../src/accounts/meta";
 import { ActionRow } from "../../../src/components/ActionRow";
 import { displayColor } from "../../../src/components/colors";
@@ -134,13 +135,7 @@ function AccountDetail({ id }: { id: string }) {
         </View>
       </HeroCard>
 
-      <Card className="gap-3">
-        <Text variant="title">{t("accounts.detail.chartTitle")}</Text>
-        <Skeleton className="h-32 w-full" />
-        <Text variant="small" tone="muted">
-          {t("accounts.detail.chartNote")}
-        </Text>
-      </Card>
+      <BalanceChart accountId={id} openingBalance={account.openingBalance} />
 
       <View className="gap-2">
         <Text variant="label" tone="muted">
