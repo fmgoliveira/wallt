@@ -32,7 +32,7 @@ import {
   transactionTagSchema,
   transferLegs,
 } from "@wallt/core";
-import { and, asc, desc, eq, gte, inArray, isNull, lte, or, type SQL, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, lte, ne, or, type SQL, sql } from "drizzle-orm";
 import { createDataStore, type DataStore } from "../data-port";
 import * as t from "../schema";
 import { createSyncStore, type SyncStore } from "../sync/store";
@@ -468,8 +468,12 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
     if (filter.kind) c.push(eq(t.transactions.kind, filter.kind));
     if (filter.status) c.push(eq(t.transactions.status, filter.status));
     if (filter.debtId) c.push(eq(t.transactions.debtId, filter.debtId));
-    if (filter.needsReview !== undefined)
+    if (filter.needsReview !== undefined) {
       c.push(eq(t.transactions.needsReview, filter.needsReview));
+      // Transfers have no category to review (and cannot be edited as a plain transaction), so a flag left on
+      // one must not be counted: the review queue never shows it.
+      if (filter.needsReview) c.push(ne(t.transactions.kind, "transfer"));
+    }
     if (filter.from) c.push(gte(t.transactions.bookingDate, filter.from));
     if (filter.to) c.push(lte(t.transactions.bookingDate, filter.to));
     if (filter.minAmount !== undefined) c.push(gte(t.transactions.amount, filter.minAmount));
@@ -2030,7 +2034,14 @@ export function createLocalRepository(exec: RawSqlExecutor, stamper: Stamper): S
             await tombstoneTagLinks(eq(t.transactionTags.transactionId, x.id));
             const row = validate(
               transactionSchema,
-              { ...x, kind: "transfer", transferPeerId: peer.id, categoryId: null, ...stamp() },
+              {
+                ...x,
+                kind: "transfer",
+                transferPeerId: peer.id,
+                categoryId: null,
+                categorization: { method: "none", confidence: 0, needsReview: false },
+                ...stamp(),
+              },
               "transaction",
             );
             await db.update(t.transactions).set(txToRow(row)).where(eq(t.transactions.id, x.id));
