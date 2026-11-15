@@ -78,8 +78,15 @@ export async function repositoryFromDatabase(db: SQLiteDatabase): Promise<Reposi
     nodeId,
     ...(initialHlc ? { initialHlc } : {}),
   });
+  // After sign-in the rows belong to the server user, not `local`. Seeding as `local` would insert a fresh copy
+  // of every default (including ones the user deleted); dedupe then keeps that live copy, resurrecting them.
+  const owner = (
+    await exec.all<{ user_id: string }>(
+      "SELECT user_id FROM categories WHERE system_key IS NOT NULL LIMIT 1",
+    )
+  )[0]?.user_id;
   await seedDefaultCategories(exec, {
-    userId: stamper.userId,
+    userId: owner ?? stamper.userId,
     newId: stamper.newId,
     now: stamper.now(),
     hlc: stamper.hlc(),

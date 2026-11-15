@@ -1,5 +1,5 @@
 import type { NotificationType } from "@wallt/core";
-import { Card, Tabs, Text, toast } from "@wallt/ui";
+import { Card, Switch, Text, toast } from "@wallt/ui";
 import { useEffect } from "react";
 import { View } from "react-native";
 import { useTranslation } from "../i18n";
@@ -28,10 +28,6 @@ const rows = [
 export function NotificationSetting() {
   const { prefs, setPref, load } = useNotificationStore();
   const { t } = useTranslation();
-  const onOff = [
-    { value: "off", label: t("notifications.off") },
-    { value: "on", label: t("notifications.on") },
-  ] as const;
   useEffect(() => {
     void load();
   }, [load]);
@@ -55,19 +51,17 @@ export function NotificationSetting() {
             : t("notifications.settings.hintWeb")}
         </Text>
       </View>
-      {rows.map((r) => (
-        <View key={r.type} className="gap-1.5">
-          <Text weight="medium">{t(r.title)}</Text>
-          <Text variant="small" tone="muted">
-            {t(r.hint)}
-          </Text>
-          <Tabs
-            items={onOff}
-            value={prefs[r.type] ? "on" : "off"}
-            onChange={(v) => void change(r.type, v === "on")}
+      <View className="gap-1">
+        {rows.map((r) => (
+          <Switch
+            key={r.type}
+            label={t(r.title)}
+            description={t(r.hint)}
+            value={!!prefs[r.type]}
+            onValueChange={(on) => void change(r.type, on)}
           />
-        </View>
-      ))}
+        ))}
+      </View>
     </Card>
   );
 }

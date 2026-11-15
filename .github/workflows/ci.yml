@@ -75,7 +75,7 @@ jobs:
         id: has
         run: |
           if [ -f apps/server/Dockerfile ]; then echo "found=true" >> "$GITHUB_OUTPUT"; else echo "::notice::apps/server/Dockerfile not present yet (added in #12); skipping"; fi
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
         if: steps.has.outputs.found == 'true'
       - uses: docker/build-push-action@v6
         if: steps.has.outputs.found == 'true'

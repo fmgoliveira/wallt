@@ -36,7 +36,11 @@ export const en = {
   },
   settings: {
     title: "Settings",
-    subtitle: "Language, security, categories, rules; theme, currency and backups later",
+    subtitle: "Language, security, notifications, categories, rules and your data",
+    sectionPreferences: "Preferences",
+    sectionSecurity: "Security & privacy",
+    sectionData: "Your data",
+    sectionOrganise: "Organise",
     categories: "Categories",
     categoriesHint: "Names, icons, colours and order",
     rules: "Rules",
