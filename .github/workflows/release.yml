@@ -95,7 +95,7 @@ jobs:
             if [ -z "${!v}" ]; then echo "::error::Missing Actions secret for $v (see docs/release.md)"; exit 1; fi
           done
           echo "$KEYSTORE_B64" | base64 -d > "$ANDROID_KEYSTORE_PATH"
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
