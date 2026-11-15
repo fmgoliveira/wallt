@@ -1,5 +1,6 @@
 import { type FeedItem, unreadCount } from "@wallt/core";
 import { Button, EmptyState, getUiLocale, ListItem, Sheet, Text, useTheme } from "@wallt/ui";
+import { useRouter } from "expo-router";
 import { Bell } from "lucide-react-native";
 import { useState } from "react";
 import { Pressable, View } from "react-native";
@@ -7,6 +8,9 @@ import { useTranslation } from "../i18n";
 import { notificationTitleT } from "../i18n/packages";
 import { placeholderIcon } from "../shell/placeholder";
 import { useNotificationStore } from "./store";
+
+/** Where each kind of notification leads when tapped. */
+const ROUTES = { review: "/review", budget: "/budgets", bill: "/recurring" } as const;
 
 const when = (iso: string) =>
   new Date(iso).toLocaleString(getUiLocale(), {
@@ -22,6 +26,7 @@ export function NotificationBell() {
   const { t } = useTranslation();
   const feed = useNotificationStore((s) => s.feed);
   const markAllRead = useNotificationStore((s) => s.markAllRead);
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const unread = unreadCount(feed);
 
@@ -75,6 +80,10 @@ export function NotificationBell() {
                   key={n.key}
                   divider={i > 0}
                   title={notificationTitleT(t, n)}
+                  onPress={() => {
+                    close();
+                    router.push(ROUTES[n.type]);
+                  }}
                   subtitle={t(
                     n.read ? "notifications.bell.subtitle" : "notifications.bell.subtitleNew",
                     {
